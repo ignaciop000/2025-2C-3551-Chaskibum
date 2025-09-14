@@ -1,4 +1,14 @@
-﻿using System;
+﻿// LISTA DE TAREAS
+
+// Usar los otros modelos de rocas (alternar entre los 11)
+// Usar el otro modelo de arbol (alternar entre los 2)
+// Agregar los 2 modelos de casas (alternar entre los 2, pero muy separadas)
+// Buscar modelo de camino de tierra y poner muchos
+// Buscar modelo de hangar y poner 2 (uno cerca y otro lejos)
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -21,13 +31,28 @@ public class TGCGame : Game
     
     private readonly GraphicsDeviceManager _graphics;
 
+    private Random rnd = new Random();
+    
     private Effect _effect;
-    private Model _model;
-    private Matrix _projection;
-    private float _rotation;
-    private SpriteBatch _spriteBatch;
-    private Matrix _view;
-    private Matrix _world;
+    
+    private Model _tankModel;
+    private Matrix _tankWorld;
+    
+    private Model _panzerModel;
+    private Matrix _panzerWorld;
+    
+    private Model _t90Model;
+    private Matrix _t90World;
+
+    private Model _rockModel;
+    private List<Matrix> rockWorlds = new List<Matrix>();
+    
+    private Model _treeModel;
+    private List<Matrix> treeWorlds = new List<Matrix>();
+    
+    private FreeCamera Camera { get; set; }
+    
+    private Ground Ground { get; set; }
 
     /// <summary>
     ///     Constructor del juego.
@@ -54,22 +79,38 @@ public class TGCGame : Game
     protected override void Initialize()
     {
         // La logica de inicializacion que no depende del contenido se recomienda poner en este metodo.
-
-        // Apago el backface culling.
-        // Esto se hace por un problema en el diseno del modelo del logo de la materia.
-        // Una vez que empiecen su juego, esto no es mas necesario y lo pueden sacar.
-        var rasterizerState = new RasterizerState();
-        rasterizerState.CullMode = CullMode.None;
-        GraphicsDevice.RasterizerState = rasterizerState;
-        // Seria hasta aca.
+        
+        // Inicializacion de camara
+        var size = GraphicsDevice.Viewport.Bounds.Size;
+        size.X /= 2;
+        size.Y /= 2;
+        Camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, new Vector3(0, 100, 150), size);
 
         // Configuramos nuestras matrices de la escena.
-        _world = Matrix.Identity;
-        _view = Matrix.CreateLookAt(Vector3.UnitZ * 150, Vector3.Zero, Vector3.Up);
-        _projection =
-            Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4, GraphicsDevice.Viewport.AspectRatio, 1, 250);
-
+        _tankWorld = Matrix.CreateScale(20f, 20f, 20f) * Matrix.CreateTranslation(0, 0, 0);
+        _panzerWorld = Matrix.CreateScale(0.25f, 0.25f, 0.25f) * Matrix.CreateTranslation(200, 0, 0);
+        _t90World = Matrix.CreateScale(0.25f, 0.25f, 0.25f) * Matrix.CreateTranslation(-200, 37, 0);
+        crearObjetos(1000, treeWorlds, 25f, 0f);
+        crearObjetos(500, rockWorlds, 0.1f, 5f);
+        
         base.Initialize();
+    }
+
+    private void crearObjetos(int cantidad, List<Matrix> lista, float escala, float altura)
+    {
+        for (int i = 0; i < cantidad; i++)
+        {
+            float x = rnd.Next(-5000, 5000);
+            float z = rnd.Next(-5000, 5000);
+            
+            float yaw = MathHelper.ToRadians(rnd.Next(0, 360));
+
+            Matrix world = Matrix.CreateScale(escala, escala, escala) *
+                           Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
+                           Matrix.CreateTranslation(x, altura, z);
+
+            lista.Add(world);
+        } 
     }
 
     /// <summary>
@@ -80,25 +121,19 @@ public class TGCGame : Game
     protected override void LoadContent()
     {
         // Aca es donde deberiamos cargar todos los contenido necesarios antes de iniciar el juego.
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
-
-        // Cargo el modelo del logo.
-        _model = Content.Load<Model>(ContentFolder3D + "tgc-logo/tgc-logo");
 
         // Cargo un efecto basico propio declarado en el Content pipeline.
         // En el juego no pueden usar BasicEffect de MG, deben usar siempre efectos propios.
         _effect = Content.Load<Effect>(ContentFolderEffects + "BasicShader");
 
-        // Asigno el efecto que cargue a cada parte del mesh.
-        // Un modelo puede tener mas de 1 mesh internamente.
-        foreach (var mesh in _model.Meshes)
-        {
-            // Un mesh puede tener mas de 1 mesh part (cada 1 puede tener su propio efecto).
-            foreach (var meshPart in mesh.MeshParts)
-            {
-                meshPart.Effect = _effect;
-            }
-        }
+        _tankModel = CargarModeloConEfecto("tank/tank", _effect);
+        _panzerModel = CargarModeloConEfecto("panzer/Panzer", _effect);
+        _t90Model = CargarModeloConEfecto("t90/T90", _effect);
+        _treeModel = CargarModeloConEfecto("tree/Tree", _effect);
+        _rockModel = CargarModeloConEfecto("rocks/Rock8", _effect);
+        
+        Ground = new Ground(GraphicsDevice);
+        Ground.Effect = _effect;
 
         base.LoadContent();
     }
@@ -112,17 +147,14 @@ public class TGCGame : Game
     {
         // Aca deberiamos poner toda la logica de actualizacion del juego.
 
+        Camera.Update(gameTime);
+        
         // Capturar Input teclado
         if (Keyboard.GetState().IsKeyDown(Keys.Escape))
         {
             //Salgo del juego.
             Exit();
         }
-
-        // Basado en el tiempo que paso se va generando una rotacion.
-        _rotation += Convert.ToSingle(gameTime.ElapsedGameTime.TotalSeconds);
-
-        _world = Matrix.CreateRotationY(_rotation);
 
         base.Update(gameTime);
     }
@@ -135,17 +167,37 @@ public class TGCGame : Game
     {
         // Aca deberiamos poner toda la logia de renderizado del juego.
         GraphicsDevice.Clear(Color.Black);
-
+        
         // Para dibujar le modelo necesitamos pasarle informacion que el efecto esta esperando.
-        _effect.Parameters["View"].SetValue(_view);
-        _effect.Parameters["Projection"].SetValue(_projection);
-        _effect.Parameters["DiffuseColor"].SetValue(Color.DarkBlue.ToVector3());
-
-        foreach (var mesh in _model.Meshes)
+        _effect.Parameters["View"].SetValue(Camera.View);
+        _effect.Parameters["Projection"].SetValue(Camera.Projection);
+        
+        _effect.Parameters["DiffuseColor"].SetValue(Color.ForestGreen.ToVector3());
+        Ground.Draw(GraphicsDevice, Camera.View, Camera.Projection);
+        
+        _effect.Parameters["DiffuseColor"].SetValue(new Color(15, 15, 15).ToVector3());
+        DrawModeloConEstructura(_tankModel, _tankWorld);
+        
+        _effect.Parameters["DiffuseColor"].SetValue(new Color(0, 39, 77).ToVector3());
+        DrawModeloConEstructura(_panzerModel, _panzerWorld);
+        
+        _effect.Parameters["DiffuseColor"].SetValue(new Color(95, 96, 98).ToVector3());
+        DrawModeloConEstructura(_t90Model, _t90World);
+        
+        _effect.Parameters["DiffuseColor"].SetValue(Color.SaddleBrown.ToVector3());
+        foreach (var world in treeWorlds)
         {
-            _effect.Parameters["World"].SetValue(mesh.ParentBone.Transform * _world);
-            mesh.Draw();
+            Model[] opciones = { _treeModel, _treeModel};
+            int index = rnd.Next(opciones.Length);
+            DrawModeloConEstructura(opciones[index], world);
         }
+        
+        _effect.Parameters["DiffuseColor"].SetValue(Color.Gray.ToVector3());
+        foreach (var world in rockWorlds)
+        {
+            DrawModeloConEstructura(_rockModel, world);
+        }
+        
     }
 
     /// <summary>
@@ -157,5 +209,33 @@ public class TGCGame : Game
         Content.Unload();
 
         base.UnloadContent();
+    }
+    
+    // Funciones auxiliares
+    private Model CargarModeloConEfecto(String rutaRelativa, Effect efecto)
+    {
+        var modelo = Content.Load<Model>(ContentFolder3D + rutaRelativa);
+        
+        foreach (var mesh in modelo.Meshes)
+        {
+            foreach (var meshPart in mesh.MeshParts)
+            {
+                meshPart.Effect = efecto;
+            }
+        }
+
+        return modelo;
+    }
+
+    private void DrawModeloConEstructura(Model modelo, Matrix world)
+    {
+        var modelMeshesBaseTransforms = new Matrix[modelo.Bones.Count];
+        modelo.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
+        foreach (var mesh in modelo.Meshes)
+        {
+            var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
+            _effect.Parameters["World"].SetValue(relativeTransform * world);
+            mesh.Draw();
+        }
     }
 }
