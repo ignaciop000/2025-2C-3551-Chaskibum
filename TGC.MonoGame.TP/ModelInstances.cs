@@ -22,6 +22,15 @@ public class ModelInstances()
         _worlds.Add(world);
     }
     
+    public void CrearObjeto(float escala, float yaw, Vector3 position)
+    { 
+        Matrix world = Matrix.CreateScale(escala, escala, escala) * 
+                       Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) * 
+                       Matrix.CreateTranslation(position.X, position.Y, position.Z);
+
+        _worlds.Add(world);
+    }
+    
     public void CrearObjetos(float altura, float escalaMin, float escalaMax)
     {
         foreach (var posicion in Positions)

@@ -41,9 +41,10 @@ public class TGCGame : Game
     private ModelInstances _tank = new ModelInstances();
     private ModelInstances _panzer = new ModelInstances();
     private ModelInstances _t90 = new ModelInstances();
-    private ModelInstances _trees = new ModelInstances();
     
+    private Houses _houses = new Houses();
     private Rocks _rocks = new Rocks();
+    private Trees _trees = new Trees();
 
     /// <summary>
     ///     Constructor del juego.
@@ -78,10 +79,7 @@ public class TGCGame : Game
         _camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, new Vector3(0, 100, 150), size);
 
         // Generacion de posiciones de modelos
-        var modelos = new[]
-            {
-                (_trees, 0.65) // Árboles
-            }
+        var modelos = _trees.GetModelosConPorcentaje(0.65) // Arboles
             .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
             .ToList();
 
@@ -92,8 +90,8 @@ public class TGCGame : Game
         _tank.CrearObjetoUnico(Matrix.CreateScale(20f, 20f, 20f) * Matrix.CreateTranslation(0, 0, 0));
         _panzer.CrearObjetoUnico(Matrix.CreateScale(0.25f, 0.25f, 0.25f) * Matrix.CreateTranslation(200, 0, 0));
         _t90.CrearObjetoUnico(Matrix.CreateScale(0.25f, 0.25f, 0.25f) * Matrix.CreateTranslation(-200, 37, 0));
-        
-        _trees.CrearObjetos(0f, 25f, 50f);
+        _houses.CrearObjetos();
+        _trees.CrearObjetos();
         _rocks.CrearObjetos();
         
         base.Initialize();
@@ -120,8 +118,8 @@ public class TGCGame : Game
         _tank.CargarModelo("tank/tank", _effect, Content);
         _panzer.CargarModelo("panzer/Panzer", _effect, Content);
         _t90.CargarModelo("t90/T90", _effect, Content);
-        _trees.CargarModelo("tree/Tree", _effect, Content);
-        
+        _trees.CargarModelos(_effect, Content);
+        _houses.CargarModelos(_effect, Content);
         _rocks.CargarModelos(_effect, Content);
 
         base.LoadContent();
@@ -175,6 +173,9 @@ public class TGCGame : Game
         
         _effect.Parameters["DiffuseColor"].SetValue(Color.SaddleBrown.ToVector3());
         _trees.Dibujar();
+        
+        _effect.Parameters["DiffuseColor"].SetValue(Color.Red.ToVector3());
+        _houses.Dibujar();
         
         _effect.Parameters["DiffuseColor"].SetValue(Color.Gray.ToVector3());
         _rocks.Dibujar();
