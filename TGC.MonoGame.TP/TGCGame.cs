@@ -3,9 +3,12 @@
 // Agregar los 2 modelos de casas (alternar entre los 2, pero muy separadas)
 // Buscar modelo de camino de tierra y poner muchos
 // Buscar modelo de hangar y poner 2 (uno cerca y otro lejos)
+// Buscar otros modelos de arboles y ponerlos
+// Buscar modelos de arbustos y ponerlos
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -72,13 +75,24 @@ public class TGCGame : Game
         size.Y /= 2;
         Camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, new Vector3(0, 100, 150), size);
 
+        // Generacion de posiciones de modelos
+        var positionGenerator = new PositionGenerator();
+        var modelosRocas = _rocks._rocks
+            .Select(m => (modelo: m, valor: 0.045f))
+            .ToList();
+
+        List<(ModelInstances modelo, float porcentaje)> modelos = [(_trees, 0.505f)];
+        modelos.AddRange(modelosRocas);
+        
+        positionGenerator.AgregarPosiciones(modelos);
+        
         // Configuramos nuestras matrices de la escena.
         _tank.CrearObjetoUnico(Matrix.CreateScale(20f, 20f, 20f) * Matrix.CreateTranslation(0, 0, 0));
         _panzer.CrearObjetoUnico(Matrix.CreateScale(0.25f, 0.25f, 0.25f) * Matrix.CreateTranslation(200, 0, 0));
         _t90.CrearObjetoUnico(Matrix.CreateScale(0.25f, 0.25f, 0.25f) * Matrix.CreateTranslation(-200, 37, 0));
         
-        _trees.CrearObjetos(1000, 0f, 25f, 50f);
-        _rocks.CrearObjetos(500);
+        _trees.CrearObjetos(0f, 25f, 50f);
+        _rocks.CrearObjetos();
         
         base.Initialize();
     }
@@ -175,4 +189,6 @@ public class TGCGame : Game
 
         base.UnloadContent();
     }
+    
+    
 }
