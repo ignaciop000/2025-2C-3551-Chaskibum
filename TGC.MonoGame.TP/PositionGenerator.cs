@@ -7,41 +7,57 @@ namespace TGC.MonoGame.TP;
 
 public class PositionGenerator
 {
-    private readonly List<Vector2> _posiciones = GenerarPuntos();
-
-    public void AgregarPosiciones(List<(ModelInstances modelo, float porcentaje)> modelos)
-{
-    int total = _posiciones.Count;
-
-    // Calcular cuántas posiciones le toca a cada modelo según el porcentaje
-    var cantidades = modelos.Select(m => (m.modelo, Cantidad: (int)Math.Round(total * m.porcentaje))).ToList();
-
-    // Índices para contar cuántas posiciones ya asignó a cada modelo
-    var contadores = new int[modelos.Count];
-
-    int modeloIdx = 0;
-
-    foreach (var pos in _posiciones)
+    public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos)
     {
-        // Buscar el siguiente modelo que aún no haya completado su cantidad
-        while (contadores[modeloIdx] >= cantidades[modeloIdx].Cantidad)
+        // Generar posiciones
+        List<Vector2> posiciones = GenerarPuntos();
+        int total = posiciones.Count;
+        int modelosCount = modelos.Count;
+
+        // Mezclar posiciones usando Fisher–Yates
+        Random rand = new Random();
+        for (int i = posiciones.Count - 1; i > 0; i--)
         {
-            modeloIdx = (modeloIdx + 1) % modelos.Count;
+            int j = rand.Next(i + 1);
+            (posiciones[i], posiciones[j]) = (posiciones[j], posiciones[i]);
         }
 
-        // Asignar posición
-        cantidades[modeloIdx].modelo.AgregarPosiciones(new List<Vector2> { pos });
-        contadores[modeloIdx]++;
+        // Calcular cuántas posiciones le toca a cada modelo
+        int[] cantidades = new int[modelosCount];
+        int suma = 0;
+        for (int i = 0; i < modelosCount; i++)
+        {
+            cantidades[i] = (int)Math.Round(total * modelos[i].porcentaje);
+            suma += cantidades[i];
+        }
+        if (suma != total)
+            cantidades[0] += total - suma;
 
-        // Pasar al siguiente modelo para la próxima iteración
-        modeloIdx = (modeloIdx + 1) % modelos.Count;
+        // Preparar listas y contadores
+        int[] contadores = new int[modelosCount];
+        var listasPorModelo = new List<Vector2>[modelosCount];
+        for (int i = 0; i < modelosCount; i++)
+            listasPorModelo[i] = new List<Vector2>(cantidades[i]);
+
+        // Asignar posiciones cíclicamente
+        int modeloIdx = 0;
+        foreach (var pos in posiciones)
+        {
+            while (contadores[modeloIdx] >= cantidades[modeloIdx])
+                modeloIdx = (modeloIdx + 1) % modelosCount;
+
+            listasPorModelo[modeloIdx].Add(pos);
+            contadores[modeloIdx]++;
+            modeloIdx = (modeloIdx + 1) % modelosCount;
+        }
+
+        // Agregar posiciones a cada modelo
+        for (int i = 0; i < modelosCount; i++)
+            modelos[i].modelo.Positions = listasPorModelo[i];
     }
-}
-
     
     // Generar posiciones aleatorias que no se pisen
-    // minDist = 400, width = 5000, height = 5000
-    private static List<Vector2> GenerarPuntos(float minDist = 400, int width = 5000, int height = 5000, int attempts = 30)
+    private List<Vector2> GenerarPuntos(float minDist = 400, int width = 5000, int height = 5000, int attempts = 30)
     {
         Random rand = new Random();
         List<Vector2> points = new List<Vector2>();
@@ -60,7 +76,7 @@ public class PositionGenerator
 
             for (int i = 0; i < attempts; i++)
             {
-                // Generar punto en un anillo entre [minDist, 110*minDist]
+                // Generar punto en un anillo entre [minDist, 110*minDist], para que esten bien separados
                 double angle = rand.NextDouble() * Math.PI * 2;
                 double radius = minDist * (1 + 109 * rand.NextDouble());
                 Vector2 newPoint = center + new Vector2(

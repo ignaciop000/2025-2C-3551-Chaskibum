@@ -1,10 +1,10 @@
 ﻿// LISTA DE TAREAS
 
-// Agregar los 2 modelos de casas (alternar entre los 2, pero muy separadas)
-// Buscar modelo de camino de tierra y poner muchos
+// Buscar modelos de arbustos y poner muchos
+// Buscar modelos de casas y poner pocos (no se si andan los que ya están)
 // Buscar modelo de hangar y poner 2 (uno cerca y otro lejos)
-// Buscar otros modelos de arboles y ponerlos
-// Buscar modelos de arbustos y ponerlos
+// Buscar otros modelos de arboles y que se alternen con el actual (como las rocas)
+// Buscar modelo de camino de tierra y poner muchos
 
 using System;
 using System.Collections.Generic;
@@ -31,10 +31,12 @@ public class TGCGame : Game
     
     private readonly GraphicsDeviceManager _graphics;
     private readonly Random _rnd = new Random();
+    private FreeCamera _camera;
     private Effect _effect;
-    private FreeCamera Camera { get; set; }
     
-    private Ground Ground { get; set; }
+    private PositionGenerator _positionGenerator;
+
+    private Ground _ground;
     
     private ModelInstances _tank = new ModelInstances();
     private ModelInstances _panzer = new ModelInstances();
@@ -73,18 +75,18 @@ public class TGCGame : Game
         var size = GraphicsDevice.Viewport.Bounds.Size;
         size.X /= 2;
         size.Y /= 2;
-        Camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, new Vector3(0, 100, 150), size);
+        _camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, new Vector3(0, 100, 150), size);
 
         // Generacion de posiciones de modelos
-        var positionGenerator = new PositionGenerator();
-        var modelosRocas = _rocks._rocks
-            .Select(m => (modelo: m, valor: 0.045f))
+        var modelos = new[]
+            {
+                (_trees, 0.65) // Árboles
+            }
+            .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
             .ToList();
 
-        List<(ModelInstances modelo, float porcentaje)> modelos = [(_trees, 0.505f)];
-        modelos.AddRange(modelosRocas);
-        
-        positionGenerator.AgregarPosiciones(modelos);
+        _positionGenerator = new PositionGenerator();
+        _positionGenerator.AgregarPosiciones(modelos);
         
         // Configuramos nuestras matrices de la escena.
         _tank.CrearObjetoUnico(Matrix.CreateScale(20f, 20f, 20f) * Matrix.CreateTranslation(0, 0, 0));
@@ -110,7 +112,7 @@ public class TGCGame : Game
         // En el juego no pueden usar BasicEffect de MG, deben usar siempre efectos propios.
         _effect = Content.Load<Effect>(ContentFolderEffects + "BasicShader");
         
-        Ground = new Ground(GraphicsDevice)
+        _ground = new Ground(GraphicsDevice)
         {
             Effect = _effect
         };
@@ -134,7 +136,7 @@ public class TGCGame : Game
     {
         // Aca deberiamos poner toda la logica de actualizacion del juego.
 
-        Camera.Update(gameTime);
+        _camera.Update(gameTime);
         
         // Capturar Input teclado
         if (Keyboard.GetState().IsKeyDown(Keys.Escape))
@@ -156,11 +158,11 @@ public class TGCGame : Game
         GraphicsDevice.Clear(Color.Black);
         
         // Para dibujar le modelo necesitamos pasarle informacion que el efecto esta esperando.
-        _effect.Parameters["View"].SetValue(Camera.View);
-        _effect.Parameters["Projection"].SetValue(Camera.Projection);
+        _effect.Parameters["View"].SetValue(_camera.View);
+        _effect.Parameters["Projection"].SetValue(_camera.Projection);
         
         _effect.Parameters["DiffuseColor"].SetValue(Color.ForestGreen.ToVector3());
-        Ground.Draw(GraphicsDevice, Camera.View, Camera.Projection);
+        _ground.Draw(GraphicsDevice, _camera.View, _camera.Projection);
         
         _effect.Parameters["DiffuseColor"].SetValue(new Color(15, 15, 15).ToVector3());
         _tank.Dibujar();
