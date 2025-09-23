@@ -7,10 +7,12 @@ namespace TGC.MonoGame.TP;
 
 public class PositionGenerator
 {
-    public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos)
+    private Random _random = new Random();
+    
+    public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, float distanciaMinima = 550)
     {
         // Generar posiciones
-        List<Vector2> posiciones = GenerarPuntos();
+        List<Vector2> posiciones = GenerarPuntos(distanciaMinima);
         int total = posiciones.Count;
         int modelosCount = modelos.Count;
 
@@ -57,32 +59,39 @@ public class PositionGenerator
     }
     
     // Generar posiciones aleatorias que no se pisen
-    private List<Vector2> GenerarPuntos(float minDist = 400, int width = 5000, int height = 5000, int attempts = 30)
+    private List<Vector2> GenerarPuntos(float minDist, int width = 10000, int height = 10000, int attempts = 100)
     {
-        Random rand = new Random();
         List<Vector2> points = new List<Vector2>();
         List<Vector2> active = new List<Vector2>();
 
         // Primer punto
-        Vector2 first = new Vector2(100, 100);
+        Vector2 first = new Vector2(0, 0);
         points.Add(first);
         active.Add(first);
 
         while (active.Count > 0)
         {
-            int idx = rand.Next(active.Count);
+            int idx = _random.Next(active.Count);
             Vector2 center = active[idx];
             bool found = false;
 
             for (int i = 0; i < attempts; i++)
             {
-                // Generar punto en un anillo entre [minDist, 110*minDist], para que esten bien separados
-                double angle = rand.NextDouble() * Math.PI * 2;
-                double radius = minDist * (1 + 109 * rand.NextDouble());
+                // Generar punto en un anillo entre [minDist, 6 * minDist]
+                double angle = _random.NextDouble() * Math.PI * 2;
+                double radius = minDist * (1 + 5 * Math.Pow(_random.NextDouble(), 1.5)); // La potencia hace que tiendan a estar mas cerca
                 Vector2 newPoint = center + new Vector2(
                     (float)(Math.Cos(angle) * radius),
                     (float)(Math.Sin(angle) * radius)
                 );
+                
+                // Offset de ruido
+                float maxOffset = minDist * 0.3f; // 30% de minDist
+                float offsetX = (float)(_random.NextDouble() - 0.5) * 2 * maxOffset;
+                float offsetY = (float)(_random.NextDouble() - 0.5) * 2 * maxOffset;
+
+                newPoint += new Vector2(offsetX, offsetY);
+
 
                 // Validar dentro del área y lejos de otros puntos
                 if (newPoint.X >= -width && newPoint.X < width &&

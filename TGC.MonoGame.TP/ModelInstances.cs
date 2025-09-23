@@ -16,16 +16,11 @@ public class ModelInstances()
 
     private const string ContentFolder3D = TGCGame.ContentFolder3D;
     private readonly Random _rnd = new Random();
-
-    public void CrearObjetoUnico(Matrix world)
-    {
-        _worlds.Add(world);
-    }
     
-    public void CrearObjeto(float escala, float yaw, Vector3 position)
+    public void CrearObjetoUnico(float escala, float yawInDegrees, Vector3 position)
     { 
         Matrix world = Matrix.CreateScale(escala, escala, escala) * 
-                       Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) * 
+                       Matrix.CreateFromYawPitchRoll(MathHelper.ToRadians(yawInDegrees), 0f, 0f) * 
                        Matrix.CreateTranslation(position.X, position.Y, position.Z);
 
         _worlds.Add(world);

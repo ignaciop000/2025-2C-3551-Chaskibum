@@ -6,21 +6,20 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Houses
+public class Bushes
 {
-    private readonly List<ModelInstances> _houses = [];
+    private List<ModelInstances> _bushes = [];
     
     List<Vector3> _colors = new List<Vector3>
     {
-        new Color(255, 94, 45).ToVector3(),    // house
-        new Color(252, 209, 86).ToVector3()    // cottage
+        new Color(0, 95, 12).ToVector3()  // Bush
     };
     
-    public Houses()
+    public Bushes()
     {
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 1; i++)
         {
-            _houses.Add(new ModelInstances());
+            _bushes.Add(new ModelInstances());
         }
     }
     
@@ -30,46 +29,43 @@ public class Houses
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0, 34f, 34f),  // house
-            (0, 0.1f, 0.1f) // cottage
+            (-105, 1f, 1f) // Bush
         };
 
-        for (int i = 0; i < _houses.Count; i++)
+        for (int i = 0; i < _bushes.Count; i++)
         {
             var (altura, escalaMin, escalaMax) = parametros[i];
-            _houses[i].CrearObjetos(altura, escalaMin, escalaMax);
+            _bushes[i].CrearObjetos(altura, escalaMin, escalaMax);
         }
     }
-
+    
     public void CargarModelos(Effect efecto, ContentManager content)
     {
         var paths = new string[]
         {
-            "/house/City_House_2_BI",
-            "cottage/cottage_fbx",
+            "/bush/IVY_FBX" // Bush
         };
-        for (int i = 0; i < _houses.Count; i++)
+        for (int i = 0; i < _bushes.Count; i++)
         {
-            _houses[i].CargarModelo(paths[i], efecto, content);
+            _bushes[i].CargarModelo(paths[i], efecto, content);
         }
     }
     
     public void Dibujar()
     {
-        for (int i = 0; i < _houses.Count; i++)
+        for (int i = 0; i < _bushes.Count; i++)
         {
-            _houses[i].Effect.Parameters["DiffuseColor"].SetValue(_colors[i]);
-            _houses[i].Dibujar();
+            _bushes[i].Effect.Parameters["DiffuseColor"].SetValue(_colors[i]);
+            _bushes[i].Dibujar();
         }
     }
     
     // Devuelve la lista lista para generar posiciones con porcentaje aplicado
     public List<(ModelInstances modelo, double porcentaje)> GetModelosConPorcentaje(double porcentajeTotal)
     {
-        double porcentajePorCasa = porcentajeTotal / _houses.Count;
-        return _houses
-            .Select(m => (modelo: m, porcentaje: porcentajePorCasa))
+        double porcentajePorRoca = porcentajeTotal / _bushes.Count;
+        return _bushes
+            .Select(m => (modelo: m, porcentaje: porcentajePorRoca))
             .ToList();
     }
- 
 }

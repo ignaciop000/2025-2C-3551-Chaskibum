@@ -1,6 +1,4 @@
-﻿
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
@@ -36,7 +34,6 @@ public class Rocks
     
     public void CrearObjetos()
     {
-        
         var parametros = new (float, float, float)[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta

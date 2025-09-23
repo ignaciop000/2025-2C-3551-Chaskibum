@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
@@ -13,13 +12,14 @@ public class Trees
     
     List<Vector3> _colors = new List<Vector3>
     {
-        new Vector3(0.1f, 0.1f, 0.1f),      // Tree 0
-        new Vector3(0.15f, 0.15f, 0.15f),   // Tree 1
+        new Color(100, 50, 40).ToVector3(),  // Tree
+        new Color(90, 158, 42).ToVector3(),  // Tree 2
+        new Color(25, 60, 40).ToVector3()    // Tree 3
     };
     
     public Trees()
     {
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 3; i++)
         {
             _trees.Add(new ModelInstances());
         }
@@ -27,13 +27,13 @@ public class Trees
     
     public void CrearObjetos()
     {
-        
         var parametros = new (float, float, float)[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0, 25f, 50f), // Tree 0
-            (0, 10f, 25f), // Tree 1
+            (0, 25f, 50f), // Tree
+            (0, 0.15f, 0.3f), // Tree 2
+            (0, 10f, 25f) // Tree 3
         };
 
         for (int i = 0; i < _trees.Count; i++)
@@ -48,7 +48,8 @@ public class Trees
         var paths = new string[]
         {
             "/tree/Tree0",
-            "/greenTree/Tree1",
+            "/tree2/Leaf_Oak",
+            "/tree3/Tree"
         };
         for (int i = 0; i < _trees.Count; i++)
         {

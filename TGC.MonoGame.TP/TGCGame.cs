@@ -1,12 +1,4 @@
-﻿// LISTA DE TAREAS
-
-// Buscar modelos de arbustos y poner muchos
-// Buscar modelos de casas y poner pocos (no se si andan los que ya están)
-// Buscar modelo de hangar y poner 2 (uno cerca y otro lejos)
-// Buscar otros modelos de arboles y que se alternen con el actual (como las rocas)
-// Buscar modelo de camino de tierra y poner muchos
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
@@ -45,6 +37,7 @@ public class TGCGame : Game
     private Houses _houses = new Houses();
     private Rocks _rocks = new Rocks();
     private Trees _trees = new Trees();
+    private Bushes _bushes = new Bushes();
 
     /// <summary>
     ///     Constructor del juego.
@@ -79,20 +72,28 @@ public class TGCGame : Game
         _camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, new Vector3(0, 100, 150), size);
 
         // Generacion de posiciones de modelos
-        var modelos = _trees.GetModelosConPorcentaje(0.65) // Arboles
+        _positionGenerator = new PositionGenerator();
+        
+        var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
             .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
+            .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
             .ToList();
 
-        _positionGenerator = new PositionGenerator();
         _positionGenerator.AgregarPosiciones(modelos);
+
+        // Genero otros puntos para los arbustos
+        var arbustos = _bushes.GetModelosConPorcentaje(1.0);
+        
+        _positionGenerator.AgregarPosiciones(arbustos, 450);
         
         // Configuramos nuestras matrices de la escena.
-        _tank.CrearObjetoUnico(Matrix.CreateScale(20f, 20f, 20f) * Matrix.CreateTranslation(0, 0, 0));
-        _panzer.CrearObjetoUnico(Matrix.CreateScale(0.25f, 0.25f, 0.25f) * Matrix.CreateTranslation(200, 0, 0));
-        _t90.CrearObjetoUnico(Matrix.CreateScale(0.25f, 0.25f, 0.25f) * Matrix.CreateTranslation(-200, 37, 0));
+        _tank.CrearObjetoUnico(20f,  0f, new Vector3(-300, 0, 300));
+        _panzer.CrearObjetoUnico(0.25f,  0f, new Vector3(0, 0, 300));
+        _t90.CrearObjetoUnico(0.25f,  180f, new Vector3(300, 37, 300));
         _houses.CrearObjetos();
         _trees.CrearObjetos();
         _rocks.CrearObjetos();
+        _bushes.CrearObjetos();
         
         base.Initialize();
     }
@@ -121,6 +122,7 @@ public class TGCGame : Game
         _trees.CargarModelos(_effect, Content);
         _houses.CargarModelos(_effect, Content);
         _rocks.CargarModelos(_effect, Content);
+        _bushes.CargarModelos(_effect, Content);
 
         base.LoadContent();
     }
@@ -171,14 +173,10 @@ public class TGCGame : Game
         _effect.Parameters["DiffuseColor"].SetValue(new Color(95, 96, 98).ToVector3());
         _t90.Dibujar();
         
-        _effect.Parameters["DiffuseColor"].SetValue(Color.SaddleBrown.ToVector3());
         _trees.Dibujar();
-        
-        _effect.Parameters["DiffuseColor"].SetValue(Color.Red.ToVector3());
         _houses.Dibujar();
-        
-        _effect.Parameters["DiffuseColor"].SetValue(Color.Gray.ToVector3());
         _rocks.Dibujar();
+        _bushes.Dibujar();
         
     }
 
