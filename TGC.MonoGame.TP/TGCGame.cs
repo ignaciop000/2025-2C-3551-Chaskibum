@@ -30,9 +30,9 @@ public class TGCGame : Game
 
     private Ground _ground;
     
-    private ModelInstances _tank = new ModelInstances();
-    private ModelInstances _panzer = new ModelInstances();
-    private ModelInstances _t90 = new ModelInstances();
+    private ModelInstances _tank = new ModelInstances(new Color(15, 15, 15));
+    private ModelInstances _panzer = new ModelInstances(new Color(0, 39, 77));
+    private ModelInstances _t90 = new ModelInstances(new Color(95, 96, 98));
     
     private Houses _houses = new Houses();
     private Rocks _rocks = new Rocks();
@@ -164,13 +164,8 @@ public class TGCGame : Game
         _effect.Parameters["DiffuseColor"].SetValue(Color.ForestGreen.ToVector3());
         _ground.Draw(GraphicsDevice, _camera.View, _camera.Projection);
         
-        _effect.Parameters["DiffuseColor"].SetValue(new Color(15, 15, 15).ToVector3());
         _tank.Dibujar();
-        
-        _effect.Parameters["DiffuseColor"].SetValue(new Color(0, 39, 77).ToVector3());
         _panzer.Dibujar();
-        
-        _effect.Parameters["DiffuseColor"].SetValue(new Color(95, 96, 98).ToVector3());
         _t90.Dibujar();
         
         _trees.Dibujar();

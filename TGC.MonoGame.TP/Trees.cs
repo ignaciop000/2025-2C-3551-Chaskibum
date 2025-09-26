@@ -6,24 +6,14 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Trees
+public class Trees() : ModelGroup(Colors)
 {
-    private List<ModelInstances> _trees = [];
-    
-    List<Vector3> _colors = new List<Vector3>
+    private static readonly List<Color> Colors = new List<Color>
     {
-        new Color(100, 50, 40).ToVector3(),  // Tree
-        new Color(90, 158, 42).ToVector3(),  // Tree 2
-        new Color(25, 60, 40).ToVector3()    // Tree 3
+        new Color(100, 50, 40),  // Tree
+        new Color(90, 158, 42),  // Tree 2
+        new Color(25, 60, 40)    // Tree 3
     };
-    
-    public Trees()
-    {
-        for (int i = 0; i < 3; i++)
-        {
-            _trees.Add(new ModelInstances());
-        }
-    }
     
     public void CrearObjetos()
     {
@@ -36,11 +26,7 @@ public class Trees
             (0, 10f, 25f) // Tree 3
         };
 
-        for (int i = 0; i < _trees.Count; i++)
-        {
-            var (altura, escalaMin, escalaMax) = parametros[i];
-            _trees[i].CrearObjetos(altura, escalaMin, escalaMax);
-        }
+        base.CrearObjetos(parametros);
     }
     
     public void CargarModelos(Effect efecto, ContentManager content)
@@ -51,27 +37,7 @@ public class Trees
             "/tree2/Leaf_Oak",
             "/tree3/Tree"
         };
-        for (int i = 0; i < _trees.Count; i++)
-        {
-            _trees[i].CargarModelo(paths[i], efecto, content);
-        }
-    }
-    
-    public void Dibujar()
-    {
-        for (int i = 0; i < _trees.Count; i++)
-        {
-            _trees[i].Effect.Parameters["DiffuseColor"].SetValue(_colors[i]);
-            _trees[i].Dibujar();
-        }
-    }
-    
-    // Devuelve la lista lista para generar posiciones con porcentaje aplicado
-    public List<(ModelInstances modelo, double porcentaje)> GetModelosConPorcentaje(double porcentajeTotal)
-    {
-        double porcentajePorRoca = porcentajeTotal / _trees.Count;
-        return _trees
-            .Select(m => (modelo: m, porcentaje: porcentajePorRoca))
-            .ToList();
+        
+        base.CargarModelos(efecto, content, paths);
     }
 }

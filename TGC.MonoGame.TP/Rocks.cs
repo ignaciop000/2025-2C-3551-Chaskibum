@@ -6,32 +6,22 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Rocks
+public class Rocks() : ModelGroup(Colors)
 {
-    private List<ModelInstances> _rocks = [];
-    
-    List<Vector3> _colors = new List<Vector3>
+    private static readonly List<Color> Colors = new List<Color>
     {
-        new Vector3(0.1f, 0.1f, 0.1f),      // Roca 0
-        new Vector3(0.15f, 0.15f, 0.15f),   // Roca 1
-        new Vector3(0.2f, 0.2f, 0.2f),      // Roca 2
-        new Vector3(0.25f, 0.25f, 0.25f),   // Roca 3
-        new Vector3(0.35f, 0.35f, 0.35f),   // Roca 4
-        new Vector3(0.45f, 0.45f, 0.45f),   // Roca 5
-        new Vector3(0.55f, 0.55f, 0.55f),   // Roca 6
-        new Vector3(0.65f, 0.65f, 0.65f),   // Roca 7
-        new Vector3(0.7f, 0.7f, 0.7f),      // Roca 8
-        new Vector3(0.8f, 0.8f, 0.8f)       // Roca 9
+        new Color(25, 25, 25),    // Roca 0
+        new Color(38, 38, 38),    // Roca 1
+        new Color(51, 51, 51),    // Roca 2
+        new Color(64, 64, 64),    // Roca 3
+        new Color(89, 89, 89),    // Roca 4
+        new Color(115, 115, 115), // Roca 5
+        new Color(140, 140, 140), // Roca 6
+        new Color(166, 166, 166), // Roca 7
+        new Color(179, 179, 179), // Roca 8
+        new Color(204, 204, 204)  // Roca 9
     };
-    
-    public Rocks()
-    {
-        for (int i = 0; i < 10; i++)
-        {
-            _rocks.Add(new ModelInstances());
-        }
-    }
-    
+
     public void CrearObjetos()
     {
         var parametros = new (float, float, float)[]
@@ -50,37 +40,20 @@ public class Rocks
             (5, 0.1f, 0.2f)  // Roca 9
         };
 
-        for (int i = 0; i < _rocks.Count; i++)
-        {
-            var (altura, escalaMin, escalaMax) = parametros[i];
-            _rocks[i].CrearObjetos(altura, escalaMin, escalaMax);
-        }
+        base.CrearObjetos(parametros);
     }
     
     public void CargarModelos(Effect efecto, ContentManager content)
     {
-        for (int i = 0; i < _rocks.Count; i++)
+        int count = Models.Count;
+        string[] paths = new string[count];
+
+        for (int i = 0; i < count; i++)
         {
-            string path = $"/rocks/Rock{i}";
-            _rocks[i].CargarModelo(path, efecto, content);
+            paths[i] = $"/rocks/Rock{i}";
         }
+        
+        base.CargarModelos(efecto, content, paths);
     }
-    
-    public void Dibujar()
-    {
-        for (int i = 0; i < _rocks.Count; i++)
-        {
-            _rocks[i].Effect.Parameters["DiffuseColor"].SetValue(_colors[i]);
-            _rocks[i].Dibujar();
-        }
-    }
-    
-    // Devuelve la lista lista para generar posiciones con porcentaje aplicado
-    public List<(ModelInstances modelo, double porcentaje)> GetModelosConPorcentaje(double porcentajeTotal)
-    {
-        double porcentajePorRoca = porcentajeTotal / _rocks.Count;
-        return _rocks
-            .Select(m => (modelo: m, porcentaje: porcentajePorRoca))
-            .ToList();
-    }
+
 }
