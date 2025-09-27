@@ -285,14 +285,14 @@ public class TGCGame : Game
 
     private Tank _tank;
 
-    private ModelInstances _tank2 = new ModelInstances();
-    private ModelInstances _panzer = new ModelInstances();
-    private ModelInstances _t90 = new ModelInstances();
+    //private ModelInstances _tank2 = new ModelInstances(new Color(15, 15, 15));
+    //private ModelInstances _panzer = new ModelInstances(new Color(0, 39, 77));
+    //private ModelInstances _t90 = new ModelInstances(new Color(95, 96, 98));
 
-    private Houses _houses = new Houses();
-    private Rocks _rocks = new Rocks();
-    private Trees _trees = new Trees();
-    private Bushes _bushes = new Bushes();
+    private Houses _houses;
+    private Rocks _rocks;
+    private Trees _trees;
+    private Bushes _bushes;
 
     /// <summary>
     ///     Constructor del juego.
@@ -328,29 +328,13 @@ public class TGCGame : Game
         DesiredLookAt = Vector3.Zero;
         pos = Vector2.Zero;
         _camera = new OrbitCamera(GraphicsDevice.Viewport.AspectRatio, Vector3.Zero, 800f, 5, 50000);
-
-        // Generacion de posiciones de modelos
-        _positionGenerator = new PositionGenerator();
-
-        var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
-            .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
-            .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
-            .ToList();
-
-        _positionGenerator.AgregarPosiciones(modelos);
-
-        // Genero otros puntos para los arbustos
-        var arbustos = _bushes.GetModelosConPorcentaje(1.0);
-
-        _positionGenerator.AgregarPosiciones(arbustos, 450);
-
+        
         _tank = new Tank(new Vector3(1500, 0, 4500), 0f, 10f);
         // Configuramos nuestras matrices de la escena.
         //_tank2.CrearObjetoUnico(20f,  0f, new Vector3(-300, 0, 300));
         //_panzer.CrearObjetoUnico(0.25f,  0f, new Vector3(0, 0, 300));
         //_t90.CrearObjetoUnico(0.25f,  180f, new Vector3(300, 37, 300));
         //_houses.CrearObjetos();
-        //_trees.CrearObjetos();
         //_rocks.CrearObjetos();
         //_bushes.CrearObjetos();
 
@@ -393,11 +377,36 @@ public class TGCGame : Game
         //_tank2.CargarModelo("tank/tank", _effect, Content);
         //_panzer.CargarModelo("panzer/Panzer", _effect, Content);
         //_t90.CargarModelo("t90/T90", _effect, Content);
-        //_trees.CargarModelos(_effect, Content);
-        //_houses.CargarModelos(_effect, Content);
-        //_rocks.CargarModelos(_effect, Content);
-        //_bushes.CargarModelos(_effect, Content);
+        _trees = new Trees(terrain);
+        _houses = new Houses(terrain);
+        _rocks = new Rocks(terrain);
+        _bushes = new Bushes(terrain);
+        
+        // Generacion de posiciones de modelos
+        _positionGenerator = new PositionGenerator();
 
+        var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
+            .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
+            .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
+            .ToList();
+
+        _positionGenerator.AgregarPosiciones(modelos);
+
+        // Genero otros puntos para los arbustos
+        var arbustos = _bushes.GetModelosConPorcentaje(1.0);
+
+        _positionGenerator.AgregarPosiciones(arbustos, 450);
+        
+        _trees.CargarModelos(_effect, Content);
+        _houses.CargarModelos(_effect, Content);
+        _rocks.CargarModelos(_effect, Content);
+        _bushes.CargarModelos(_effect, Content);
+        
+        _trees.CrearObjetos();
+        _rocks.CrearObjetos();
+        _houses.CrearObjetos();
+        _bushes.CrearObjetos();
+        
         base.LoadContent();
     }
 
@@ -516,10 +525,10 @@ public class TGCGame : Game
         //_effect.Parameters["DiffuseColor"].SetValue(new Color(95, 96, 98).ToVector3());
         //_t90.Dibujar();
 
-        //_trees.Dibujar();
-        //_houses.Dibujar();
-        //_rocks.Dibujar();
-        //_bushes.Dibujar();
+        _trees.Dibujar();
+        _houses.Dibujar();
+        _rocks.Dibujar();
+        _bushes.Dibujar();
         if (_showTerrainMeshDebug)
         {
             _debugEffect.Parameters["View"].SetValue(_camera.View);

@@ -7,16 +7,18 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class ModelInstances()
+public class ModelInstances(Color color, Terrain terrain)
 {
     private Model _model;
     private readonly List<Matrix> _worlds = [];
-    public Effect Effect { get; set; }
+    private Color _color = color;
+    private Terrain _terrain = terrain;
+    private Effect _effect;
     public List<Vector2> Positions { get; set; } = [];
 
     private const string ContentFolder3D = TGCGame.ContentFolder3D;
-    private readonly Random _rnd = new Random();
-    
+    private readonly Random _random = new Random();
+
     public void CrearObjetoUnico(float escala, float yawInDegrees, Vector3 position)
     { 
         Matrix world = Matrix.CreateScale(escala, escala, escala) * 
@@ -33,8 +35,9 @@ public class ModelInstances()
             float escala = NextFloat(escalaMin, escalaMax); //elegimos la escala al azar en base al min y max
 
             float
-                yaw = MathHelper.ToRadians(_rnd.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
+                yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
 
+            altura = _terrain.GetHeightAtPosition(posicion.X, posicion.Y);
             Matrix world = Matrix.CreateScale(escala, escala, escala) *
                            Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
                            Matrix.CreateTranslation(posicion.X, altura, posicion.Y);
@@ -55,11 +58,14 @@ public class ModelInstances()
             }
         }
 
-        Effect = efecto; // Me lo guardo para usar en el dibujado
+        // Me lo guardo para usar en el dibujado
+        _effect = efecto;
     }
 
     public void Dibujar()
     {
+        //_effect.Parameters["DiffuseColor"].SetValue(_color.ToVector3());
+        
         foreach (var world in _worlds)
         {
             var modelMeshesBaseTransforms = new Matrix[_model.Bones.Count];
@@ -67,7 +73,7 @@ public class ModelInstances()
             foreach (var mesh in _model.Meshes)
             {
                 var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
-                Effect.Parameters["World"].SetValue(relativeTransform * world);
+                _effect.Parameters["World"].SetValue(relativeTransform * world);
                 mesh.Draw();
             }
         }
@@ -75,6 +81,6 @@ public class ModelInstances()
 
     private float NextFloat(float min, float max)
     {
-        return (float)(min + (max - min) * _rnd.NextDouble());
+        return (float)(min + (max - min) * _random.NextDouble());
     }
 }

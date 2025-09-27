@@ -6,22 +6,12 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Bushes
+public class Bushes(Terrain terrain) : ModelGroup(Colors,terrain)
 {
-    private List<ModelInstances> _bushes = [];
-    
-    List<Vector3> _colors = new List<Vector3>
+    private static readonly List<Color> Colors = new List<Color>
     {
-        new Color(0, 95, 12).ToVector3()  // Bush
+        new Color(0, 95, 12)  // Bush
     };
-    
-    public Bushes()
-    {
-        for (int i = 0; i < 1; i++)
-        {
-            _bushes.Add(new ModelInstances());
-        }
-    }
     
     public void CrearObjetos()
     {
@@ -32,11 +22,7 @@ public class Bushes
             (-105, 1f, 1f) // Bush
         };
 
-        for (int i = 0; i < _bushes.Count; i++)
-        {
-            var (altura, escalaMin, escalaMax) = parametros[i];
-            _bushes[i].CrearObjetos(altura, escalaMin, escalaMax);
-        }
+        base.CrearObjetos(parametros);
     }
     
     public void CargarModelos(Effect efecto, ContentManager content)
@@ -45,27 +31,8 @@ public class Bushes
         {
             "/bush/IVY_FBX" // Bush
         };
-        for (int i = 0; i < _bushes.Count; i++)
-        {
-            _bushes[i].CargarModelo(paths[i], efecto, content);
-        }
+        
+        base.CargarModelos(efecto, content, paths);
     }
     
-    public void Dibujar()
-    {
-        for (int i = 0; i < _bushes.Count; i++)
-        {
-            _bushes[i].Effect.Parameters["DiffuseColor"].SetValue(_colors[i]);
-            _bushes[i].Dibujar();
-        }
-    }
-    
-    // Devuelve la lista lista para generar posiciones con porcentaje aplicado
-    public List<(ModelInstances modelo, double porcentaje)> GetModelosConPorcentaje(double porcentajeTotal)
-    {
-        double porcentajePorRoca = porcentajeTotal / _bushes.Count;
-        return _bushes
-            .Select(m => (modelo: m, porcentaje: porcentajePorRoca))
-            .ToList();
-    }
 }

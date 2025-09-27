@@ -6,23 +6,13 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Houses
+public class Houses(Terrain terrain) : ModelGroup(Colors, terrain)
 {
-    private readonly List<ModelInstances> _houses = [];
-    
-    List<Vector3> _colors = new List<Vector3>
+    private static readonly List<Color> Colors = new List<Color>
     {
-        new Color(255, 94, 45).ToVector3(),    // house
-        new Color(252, 209, 86).ToVector3()    // cottage
+        new Color(255, 94, 45),    // house
+        new Color(252, 209, 86)    // cottage
     };
-    
-    public Houses()
-    {
-        for (int i = 0; i < 2; i++)
-        {
-            _houses.Add(new ModelInstances());
-        }
-    }
     
     public void CrearObjetos()
     {
@@ -34,11 +24,7 @@ public class Houses
             (0, 0.1f, 0.1f) // cottage
         };
 
-        for (int i = 0; i < _houses.Count; i++)
-        {
-            var (altura, escalaMin, escalaMax) = parametros[i];
-            _houses[i].CrearObjetos(altura, escalaMin, escalaMax);
-        }
+        base.CrearObjetos(parametros);
     }
 
     public void CargarModelos(Effect efecto, ContentManager content)
@@ -48,28 +34,7 @@ public class Houses
             "/house/City_House_2_BI",
             "cottage/cottage_fbx",
         };
-        for (int i = 0; i < _houses.Count; i++)
-        {
-            _houses[i].CargarModelo(paths[i], efecto, content);
-        }
+        
+        base.CargarModelos(efecto, content, paths);
     }
-    
-    public void Dibujar()
-    {
-        for (int i = 0; i < _houses.Count; i++)
-        {
-            _houses[i].Effect.Parameters["DiffuseColor"].SetValue(_colors[i]);
-            _houses[i].Dibujar();
-        }
-    }
-    
-    // Devuelve la lista lista para generar posiciones con porcentaje aplicado
-    public List<(ModelInstances modelo, double porcentaje)> GetModelosConPorcentaje(double porcentajeTotal)
-    {
-        double porcentajePorCasa = porcentajeTotal / _houses.Count;
-        return _houses
-            .Select(m => (modelo: m, porcentaje: porcentajePorCasa))
-            .ToList();
-    }
- 
 }
