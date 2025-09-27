@@ -10,6 +10,14 @@ namespace TGC.MonoGame.Samples.Cameras
     /// </summary>
     public class OrbitCamera : Camera
     {
+        // --- Camera Shake ---
+        private float _shakeTimeLeft = 0f, _shakeDuration = 0f;
+        private float _shakeTranslation = 0f, _shakeRoll = 0f;
+        private float _shakePhaseX = 0f, _shakePhaseY = 0f, _shakePhaseR = 0f;
+        private float _shakeFreqX = 42f, _shakeFreqY = 33f, _shakeFreqR = 25f;
+        private readonly System.Random _rng = new System.Random();
+
+        public bool IsShaking => _shakeTimeLeft > 0f;
         // Propiedades de la órbita
         public Vector3 Target { get; set; }
         public float Distance { get; set; }
@@ -47,6 +55,7 @@ namespace TGC.MonoGame.Samples.Cameras
 
         public override void Update(GameTime gameTime)
         {
+            var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             var mouseState = Mouse.GetState();
             var currentMousePosition = mouseState.Position.ToVector2();
             
@@ -92,6 +101,11 @@ namespace TGC.MonoGame.Samples.Cameras
                 UpdatePosition();
             }
             _lastScrollValue = mouseState.ScrollWheelValue;
+            
+            if (_shakeTimeLeft > 0f)
+            {
+                _shakeTimeLeft = MathF.Max(0f, _shakeTimeLeft - deltaTime);
+            }
         }
         
         private int _lastScrollValue = 0;
@@ -116,6 +130,21 @@ namespace TGC.MonoGame.Samples.Cameras
             
             // Crear matriz de vista
             View = Matrix.CreateLookAt(Position, Target, UpDirection);
+
+            //sacudida
+            if (_shakeTimeLeft > 0f && (_shakeTranslation > 0f || _shakeRoll > 0f))
+            {
+                var t = 1f - (_shakeTimeLeft / _shakeDuration);  
+                var falloff = MathF.Exp(-6f * t);             // decaimiento suave
+                var elapsed = _shakeDuration - _shakeTimeLeft;
+
+                var ox = MathF.Sin(_shakePhaseX + elapsed * _shakeFreqX) * _shakeTranslation * falloff;
+                var oy = MathF.Cos(_shakePhaseY + elapsed * _shakeFreqY) * _shakeTranslation * 0.6f * falloff;
+                var roll = MathF.Sin(_shakePhaseR + elapsed * _shakeFreqR) * _shakeRoll * falloff;
+
+                var s = Matrix.CreateRotationZ(roll) * Matrix.CreateTranslation(ox, oy, 0f);
+                View = s * View;           // premultiplico en espacio cámara
+            }
         }
 
         /// <summary>
@@ -136,6 +165,28 @@ namespace TGC.MonoGame.Samples.Cameras
         {
             Distance = MathHelper.Clamp(distance, MinDistance, MaxDistance);
             UpdatePosition();
+        }
+        
+        /// <summary>
+        /// Inicia un sacudido de cámara en espacio de vista.
+        /// amplitude: traslación en unidades de mundo (en el plano de la pantalla).
+        /// duration: segundos.
+        /// rotational: roll (radianes). 0 si no querés giro.
+        /// </summary>
+        public void StartShake(float amplitude, float duration, float rotational = 0f)
+        {
+            _shakeTranslation = amplitude;
+            _shakeRoll  = rotational;
+            _shakeDuration = MathF.Max(0.0001f, duration);
+            _shakeTimeLeft = _shakeDuration;
+
+            _shakePhaseX = (float)_rng.NextDouble() * MathF.Tau;
+            _shakePhaseY = (float)_rng.NextDouble() * MathF.Tau;
+            _shakePhaseR = (float)_rng.NextDouble() * MathF.Tau;
+            
+            _shakeFreqX = 42f;
+            _shakeFreqY = 33f;
+            _shakeFreqR = 25f;
         }
     }
 }

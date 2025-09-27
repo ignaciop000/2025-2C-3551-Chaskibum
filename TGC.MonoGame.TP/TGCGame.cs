@@ -295,15 +295,19 @@ public class TGCGame : Game
 
     private PositionGenerator _positionGenerator;
     private float angle;
-    private Ground _ground;
     public Terrain terrain;
 
     private bool _showTerrainMeshDebug = false;
     private KeyboardState _kbPrev;
     private bool _showTankTelemetry = false;
     private SpriteBatch _spriteBatch;
-    private SpriteFont _debugFont; // agregá un .spritefont llamado "DebugFont" en Content
+    private SpriteFont _debugFont; 
+    
     private Tank _tank;
+    // Proyectiles
+    private readonly List<Projectile> _missiles = new();
+    private MouseState _mousePrev;
+    private float _fireCooldown = 0f;
 
     //private ModelInstances _tank2 = new ModelInstances(new Color(15, 15, 15));
     //private ModelInstances _panzer = new ModelInstances(new Color(0, 39, 77));
@@ -313,6 +317,8 @@ public class TGCGame : Game
     private Rocks _rocks;
     private Trees _trees;
     private Bushes _bushes;
+    
+
 
     /// <summary>
     ///     Constructor del juego.
@@ -354,7 +360,7 @@ public class TGCGame : Game
         _simulation = Simulation.Create(bufferPool, new NarrowPhaseCallbacks(),
             new PoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
 
-        _tank = new Tank(new Vector3(1500, 0, 4500), 0f, 10f);
+        _tank = new Tank(new Vector3(1500, 0, 4500), _camera, 0f, 10f );
         
         base.Initialize();
     }
@@ -442,9 +448,38 @@ public class TGCGame : Game
     protected override void Update(GameTime gameTime)
     {
         var keyboardState = Keyboard.GetState();
+        var mouseState = Mouse.GetState();
         var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         
+        // cooldown
+        _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
+        
         _tank?.Update(gameTime, keyboardState);
+        
+        // click izquierdo: dispara
+        if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed && _mousePrev.LeftButton == ButtonState.Released)
+        {
+
+            // Velocidad configurable acá:
+            float speed = 300f;
+            float projMass = 2f;
+            // Uso el mismo efecto de debug para dibujar el proyectil sin assets extra
+            var (muzzle, dir) = _tank.GetMuzzle(3.2f); // offset local del cañón (ajustá a tu modelo)
+            var proj = new Projectile(_simulation, terrain, _debugEffect, muzzle, dir, speed);
+            _missiles.Add(proj);
+            
+            // Retroceso + freno breve
+            _tank.TriggerRecoil(dir, projectileMass: projMass, muzzleSpeed: speed, intensity: 1f, withBrake: true);
+
+            _fireCooldown = 1f; // 4 disparos/seg
+        }
+        
+        // update de todos los proyectiles
+        for (int i = _missiles.Count - 1; i >= 0; --i)
+        {
+            _missiles[i].Update(deltaTime);
+            if (_missiles[i].IsDead) _missiles.RemoveAt(i);
+        }
 
         
         // Actualizar simulación física
@@ -452,29 +487,31 @@ public class TGCGame : Game
         {
             _simulation.Timestep(deltaTime);
             _tank?.SyncFromPhysics();
+            _tank.ApplyRecoilAndBrake(deltaTime, _simulation);
         }
 
         // Capturar Input teclado
-        if (Keyboard.GetState().IsKeyDown(Keys.Escape))
+        if (keyboardState.IsKeyDown(Keys.Escape))
         {
             //Salgo del juego.
             Exit();
         }
 
         #region debug
-        if (Keyboard.GetState().IsKeyDown(Keys.F2) && !_kbPrev.IsKeyDown(Keys.F2))
+        if (keyboardState.IsKeyDown(Keys.F2) && !_kbPrev.IsKeyDown(Keys.F2))
         {
             _showTerrainMeshDebug = !_showTerrainMeshDebug;
         }
 
-        if (Keyboard.GetState().IsKeyDown(Keys.F3) && !_kbPrev.IsKeyDown(Keys.F3))
+        if (keyboardState.IsKeyDown(Keys.F3) && !_kbPrev.IsKeyDown(Keys.F3))
         {
             _showTankTelemetry = !_showTankTelemetry;
             _tank.DebugTelemetry = _showTankTelemetry;
         }
         #endregion
         
-        _kbPrev = Keyboard.GetState();
+        _kbPrev = keyboardState;
+        _mousePrev = mouseState;
         // Actualizar cámara para seguir al tanque
         if (_tank != null)
         {
@@ -555,6 +592,9 @@ public class TGCGame : Game
         _houses.Dibujar();
         _rocks.Dibujar();
         _bushes.Dibujar();
+        
+        foreach (var s in _missiles)
+            s.Draw(GraphicsDevice, _camera.View, _camera.Projection);
 
         #region debug
 

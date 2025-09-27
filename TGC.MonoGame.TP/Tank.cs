@@ -9,8 +9,10 @@ using System.Numerics;
 using Quaternion = Microsoft.Xna.Framework.Quaternion;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 using BepuUtilities;
+using TGC.MonoGame.Samples.Cameras;
 using MathHelper = Microsoft.Xna.Framework.MathHelper;
 using Matrix = Microsoft.Xna.Framework.Matrix;
+using Vector2 = System.Numerics.Vector2;
 
 namespace TGC.MonoGame.TP
 {
@@ -51,7 +53,7 @@ namespace TGC.MonoGame.TP
         private bool _debugBuffersReady;
 
         public Quaternion RotationQuaternion { get; private set; } = Quaternion.Identity;
-        
+
         // Propiedades de movimiento
         public Vector3 Position { get; private set; }
         public float Rotation { get; private set; }
@@ -73,7 +75,7 @@ namespace TGC.MonoGame.TP
         public float YawInertia = 350f; // kg·m^2 (fallback si no querés usar tensor)
 
         public readonly float ColliderWidth = 4f;
-        public readonly float ColliderHeight = 2f; 
+        public readonly float ColliderHeight = 2f;
         public readonly float ColliderLength = 8f;
 
         // Pequeño “clearance” para evitar nacer en penetración
@@ -93,6 +95,25 @@ namespace TGC.MonoGame.TP
         public float SteerSign = -1f; // ← por defecto invierto A/D (cámbialo en runtime con F4)
         private float _telemetryTimer = 0f;
         public string TelemetryText = "";
+
+        // Recoil
+        private float _recoilTime = 0f;
+        private float _recoilDuration = 0.12f; // seg: cuánto dura el empujón
+        private System.Numerics.Vector3 _recoilAccelSys = System.Numerics.Vector3.Zero;
+
+        // Brake (freno por “arrastre”)
+        private float _brakeTime = 0f;
+        private float _brakeDuration = 0.18f; // seg
+        private float _brakeK = 10f; // coeficiente de frenado (tunable)
+
+        private OrbitCamera _camera;
+
+        // --- Helpers para extraer pos/axes de una Matrix ---
+        private static Vector3 GetTranslation(in Matrix m) => new Vector3(m.M41, m.M42, m.M43);
+        private static Vector3 GetRight(in Matrix m) => new Vector3(m.M11, m.M12, m.M13);
+        private static Vector3 GetUp(in Matrix m) => new Vector3(m.M21, m.M22, m.M23);
+        private static Vector3 GetForward(in Matrix m) => new Vector3(m.M31, m.M32, m.M33);
+
 
         /// <summary>
         /// Gets or sets the rotation of the wheels.
@@ -119,12 +140,13 @@ namespace TGC.MonoGame.TP
         /// </summary>
         public float HatchRotation { get; set; }
 
-        public Tank(Vector3 initialPosition, float initialRotation = 0f, float scale = 20f)
+        public Tank(Vector3 initialPosition, OrbitCamera camera, float initialRotation = 0f, float scale = 20f)
         {
             Position = initialPosition;
             Rotation = initialRotation;
             Scale = scale;
             _lastPos = Position;
+            _camera = camera;
         }
 
         public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, Simulation simulation,
@@ -209,7 +231,6 @@ namespace TGC.MonoGame.TP
             // Inercia de yaw para una caja alrededor del eje vertical: I = (1/12) * m * (W^2 + L^2)
             YawInertia = (1f / 12f) * massKg * (W * W + L * L);
 
-            // (Opcional) log para verificar:
             System.Diagnostics.Debug.WriteLine($"[TANK] YawInertia computed = {YawInertia:0.##}");
             var shapeIndex = _simulation.Shapes.Add(boxShape);
             _debugBoxSize = new Vector3(boxShape.Width, boxShape.Height, boxShape.Length); // para dibujarlo
@@ -279,7 +300,7 @@ namespace TGC.MonoGame.TP
 
             _debugBuffersReady = true;
         }
-        
+
         public void DrawCollider(GraphicsDevice gd, Matrix view, Matrix projection, Effect effect,
             bool wireframe = true)
         {
@@ -317,10 +338,9 @@ namespace TGC.MonoGame.TP
 
             gd.RasterizerState = old;
         }
-        
 
         #endregion
-        
+
         public void ControlForces(float throttle, float steer, float dt)
         {
             if (_simulation == null || _physicsBody.Value < 0) return;
@@ -413,6 +433,7 @@ namespace TGC.MonoGame.TP
                     float kmh = speed * 3.6f;
 
                     TelemetryText =
+                        $"Position X{_lastPos.X:+0.00;-0.00;0} Y{_lastPos.Y:+0.00;-0.00;0} Z{_lastPos.Z:+0.0;-0.0;0}\n" +
                         $"thr {throttle:+0.00;-0.00;0}  steer {steer:+0.00;-0.00;0}  sign {SteerSign:+0.0;-0.0;0}\n" +
                         $"speed {speed:0.00} m/s ({kmh:0} km/h)   vSide {vSide:+0.00;-0.00;0}\n" +
                         $"yawNow {yawNow:+0.00;-0.00;0} rad/s   yawTgt {yawTarget:+0.00;-0.00;0}   d {dOmega:+0.00;-0.00;0}";
@@ -421,19 +442,19 @@ namespace TGC.MonoGame.TP
                 }
             }
         }
-        
+
         public void Update(GameTime gameTime, KeyboardState keyboardState)
         {
             var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            
+
             var body = _simulation.Bodies.GetBodyReference(_physicsBody);
             body.Awake = true;
-            
+
             var throttle = 0f;
             if (keyboardState.IsKeyDown(Keys.W)) throttle += 1f;
             if (keyboardState.IsKeyDown(Keys.S)) throttle -= 1f;
 
-            var steer = 0f; 
+            var steer = 0f;
             if (keyboardState.IsKeyDown(Keys.A)) steer -= 1f;
             if (keyboardState.IsKeyDown(Keys.D)) steer += 1f;
 
@@ -442,7 +463,7 @@ namespace TGC.MonoGame.TP
             steer = Math.Clamp(steer, -1f, 1f);
 
             ControlForces(throttle, steer, dt);
-            
+
             // Girar ruedas según distancia recorrida
             UpdateWheelSpinByDistance(dt);
 
@@ -470,6 +491,7 @@ namespace TGC.MonoGame.TP
 
             _lastPos = Position;
         }
+
         public void SyncFromPhysics()
         {
             var body = _simulation.Bodies.GetBodyReference(_physicsBody);
@@ -585,6 +607,88 @@ namespace TGC.MonoGame.TP
                 }
 
                 mesh.Draw();
+            }
+        }
+        
+        // Devuelve posición y dirección de la boca del cañón, tomando el hueso real del cañón
+        public (Vector3 pos, Vector3 dir) GetMuzzle(float muzzleOffsetLocal = 3.2f)
+        {
+            // 1) Aplicar rotaciones actuales a los huesos, igual que en Draw()
+            var turretRotation = Matrix.CreateRotationY(TurretRotation);
+            var cannonRotation = Matrix.CreateRotationX(CannonRotation);
+
+            _turretBone.Transform = turretRotation * _turretTransform;
+            _cannonBone.Transform = cannonRotation * _cannonTransform;
+
+            // 2) Recalcular transformaciones absolutas de huesos
+            if (_boneTransforms == null || _boneTransforms.Length != _model.Bones.Count)
+                _boneTransforms = new Matrix[_model.Bones.Count];
+
+            _model.CopyAbsoluteBoneTransformsTo(_boneTransforms);
+
+            // 3) Transform del cañón en espacio mundo
+            var cannonAbs = _boneTransforms[_cannonBone.Index];
+            var cannonWorld = cannonAbs * _world; // mismo patrón que en Draw()
+
+            // 4) La dirección “forward” del cañón (en el modelo, -Z es hacia adelante del tanque)
+            //    Recordá que en matrices de XNA la tercera fila es el "forward" local del transform.
+            //    Según tu pipeline, el tanque mira -Z: usamos -Forward del hueso.
+            var f = Vector3.Normalize(GetForward(cannonWorld));
+
+            // 5) Posición del muzzle: origen del hueso + un corrimiento a lo largo del cañón
+            var origin = GetTranslation(cannonWorld);
+            var muzzle = origin + f * (muzzleOffsetLocal * Scale);
+
+            return (muzzle, f);
+        }
+
+        // Dispara un pulso de retroceso y, opcionalmente, activa freno momentáneo.
+        public void TriggerRecoil(Microsoft.Xna.Framework.Vector3 fireDirXna,
+            float projectileMass = 2f,
+            float muzzleSpeed = 120f,
+            float intensity = 1f,
+            bool withBrake = true)
+        {
+            // Dirección normalizada en espacio mundo (hacia donde sale el disparo)
+            var dir = Microsoft.Xna.Framework.Vector3.Normalize(fireDirXna);
+
+            // “Magnitud” base: momento del proyectil (m * v), escalado un poco
+            var recoilMagnitude = projectileMass * muzzleSpeed * 2.0f * intensity;
+
+            // Aceleración de retroceso (la aplicamos por un corto lapso)
+            _recoilAccelSys = -new System.Numerics.Vector3(dir.X, dir.Y, dir.Z) * recoilMagnitude;
+            _recoilTime = _recoilDuration;
+
+            if (withBrake)
+            {
+                _brakeTime = _brakeDuration;
+            }
+
+            var amplitude = 0.001f * projectileMass * muzzleSpeed; 
+            var rotational = amplitude * 0.06f;
+            _camera.StartShake(amplitude, 0.12f, rotational);
+        }
+
+        public void ApplyRecoilAndBrake(float dt, Simulation simulation)
+        {
+            // Referencia al cuerpo físico del tanque
+            var bodyRef = simulation.Bodies.GetBodyReference(_physicsBody); // usa tu handle del tanque
+
+            // Retroceso: empuja en dirección opuesta por un tiempo corto
+            if (_recoilTime > 0f)
+            {
+                // Δv = a * dt — aplicamos sobre la velocidad lineal
+                bodyRef.Velocity.Linear += _recoilAccelSys * dt;
+                _recoilTime -= dt;
+            }
+
+            // Freno: arrastre proporcional a la velocidad actual (como un damping temporal)
+            if (_brakeTime > 0f)
+            {
+                var v = bodyRef.Velocity.Linear;
+                var drag = -v * (_brakeK * dt); // más K => frena más fuerte
+                bodyRef.Velocity.Linear += drag;
+                _brakeTime -= dt;
             }
         }
     }
