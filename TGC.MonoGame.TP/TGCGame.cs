@@ -17,7 +17,7 @@ using TGC.MonoGame.Samples.Cameras;
 using MathHelper = BepuUtilities.MathHelper;
 using Matrix = Microsoft.Xna.Framework.Matrix;
 using Vector2 = System.Numerics.Vector2;
-using Vector3 = Microsoft.Xna.Framework.Vector3;
+using Vector3 = System.Numerics.Vector3;
 
 namespace TGC.MonoGame.TP;
 
@@ -91,7 +91,8 @@ public class TGCGame : Game
         /// <param name="speculativeMargin">Margen especulativo utilizado para extender el rango de detección de colisiones
         /// entre los colisionadores.</param>
         /// <returns>Devuelve true si se permite la generación de contactos entre los colisionadores, de lo contrario, devuelve false.</returns>
-        public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin)
+        public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b,
+            ref float speculativeMargin)
         {
             return a.Mobility == CollidableMobility.Dynamic || b.Mobility == CollidableMobility.Dynamic;
         }
@@ -108,7 +109,8 @@ public class TGCGame : Game
         /// <typeparam name="TManifold">Tipo específico de la estructura que representa el conjunto de contactos.</typeparam>
         /// <returns>Un valor booleano que indica si deben generarse restricciones de contacto basadas en el conjunto configurado.</returns>
         public bool ConfigureContactManifold<TManifold>(int workerIndex, CollidablePair pair, ref TManifold manifold,
-            [UnscopedRef] out PairMaterialProperties pairMaterial) where TManifold : unmanaged, IContactManifold<TManifold>
+            [UnscopedRef] out PairMaterialProperties pairMaterial)
+            where TManifold : unmanaged, IContactManifold<TManifold>
         {
             pairMaterial.FrictionCoefficient = 1f;
             pairMaterial.MaximumRecoveryVelocity = 2f;
@@ -159,12 +161,13 @@ public class TGCGame : Game
     /// Define la aplicación de fuerzas externas, como la gravedad, y permite personalizar el comportamiento de integración
     /// de velocidades y posición de los cuerpos durante el tiempo de simulación.
     /// </summary>
-    public struct PoseIntegratorCallbacks(Vector3 gravity) : IPoseIntegratorCallbacks
+    public struct PoseIntegratorCallbacks() : IPoseIntegratorCallbacks
     {
         /// <summary>
         /// Propiedad que define el vector de gravedad usado en la simulación física.
         /// Representa la fuerza gravitacional que se
         public Vector3 Gravity;
+
         /// <summary>
         /// Propiedad que define el coeficiente de amortiguamiento lineal aplicado a los cuerpos en la simulación física.
         /// Este coeficiente determina la tasa a la que se reduce la velocidad lineal de los objetos con el tiempo.
@@ -184,7 +187,7 @@ public class TGCGame : Game
         /// comportamiento físico deseado, como evitar rotaciones perpetuas en sistemas sin fricción.
         /// </summary>
         public float AngularDamping;
-        
+
         /// <summary>
         /// Variable que almacena los valores de gravedad multiplicados por el intervalo de tiempo (dt) en formato de vectores anchos (SIMD).
         /// Esta optimización permite precalcular y evitar cómputos redundantes durante cada integración de las velocidades.
@@ -215,9 +218,18 @@ public class TGCGame : Game
         /// </summary>
         private Vector<float> AngularDampingDt;
 
+        public PoseIntegratorCallbacks(Vector3 gravity) : this()
+        {
+            Gravity = gravity;
+            LinearDamping = 0f;
+            AngularDamping = 0f;
+            GravityWideDt = default;
+            LinearDampingDt = default;
+            AngularDampingDt = default;
+        }
+
         public void Initialize(Simulation simulation)
         {
-            
         }
 
         /// <summary>
@@ -227,32 +239,32 @@ public class TGCGame : Game
         /// <param name="dt">Intervalo de tiempo para el cual se realizan los cálculos de integración.</param>
         public void PrepareForIntegration(float dt)
         {
-            //No reason to recalculate gravity * dt for every body; just cache it ahead of time.
-            //Since these callbacks don't use per-body damping values, we can precalculate everything.
             LinearDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - LinearDamping, 0, 1), dt));
             AngularDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - AngularDamping, 0, 1), dt));
-            //GravityWideDt = Vector3Wide.Broadcast(Gravity * dt);
-            
+            GravityWideDt = Vector3Wide.Broadcast(Gravity * dt);
         }
 
         public void IntegrateVelocity(Vector<int> bodyIndices, Vector3Wide position, QuaternionWide orientation,
-            BodyInertiaWide localInertia, Vector<int> integrationMask, int workerIndex, Vector<float> dt, ref BodyVelocityWide velocity)
+            BodyInertiaWide localInertia, Vector<int> integrationMask, int workerIndex, Vector<float> dt,
+            ref BodyVelocityWide velocity)
         {
-            // Aplicar gravedad usando vectores SIMD
-            velocity.Linear.Y = velocity.Linear.Y + new Vector<float>(gravity.Y) * dt;
+            velocity.Linear = velocity.Linear + GravityWideDt;
+            velocity.Linear *= LinearDampingDt;
+            velocity.Angular *= AngularDampingDt;
         }
 
         public AngularIntegrationMode AngularIntegrationMode { get; } = AngularIntegrationMode.Nonconserving;
         public bool AllowSubstepsForUnconstrainedBodies { get; } = false;
         public bool IntegrateVelocityForKinematics { get; } = false;
     }
+
     public const string ContentFolder3D = "Models/";
     public const string ContentFolderEffects = "Effects/";
     public const string ContentFolderMusic = "Music/";
     public const string ContentFolderSounds = "Sounds/";
     public const string ContentFolderSpriteFonts = "SpriteFonts/";
     public const string ContentFolderTextures = "Textures/";
-    
+
     private readonly GraphicsDeviceManager _graphics;
     private readonly Random _rnd = new Random();
     private OrbitCamera _camera;
@@ -261,19 +273,22 @@ public class TGCGame : Game
     public Vector3 LookAt;
     public Vector2 pos;
     private Effect _effect;
+    private Effect _debugEffect;
     private Simulation _simulation;
-    
+
     private PositionGenerator _positionGenerator;
     private float angle;
     private Ground _ground;
     public Terrain terrain;
     
+    private bool _showTerrainMeshDebug = false;
+
     private Tank _tank;
 
     private ModelInstances _tank2 = new ModelInstances();
     private ModelInstances _panzer = new ModelInstances();
     private ModelInstances _t90 = new ModelInstances();
-    
+
     private Houses _houses = new Houses();
     private Rocks _rocks = new Rocks();
     private Trees _trees = new Trees();
@@ -304,7 +319,7 @@ public class TGCGame : Game
     protected override void Initialize()
     {
         // La logica de inicializacion que no depende del contenido se recomienda poner en este metodo.
-        
+
         // Inicializacion de camara
         var size = GraphicsDevice.Viewport.Bounds.Size;
         size.X /= 2;
@@ -313,10 +328,10 @@ public class TGCGame : Game
         DesiredLookAt = Vector3.Zero;
         pos = Vector2.Zero;
         _camera = new OrbitCamera(GraphicsDevice.Viewport.AspectRatio, Vector3.Zero, 800f, 5, 50000);
-        
+
         // Generacion de posiciones de modelos
         _positionGenerator = new PositionGenerator();
-        
+
         var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
             .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
             .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
@@ -326,10 +341,10 @@ public class TGCGame : Game
 
         // Genero otros puntos para los arbustos
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
-        
+
         _positionGenerator.AgregarPosiciones(arbustos, 450);
-        
-        _tank = new Tank(new Vector3(300, 500, 300), 0f, 20f);
+
+        _tank = new Tank(new Vector3(1500, 0, 4500), 0f, 10f);
         // Configuramos nuestras matrices de la escena.
         //_tank2.CrearObjetoUnico(20f,  0f, new Vector3(-300, 0, 300));
         //_panzer.CrearObjetoUnico(0.25f,  0f, new Vector3(0, 0, 300));
@@ -338,7 +353,7 @@ public class TGCGame : Game
         //_trees.CrearObjetos();
         //_rocks.CrearObjetos();
         //_bushes.CrearObjetos();
-        
+
         base.Initialize();
     }
 
@@ -350,14 +365,18 @@ public class TGCGame : Game
     protected override void LoadContent()
     {
         var bufferPool = new BufferPool();
-        _simulation = Simulation.Create(bufferPool, new NarrowPhaseCallbacks(), new PoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
-        
+        _simulation = Simulation.Create(bufferPool, new NarrowPhaseCallbacks(),
+            new PoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
+
         // Aca es donde deberiamos cargar todos los contenido necesarios antes de iniciar el juego.
 
         // Cargo un efecto basico propio declarado en el Content pipeline.
         // En el juego no pueden usar BasicEffect de MG, deben usar siempre efectos propios.
         _effect = Content.Load<Effect>(ContentFolderEffects + "Terrain");
-        
+
+        _debugEffect = Content.Load<Effect>(ContentFolderEffects + "Debug"); // tu efecto
+        _debugEffect.Parameters["DebugColor"]?.SetValue(Color.Red.ToVector4());
+
         // heights
         var terrainHeigthmap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/heightmap");
         // basic color
@@ -366,9 +385,10 @@ public class TGCGame : Game
         var terrainGrass = Content.Load<Texture2D>(ContentFolderTextures + "grass");
         // blend texture 2
         var terrainGround = Content.Load<Texture2D>(ContentFolderTextures + "ground");
-        
-        terrain = new Terrain(GraphicsDevice, terrainHeigthmap, terrainColorMap, terrainGrass, terrainGround, _effect, _simulation);
-        
+
+        terrain = new Terrain(GraphicsDevice, terrainHeigthmap, terrainColorMap, terrainGrass, terrainGround, _effect,
+            _simulation);
+
         _tank.CargarModelo("tank/tank", _effect, Content, _simulation, terrain);
         //_tank2.CargarModelo("tank/tank", _effect, Content);
         //_panzer.CargarModelo("panzer/Panzer", _effect, Content);
@@ -390,12 +410,13 @@ public class TGCGame : Game
     {
         var keyboardState = Keyboard.GetState();
         _tank?.Update(gameTime, keyboardState);
-        
+
         // Actualizar simulación física
         float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         if (_simulation != null && deltaTime > 0.0f && deltaTime < 0.1f) // Máximo 100ms por frame
         {
             _simulation.Timestep(deltaTime);
+            _tank.SyncFromPhysics2();
         }
 
         // Capturar Input teclado
@@ -405,21 +426,26 @@ public class TGCGame : Game
             Exit();
         }
         
+        // Toggle con flanco (solo cuando se PRESIONA F2)
+        if (Keyboard.GetState().IsKeyDown(Keys.F2))
+            _showTerrainMeshDebug = !_showTerrainMeshDebug;
+
         // Actualizar cámara para seguir al tanque
         if (_tank != null)
         {
             // Usar la posición y rotación del tanque
             var tankPosition = _tank.Position;
             var tankRotation = _tank.Rotation;
-            
-            var targetHeight = terrain.GetHeightAtPosition(tankPosition.X, tankPosition.Z) + 50f; // Un poco arriba del tanque
+
+            var targetHeight =
+                terrain.GetHeightAtPosition(tankPosition.X, tankPosition.Z) + 50f; // Un poco arriba del tanque
             _camera.SetTarget(new Vector3(tankPosition.X, targetHeight, tankPosition.Z));
 
-        
+
             var X = tankPosition.X;
             var Z = tankPosition.Z;
             var dir = new Vector2(MathF.Cos(tankRotation), MathF.Sin(tankRotation));
-        
+
             DesiredLookAt = new Vector3(X, terrain.GetHeightAtPosition(X, Z), Z);
             if (!hay_lookAt)
             {
@@ -444,13 +470,12 @@ public class TGCGame : Game
                 var Hi = terrain.GetHeightAtPosition(p.X, p.Y) + 50;
                 if (Hi > H) H = Hi;
             }
-        
+
             //var Position = new Vector3(cameraPos2D.X, DesiredLookAt.Y + H, cameraPos2D.Y);
             //_camera.View = Matrix.CreateLookAt(Position, LookAt, new Vector3(0, 1, 0));
-            
+
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime);
-
         }
 
         base.Update(gameTime);
@@ -464,38 +489,131 @@ public class TGCGame : Game
     {
         // Aca deberiamos poner toda la logia de renderizado del juego.
         GraphicsDevice.Clear(Color.Black);
-        
+
         // Verificar que el efecto y el terreno no sean nulos antes de dibujar
         if (_effect == null || terrain == null)
             return;
 
-        
+
         // Para dibujar le modelo necesitamos pasarle informacion que el efecto esta esperando.
         _effect.Parameters["View"].SetValue(_camera.View);
         _effect.Parameters["Projection"].SetValue(_camera.Projection);
-        
+
         //_effect.Parameters["DiffuseColor"].SetValue(Color.ForestGreen.ToVector3());
         //_ground.Draw(GraphicsDevice, _camera.View, _camera.Projection);
-        
+
         var oldRasterizerState = GraphicsDevice.RasterizerState;
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
         terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
         GraphicsDevice.RasterizerState = oldRasterizerState;
-        
+
         //_effect.Parameters["DiffuseColor"].SetValue(new Color(15, 15, 15).ToVector3());
         _tank.Draw();
-        
+
         //_effect.Parameters["DiffuseColor"].SetValue(new Color(0, 39, 77).ToVector3());
         //_panzer.Dibujar();
-        
+
         //_effect.Parameters["DiffuseColor"].SetValue(new Color(95, 96, 98).ToVector3());
         //_t90.Dibujar();
-        
+
         //_trees.Dibujar();
         //_houses.Dibujar();
         //_rocks.Dibujar();
         //_bushes.Dibujar();
-        
+        if (_showTerrainMeshDebug)
+        {
+            _debugEffect.Parameters["View"].SetValue(_camera.View);
+            _debugEffect.Parameters["Projection"].SetValue(_camera.Projection);
+            _debugEffect.Parameters["World"].SetValue(Matrix.Identity);
+
+            var oldRS = GraphicsDevice.RasterizerState;
+            GraphicsDevice.RasterizerState = new RasterizerState
+                { CullMode = CullMode.None, FillMode = FillMode.WireFrame };
+
+            _tank.DrawCollider(GraphicsDevice, _camera.View, _camera.Projection, _debugEffect, wireframe: true);
+
+            GraphicsDevice.RasterizerState = oldRS;
+
+            // --- DEBUG: ver el mesh físico del terreno ---
+            //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); // si tu .fx lo usa
+            terrain.DrawPhysicsMeshDebug(_debugEffect, _camera.View, _camera.Projection);
+
+            // 🔍 Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
+            _debugEffect.Parameters["View"].SetValue(_camera.View);
+            _debugEffect.Parameters["Projection"].SetValue(_camera.Projection);
+
+            var oldRS2 = GraphicsDevice.RasterizerState;
+            GraphicsDevice.RasterizerState = new RasterizerState
+            {
+                CullMode = CullMode.None,
+                FillMode = FillMode.WireFrame
+            };
+
+// -------- ESTÁTICOS (terreno) --------
+            for (int i = 0; i < _simulation.Statics.Count; i++)
+            {
+                var handle = new BepuPhysics.StaticHandle(i);
+
+                BepuPhysics.StaticDescription desc;
+                _simulation.Statics.GetDescription(handle, out desc);
+
+                if (desc.Shape.Type == BepuPhysics.Collidables.Box.Id)
+                {
+                    var shape = _simulation.Shapes.GetShape<BepuPhysics.Collidables.Box>(desc.Shape.Index);
+
+                    var worldMatrix =
+                        Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
+                        Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(
+                            desc.Pose.Orientation.X,
+                            desc.Pose.Orientation.Y,
+                            desc.Pose.Orientation.Z,
+                            desc.Pose.Orientation.W)) *
+                        Matrix.CreateTranslation(desc.Pose.Position.X, desc.Pose.Position.Y, desc.Pose.Position.Z);
+
+                    _debugEffect.Parameters["World"].SetValue(worldMatrix);
+
+                    foreach (var pass in _debugEffect.CurrentTechnique.Passes)
+                    {
+                        pass.Apply();
+                        DebugPrimitiveRenderer.DrawCube(GraphicsDevice);
+                    }
+                }
+            }
+
+// -------- DINÁMICOS (tanque, etc.) --------
+            var activeSet = _simulation.Bodies.ActiveSet;
+
+            for (int i = 0; i < activeSet.Count; i++)
+            {
+                var handle = activeSet.IndexToHandle[i];
+                var bodyRef = _simulation.Bodies.GetBodyReference(handle);
+
+                var shapeIndex = bodyRef.Collidable.Shape.Index;
+                if (shapeIndex < 0)
+                    continue;
+
+                var shape = _simulation.Shapes.GetShape<BepuPhysics.Collidables.Box>(shapeIndex);
+
+                var worldMatrix =
+                    Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
+                    Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(
+                        bodyRef.Pose.Orientation.X,
+                        bodyRef.Pose.Orientation.Y,
+                        bodyRef.Pose.Orientation.Z,
+                        bodyRef.Pose.Orientation.W)) *
+                    Matrix.CreateTranslation(bodyRef.Pose.Position.X, bodyRef.Pose.Position.Y, bodyRef.Pose.Position.Z);
+
+                _debugEffect.Parameters["World"].SetValue(worldMatrix);
+
+                foreach (var pass in _debugEffect.CurrentTechnique.Passes)
+                {
+                    pass.Apply();
+                    DebugPrimitiveRenderer.DrawCube(GraphicsDevice);
+                }
+            }
+
+            GraphicsDevice.RasterizerState = oldRS2;
+        }
     }
 
     /// <summary>
@@ -508,6 +626,4 @@ public class TGCGame : Game
 
         base.UnloadContent();
     }
-    
-    
 }
