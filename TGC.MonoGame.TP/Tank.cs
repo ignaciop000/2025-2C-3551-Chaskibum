@@ -8,6 +8,9 @@ using Microsoft.Xna.Framework.Input;
 using System.Numerics;
 using Quaternion = Microsoft.Xna.Framework.Quaternion;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
+using BepuUtilities;
+using MathHelper = Microsoft.Xna.Framework.MathHelper;
+using Matrix = Microsoft.Xna.Framework.Matrix;
 
 namespace TGC.MonoGame.TP
 {
@@ -60,15 +63,22 @@ namespace TGC.MonoGame.TP
         public float RollRotation { get; private set; } // Inclinación lateral
 
         // ===== Control por fuerzas (tuneables) =====
-        public float EngineAccel = 40f; // m/s^2 empuje "motor" (adelante/atrás)
-        public float BrakeAccel = 40f; // m/s^2 si querés distinto para reversa, usá otro valor
-        public float MaxSpeed = 35f; // m/s límite de velocidad planar
-        public float LateralGrip = 8f; // 1/s cuánto mata la deriva lateral (0=sin grip, > mata deslizamiento)
-        public float LinearDrag = 0.5f; // 1/s freno aerodinámico simple (plano XZ)
+        public float EngineAccel = 45f; // m/s^2 (empuje hacia adelante)
+        public float BrakeAccel = 45f; // m/s^2 (empuje hacia atrás)
+        public float MaxSpeed = 30f; // m/s (límite velocidad plano XZ)
+        public float LateralGrip = 12f; // 1/s (mata deriva lateral)
+        public float LinearDrag = 0.6f; // 1/s (freno aerodinámico simple)
 
-        public float TurnAccelYaw = 4.0f; // rad/s^2 aceleración angular deseada (yaw)
-        public float MaxYawRate = 2.5f; // rad/s límite de giro
-        public float YawInertia = 300f; // kg·m^2 aprox (inercia de yaw usada para impulse = I * dOmega)
+        public float TurnAccelYaw = 8.0f; // rad/s^2 (acel. angular deseada)
+        public float MaxYawRate = 2.8f; // rad/s (límite giro)
+        public float YawInertia = 350f; // kg·m^2 (fallback si no querés usar tensor)
+
+        public float ColliderWidth = 4f;
+        public float ColliderHeight = 2f; // <<--- importante para el spawn
+        public float ColliderLength = 8f;
+
+        // Pequeño “clearance” para evitar nacer en penetración
+        public float SpawnClearance = 0.05f;
 
         // Parámetros de movimiento
         private const float MovementSpeed = 200f;
@@ -78,6 +88,12 @@ namespace TGC.MonoGame.TP
         private BodyHandle _physicsBody;
         private Simulation _simulation;
         private Terrain _terrain;
+
+        // --- Debug / Telemetría ---
+        public bool DebugTelemetry = false;
+        public float SteerSign = -1f; // ← por defecto invierto A/D (cámbialo en runtime con F4)
+        private float _telemetryTimer = 0f;
+        public string TelemetryText = "";
 
         /// <summary>
         /// Gets or sets the rotation of the wheels.
@@ -176,55 +192,53 @@ namespace TGC.MonoGame.TP
         private void CreatePhysicsBody()
         {
             if (_simulation == null) return;
-/*
-            // Crear una caja para representar el tanque en la física
-            var box = new Box(Scale * 6.5f, Scale * 1f, Scale * 7f);
-            _debugBoxSize = new Vector3(box.Width, box.Height, box.Length); // para dibujarlo
-            var boxIndex = _simulation.Shapes.Add(box);
 
-            const float mass = 1000f; // Masa de 1000kg
-            var inertia = box.ComputeInertia(mass); // <— inercia real del box
-
-            // Crear cuerpo dinámico
-            var bodyDescription = BodyDescription.CreateDynamic(
-                new System.Numerics.Vector3(Position.X, Position.Y, Position.Z),
-                inertia,
-                new CollidableDescription(boxIndex, 0.1f),
-                new BodyActivityDescription(0.01f)
-            );
-
-            _physicsBody = _simulation.Bodies.Add(bodyDescription);*/
+            // Altura del suelo en (X,Z)
+            float terrainY = _terrain != null ? _terrain.GetHeightAtPosition(Position.X, Position.Z) : Position.Y;
+            // Y de spawn: suelo + media altura del collider + clearance
+            float spawnY = terrainY + ColliderHeight * 0.5f + SpawnClearance;
 
             // Calcular orientación inicial según el terreno
             CalculateTerrainRotation(out var orientationMatrix);
             var orientationQuat = Quaternion.CreateFromRotationMatrix(orientationMatrix);
 
-            // Crear la forma física del tanque (por ejemplo, una caja)
-            var box = new Box(Scale * 6.5f, Scale * 1f, Scale * 7f);
-            _debugBoxSize = new Vector3(box.Width, box.Height, box.Length); // para dibujarlo
-            var boxIndex = _simulation.Shapes.Add(box);
+            // Dimensiones del collider (ajusta a tu modelo)
+            var boxShape = new Box(Scale * ColliderWidth, Scale * ColliderHeight, Scale * ColliderLength);
+            // Dimensiones del box (ya están escaladas por Scale)
+            float W = boxShape.Width;
+            float L = boxShape.Length;
+            float massKg = 1200f; // ej: 1.2 toneladas
+// Inercia de yaw para una caja alrededor del eje vertical: I = (1/12) * m * (W^2 + L^2)
+            YawInertia = (1f / 12f) * massKg * (W * W + L * L);
 
-            const float mass = 1000f; // Masa de 1000kg
-            var inertia = box.ComputeInertia(mass); // <— inercia real del box
+// (Opcional) log para verificar:
+            System.Diagnostics.Debug.WriteLine($"[TANK] YawInertia computed = {YawInertia:0.##}");
+            var shapeIndex = _simulation.Shapes.Add(boxShape);
+            _debugBoxSize = new Vector3(boxShape.Width, boxShape.Height, boxShape.Length); // para dibujarlo
+            // Masa e inercia física del tanque (ajustable)
+            var inertia = boxShape.ComputeInertia(massKg);
 
-            // Descripción física
-            var bodyDescription = BodyDescription.CreateDynamic(
-                new System.Numerics.Vector3(Position.X, Position.Y, Position.Z),
-                inertia,
-                new CollidableDescription(boxIndex, 0.1f),
-                new BodyActivityDescription(0.01f)
+            // Pose inicial (posición + orientación que ya calculaste)
+            var pose = new RigidPose(
+                new System.Numerics.Vector3(Position.X, spawnY, Position.Z),
+                new System.Numerics.Quaternion(orientationQuat.X, orientationQuat.Y, orientationQuat.Z,
+                    orientationQuat.W)
             );
 
-            // 🔧 Aplicar la misma orientación física que la visual
-            bodyDescription.Pose.Orientation = new System.Numerics.Quaternion(
-                orientationQuat.X,
-                orientationQuat.Y,
-                orientationQuat.Z,
-                orientationQuat.W
-            );
+            // Velocidad inicial en cero
+            var velocity = new BodyVelocity(System.Numerics.Vector3.Zero, System.Numerics.Vector3.Zero);
 
-            // Agregar el cuerpo al simulador
-            _physicsBody = _simulation.Bodies.Add(bodyDescription);
+            // Collidable + margen especulativo un poco mayor si nacía rozando el suelo
+            var collidable = new CollidableDescription(shapeIndex, 0.25f);
+
+            // Actividad (umbral de “sueño” bajo para que se mueva enseguida)
+            var activity = new BodyActivityDescription(0.01f);
+
+            // ✔️ Versión correcta para tu Bepu:
+            var bodyDesc = BodyDescription.CreateDynamic(pose, velocity, inertia, collidable, activity);
+
+            // Agregar a la simulación
+            _physicsBody = _simulation.Bodies.Add(bodyDesc);
 
             // Inicializar rotación visual también
             RotationQuaternion = orientationQuat;
@@ -269,96 +283,102 @@ namespace TGC.MonoGame.TP
         public void ControlForces(float throttle, float steer, float dt)
         {
             if (_simulation == null || _physicsBody.Value < 0) return;
+            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
 
-            var bodyReference = _simulation.Bodies.GetBodyReference(_physicsBody);
-            ref var body = ref bodyReference;
-
-            // --- Base: vectores del tanque en mundo (adelante = -Z) ---
+            // --- Ejes del tanque en mundo (modelo mira +Z) ---
             var q = body.Pose.Orientation;
-            var qMat = System.Numerics.Matrix4x4.CreateFromQuaternion(q);
 
-            var forward = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, 1), qMat);
-            forward.Y = 0;
-            float fLen = forward.Length();
-            if (fLen > 1e-6f) forward /= fLen;
-            else forward = new System.Numerics.Vector3(0, 0, 1);
+            // up del cuerpo en mundo
+            var up = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 1, 0), q);
+            up = up.LengthSquared() > 1e-12f
+                ? System.Numerics.Vector3.Normalize(up)
+                : new System.Numerics.Vector3(0, 1, 0);
 
-            // right queda igual (cross(up, forward) -> (f.z, 0, -f.x))
-            var right = new System.Numerics.Vector3(forward.Z, 0, -forward.X);
+            // forward “raw” (+Z local) y proyección al plano perpendicular a up
+            var fwdRaw = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, 1), q);
+            var fwd = fwdRaw - System.Numerics.Vector3.Dot(fwdRaw, up) * up;
+            if (fwd.LengthSquared() < 1e-12f) fwd = new System.Numerics.Vector3(0, 0, 1);
+            else fwd = System.Numerics.Vector3.Normalize(fwd);
 
+            // base ortonormal (right,fwd) en el plano del suelo
+            var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(up, fwd));
+            fwd = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(right, up));
 
-            // --- Estado actual (solo plano) ---
-            var vLin = body.Velocity.Linear;
-            var vPlanar = new System.Numerics.Vector3(vLin.X, 0, vLin.Z);
+            // Velocidades
+            var v = body.Velocity.Linear;
+            var vPlanar = v - System.Numerics.Vector3.Dot(v, up) * up; // velocidad en el plano
             float speed = vPlanar.Length();
 
-            // Masa (de la inercia local del cuerpo)
             float invMass = body.LocalInertia.InverseMass;
-            if (invMass <= 0f) return; // no dinámico
+            if (invMass <= 0f) return;
             float mass = 1f / invMass;
 
-            // ===========================================================
-            // 1) EMPUJE DEL MOTOR (impulso lineal en dirección forward)
-            // ===========================================================
-            float accel = (throttle >= 0f ? EngineAccel : BrakeAccel) * throttle; // throttle ∈ [-1..1]
-            // Evitar seguir acelerando si ya superó MaxSpeed en el mismo sentido:
-            if (speed > MaxSpeed && System.Numerics.Vector3.Dot(vPlanar, forward) * MathF.Sign(throttle) > 0f)
+            // 1) Empuje motor W/S -> impulso lineal sobre 'fwd'
+            float accel = (throttle >= 0f ? EngineAccel : BrakeAccel) * throttle; // [-1..1]
+            if (speed > MaxSpeed && System.Numerics.Vector3.Dot(vPlanar, fwd) * MathF.Sign(throttle) > 0f)
                 accel = 0f;
 
-            float J_engine = mass * accel * dt; // impulso = m * dv
-            if (J_engine != 0f)
-                body.ApplyLinearImpulse(forward * J_engine);
+            float J_engine = mass * accel * dt;
+            if (J_engine != 0f) body.ApplyLinearImpulse(fwd * J_engine);
 
-            // ===========================================================
-            // 2) GRIP LATERAL (mata deriva / drifting en XZ)
-            // ===========================================================
+            // 2) Grip lateral (reduce deriva sobre 'right')
             float vSide = System.Numerics.Vector3.Dot(vPlanar, right);
-            float kill = MathF.Min(1f, LateralGrip * dt); // 0..1
+            float kill = MathF.Min(1f, LateralGrip * dt);
             if (MathF.Abs(vSide) > 1e-4f && kill > 0f)
             {
-                float J_side = mass * vSide * kill; // queremos reducir vSide hacia 0
-                body.ApplyLinearImpulse(-right * J_side); // opuesto a la deriva
+                float J_side = mass * vSide * kill;
+                body.ApplyLinearImpulse(-right * J_side);
             }
 
-            // ===========================================================
-            // 3) DRAG LINEAL (freno suave aerodinámico en XZ)
-            // ===========================================================
+            // 3) Drag lineal suave en el plano
             if (LinearDrag > 0f && speed > 1e-3f)
             {
                 var dir = vPlanar / speed;
-                float J_drag = mass * (LinearDrag * dt) * speed; // reduce proporcional al módulo
+                float J_drag = mass * (LinearDrag * dt) * speed;
                 body.ApplyLinearImpulse(-dir * J_drag);
             }
 
-            // ===========================================================
-            // 4) GIRO (impulso angular alrededor de Y)
-            // ===========================================================
-            float yawTarget = -steer * MaxYawRate;
-            float yawNow = body.Velocity.Angular.Y;
-            float errYaw = yawTarget - yawNow;
-
-            float dOmega = Math.Clamp(errYaw, -TurnAccelYaw * dt, TurnAccelYaw * dt); // delta ω permitido
-            if (MathF.Abs(dOmega) > 1e-5f)
-            {
-                // Impulso angular J = I * dΩ (I ≈ YawInertia tuneable)
-                float J_ang = YawInertia * dOmega;
-                body.ApplyAngularImpulse(new System.Numerics.Vector3(0, J_ang, 0));
-            }
-
-            // (Opcional) Clamps finales por seguridad
-            vLin = body.Velocity.Linear;
-            vPlanar = new System.Numerics.Vector3(vLin.X, 0, vLin.Z);
-            speed = vPlanar.Length();
-            if (speed > MaxSpeed * 1.5f) // límite duro de seguridad
-            {
-                vPlanar *= (MaxSpeed * 1.5f / speed);
-                body.Velocity.Linear = new System.Numerics.Vector3(vPlanar.X, vLin.Y, vPlanar.Z);
-            }
-
-            // Limitar yaw rate por seguridad
+            // 4) Giro A/D alrededor de 'up' (no Y global)
+            float yawTarget = SteerSign * steer * MaxYawRate;
             var w = body.Velocity.Angular;
-            if (MathF.Abs(w.Y) > MaxYawRate * 1.5f)
-                body.Velocity.Angular = new System.Numerics.Vector3(w.X, MathF.Sign(w.Y) * MaxYawRate * 1.5f, w.Z);
+
+            // componente de giro actual alrededor de 'up'
+            float yawNow = System.Numerics.Vector3.Dot(w, up);
+            float dOmega = Math.Clamp(yawTarget - yawNow, -TurnAccelYaw * dt, TurnAccelYaw * dt);
+
+            if (MathF.Abs(dOmega) > 1e-6f)
+            {
+                float J_ang = YawInertia * dOmega;
+                body.ApplyAngularImpulse(up * J_ang);
+            }
+
+            // Clamps de seguridad (solo plano)
+            v = body.Velocity.Linear;
+            vPlanar = v - System.Numerics.Vector3.Dot(v, up) * up;
+            speed = vPlanar.Length();
+            if (speed > MaxSpeed * 1.5f)
+            {
+                var newPlanar = vPlanar * (MaxSpeed * 1.5f / speed);
+                body.Velocity.Linear = newPlanar + up * System.Numerics.Vector3.Dot(v, up);
+            }
+
+            // ---- Telemetría (HUD + consola) ----
+            if (DebugTelemetry)
+            {
+                _telemetryTimer += dt;
+                if (_telemetryTimer > 0.20f) // 5 Hz
+                {
+                    _telemetryTimer = 0f;
+                    float kmh = speed * 3.6f;
+
+                    TelemetryText =
+                        $"thr {throttle:+0.00;-0.00;0}  steer {steer:+0.00;-0.00;0}  sign {SteerSign:+0.0;-0.0;0}\n" +
+                        $"speed {speed:0.00} m/s ({kmh:0} km/h)   vSide {vSide:+0.00;-0.00;0}\n" +
+                        $"yawNow {yawNow:+0.00;-0.00;0} rad/s   yawTgt {yawTarget:+0.00;-0.00;0}   d {dOmega:+0.00;-0.00;0}";
+
+                    System.Diagnostics.Debug.WriteLine("[TANK] " + TelemetryText);
+                }
+            }
         }
 
 
@@ -448,17 +468,19 @@ namespace TGC.MonoGame.TP
 
                 // ¡No pises la altura con el terreno cuando usás física!
 */
+                var kb = Keyboard.GetState();
+
                 float throttle = 0f; // W adelante, S atrás
-                if (keyboardState.IsKeyDown(Keys.W)) throttle += 1f;
-                if (keyboardState.IsKeyDown(Keys.S)) throttle -= 1f;
+                if (kb.IsKeyDown(Keys.W)) throttle += 1f;
+                if (kb.IsKeyDown(Keys.S)) throttle -= 1f;
 
                 float steer = 0f; // A izquierda, D derecha
-                if (keyboardState.IsKeyDown(Keys.A)) steer -= 1f;
-                if (keyboardState.IsKeyDown(Keys.D)) steer += 1f;
+                if (kb.IsKeyDown(Keys.A)) steer -= 1f;
+                if (kb.IsKeyDown(Keys.D)) steer += 1f;
 
-// Normalizar por si se pisan opuestos
                 throttle = Math.Clamp(throttle, -1f, 1f);
                 steer = Math.Clamp(steer, -1f, 1f);
+
                 ControlForces(throttle, steer, dt);
                 // Sincronizar pose visual desde la física
                 SyncFromPhysics(); // ya lo tenés implementado
@@ -575,13 +597,13 @@ namespace TGC.MonoGame.TP
             Position = new Vector3(physicsPosition.X, physicsPosition.Y, physicsPosition.Z);
 
             // 🔧 Ajustar para apoyar sobre el terreno (solo si estás sobre él)
-            if (_terrain != null)
+/*            if (_terrain != null)
             {
                 float terrainHeight = _terrain.GetHeightAtPosition(Position.X, Position.Z);
                 float offset = _debugBoxSize.Y * 0.5f; // mitad de la caja física real
                 Position = new Vector3(Position.X, terrainHeight + offset, Position.Z);
             }
-
+*/
             // Extraer rotación Y del quaternion
             var orientation = bodyReference.Pose.Orientation;
             Rotation = MathF.Atan2(2.0f * (orientation.W * orientation.Y + orientation.X * orientation.Z),
@@ -590,8 +612,7 @@ namespace TGC.MonoGame.TP
 
         public void SyncFromPhysics2()
         {
-            var bodyReference = _simulation.Bodies.GetBodyReference(_physicsBody);
-            ref var body = ref bodyReference;
+            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
             var pose = body.Pose;
 
             Position = new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z);

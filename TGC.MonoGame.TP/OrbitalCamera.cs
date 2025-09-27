@@ -17,8 +17,8 @@ namespace TGC.MonoGame.Samples.Cameras
         public float MaxDistance { get; set; } = 2000f;
         
         // Ángulos de rotación
-        private float _yaw = 0f;   // Rotación horizontal
-        private float _pitch = -20f; // Rotación vertical (empezamos ligeramente hacia abajo)
+        private float _yaw = -50f;   // Rotación horizontal
+        private float _pitch = 30f; // Rotación vertical (empezamos ligeramente hacia abajo)
         
         // Configuración de controles
         public float MouseSensitivity { get; set; } = 0.3f;

@@ -280,9 +280,12 @@ public class TGCGame : Game
     private float angle;
     private Ground _ground;
     public Terrain terrain;
-    
-    private bool _showTerrainMeshDebug = false;
 
+    private bool _showTerrainMeshDebug = false;
+    private KeyboardState _kbPrev;
+    private bool _showTankTelemetry = false;
+    private SpriteBatch _spriteBatch;
+    private SpriteFont _debugFont; // agregá un .spritefont llamado "DebugFont" en Content
     private Tank _tank;
 
     //private ModelInstances _tank2 = new ModelInstances(new Color(15, 15, 15));
@@ -328,7 +331,7 @@ public class TGCGame : Game
         DesiredLookAt = Vector3.Zero;
         pos = Vector2.Zero;
         _camera = new OrbitCamera(GraphicsDevice.Viewport.AspectRatio, Vector3.Zero, 800f, 5, 50000);
-        
+
         _tank = new Tank(new Vector3(1500, 0, 4500), 0f, 10f);
         // Configuramos nuestras matrices de la escena.
         //_tank2.CrearObjetoUnico(20f,  0f, new Vector3(-300, 0, 300));
@@ -381,7 +384,7 @@ public class TGCGame : Game
         _houses = new Houses(terrain);
         _rocks = new Rocks(terrain);
         _bushes = new Bushes(terrain);
-        
+
         // Generacion de posiciones de modelos
         _positionGenerator = new PositionGenerator();
 
@@ -396,17 +399,20 @@ public class TGCGame : Game
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
 
         _positionGenerator.AgregarPosiciones(arbustos, 450);
-        
+
         _trees.CargarModelos(_effect, Content);
         _houses.CargarModelos(_effect, Content);
         _rocks.CargarModelos(_effect, Content);
         _bushes.CargarModelos(_effect, Content);
-        
+
         _trees.CrearObjetos();
         _rocks.CrearObjetos();
         _houses.CrearObjetos();
         _bushes.CrearObjetos();
-        
+
+        _spriteBatch = new SpriteBatch(GraphicsDevice);
+        _debugFont = Content.Load<SpriteFont>(ContentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
+
         base.LoadContent();
     }
 
@@ -434,11 +440,20 @@ public class TGCGame : Game
             //Salgo del juego.
             Exit();
         }
-        
-        // Toggle con flanco (solo cuando se PRESIONA F2)
-        if (Keyboard.GetState().IsKeyDown(Keys.F2))
-            _showTerrainMeshDebug = !_showTerrainMeshDebug;
 
+        // Toggle con flanco (solo cuando se PRESIONA F2)
+        if (Keyboard.GetState().IsKeyDown(Keys.F2) && !_kbPrev.IsKeyDown(Keys.F2))
+        {
+            _showTerrainMeshDebug = !_showTerrainMeshDebug;
+        }
+
+        if (Keyboard.GetState().IsKeyDown(Keys.F3) && !_kbPrev.IsKeyDown(Keys.F3))
+        {
+            _showTankTelemetry = !_showTankTelemetry;
+            _tank.DebugTelemetry = _showTankTelemetry;
+        }
+
+        _kbPrev = Keyboard.GetState();
         // Actualizar cámara para seguir al tanque
         if (_tank != null)
         {
@@ -498,11 +513,18 @@ public class TGCGame : Game
     {
         // Aca deberiamos poner toda la logia de renderizado del juego.
         GraphicsDevice.Clear(Color.Black);
+        // Limpia también el depth buffer
+        GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.Black, 1f, 0);
+
+// Estados por defecto para 3D
+        GraphicsDevice.BlendState = BlendState.Opaque;
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise; // o el que uses
+        GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
 
         // Verificar que el efecto y el terreno no sean nulos antes de dibujar
         if (_effect == null || terrain == null)
             return;
-
 
         // Para dibujar le modelo necesitamos pasarle informacion que el efecto esta esperando.
         _effect.Parameters["View"].SetValue(_camera.View);
@@ -529,6 +551,7 @@ public class TGCGame : Game
         _houses.Dibujar();
         _rocks.Dibujar();
         _bushes.Dibujar();
+
         if (_showTerrainMeshDebug)
         {
             _debugEffect.Parameters["View"].SetValue(_camera.View);
@@ -558,7 +581,7 @@ public class TGCGame : Game
                 FillMode = FillMode.WireFrame
             };
 
-// -------- ESTÁTICOS (terreno) --------
+            // -------- ESTÁTICOS (terreno) --------
             for (int i = 0; i < _simulation.Statics.Count; i++)
             {
                 var handle = new BepuPhysics.StaticHandle(i);
@@ -589,7 +612,7 @@ public class TGCGame : Game
                 }
             }
 
-// -------- DINÁMICOS (tanque, etc.) --------
+            // -------- DINÁMICOS (tanque, etc.) --------
             var activeSet = _simulation.Bodies.ActiveSet;
 
             for (int i = 0; i < activeSet.Count; i++)
@@ -622,6 +645,13 @@ public class TGCGame : Game
             }
 
             GraphicsDevice.RasterizerState = oldRS2;
+        }
+
+        if (_showTankTelemetry && _debugFont != null)
+        {
+            _spriteBatch.Begin();
+            _spriteBatch.DrawString(_debugFont, _tank.TelemetryText ?? "", new Vector2(14, 14), Color.LimeGreen);
+            _spriteBatch.End();
         }
     }
 
