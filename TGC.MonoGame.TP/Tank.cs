@@ -51,8 +51,7 @@ namespace TGC.MonoGame.TP
         private bool _debugBuffersReady;
 
         public Quaternion RotationQuaternion { get; private set; } = Quaternion.Identity;
-
-
+        
         // Propiedades de movimiento
         public Vector3 Position { get; private set; }
         public float Rotation { get; private set; }
@@ -73,9 +72,9 @@ namespace TGC.MonoGame.TP
         public float MaxYawRate = 2.8f; // rad/s (límite giro)
         public float YawInertia = 350f; // kg·m^2 (fallback si no querés usar tensor)
 
-        public float ColliderWidth = 4f;
-        public float ColliderHeight = 2f; // <<--- importante para el spawn
-        public float ColliderLength = 8f;
+        public readonly float ColliderWidth = 4f;
+        public readonly float ColliderHeight = 2f; 
+        public readonly float ColliderLength = 8f;
 
         // Pequeño “clearance” para evitar nacer en penetración
         public float SpawnClearance = 0.05f;
@@ -119,7 +118,6 @@ namespace TGC.MonoGame.TP
         ///     Gets or sets the entry hatch rotation amount.
         /// </summary>
         public float HatchRotation { get; set; }
-
 
         public Tank(Vector3 initialPosition, float initialRotation = 0f, float scale = 20f)
         {
@@ -208,10 +206,10 @@ namespace TGC.MonoGame.TP
             float W = boxShape.Width;
             float L = boxShape.Length;
             float massKg = 1200f; // ej: 1.2 toneladas
-// Inercia de yaw para una caja alrededor del eje vertical: I = (1/12) * m * (W^2 + L^2)
+            // Inercia de yaw para una caja alrededor del eje vertical: I = (1/12) * m * (W^2 + L^2)
             YawInertia = (1f / 12f) * massKg * (W * W + L * L);
 
-// (Opcional) log para verificar:
+            // (Opcional) log para verificar:
             System.Diagnostics.Debug.WriteLine($"[TANK] YawInertia computed = {YawInertia:0.##}");
             var shapeIndex = _simulation.Shapes.Add(boxShape);
             _debugBoxSize = new Vector3(boxShape.Width, boxShape.Height, boxShape.Length); // para dibujarlo
@@ -243,6 +241,8 @@ namespace TGC.MonoGame.TP
             // Inicializar rotación visual también
             RotationQuaternion = orientationQuat;
         }
+
+        #region debug
 
         private void EnsureDebugCube(GraphicsDevice gd)
         {
@@ -279,7 +279,48 @@ namespace TGC.MonoGame.TP
 
             _debugBuffersReady = true;
         }
+        
+        public void DrawCollider(GraphicsDevice gd, Matrix view, Matrix projection, Effect effect,
+            bool wireframe = true)
+        {
+            if (_simulation == null || _physicsBody.Value < 0) return;
+            EnsureDebugCube(gd);
 
+            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
+            var p = body.Pose.Position;
+            var q = body.Pose.Orientation;
+
+            var world =
+                Matrix.CreateScale(_debugBoxSize) *
+                Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(q.X, q.Y, q.Z, q.W)) *
+                Matrix.CreateTranslation(new Microsoft.Xna.Framework.Vector3(p.X, p.Y, p.Z));
+
+            // Set de matrices
+            effect.Parameters["World"]?.SetValue(world);
+            effect.Parameters["View"]?.SetValue(view);
+            effect.Parameters["Projection"]?.SetValue(projection);
+
+            // Rasterizer en wireframe si querés ver sólo el contorno
+            var old = gd.RasterizerState;
+            if (wireframe)
+                gd.RasterizerState =
+                    RasterizerState.CullNone; // y luego setear WireFrame en el Pass si tu efecto lo soporta
+
+            gd.SetVertexBuffer(_debugBoxVB);
+            gd.Indices = _debugBoxIB;
+
+            foreach (var pass in effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, _debugBoxIB.IndexCount / 3);
+            }
+
+            gd.RasterizerState = old;
+        }
+        
+
+        #endregion
+        
         public void ControlForces(float throttle, float steer, float dt)
         {
             if (_simulation == null || _physicsBody.Value < 0) return;
@@ -380,151 +421,28 @@ namespace TGC.MonoGame.TP
                 }
             }
         }
-
-
-        public void DrawCollider(GraphicsDevice gd, Matrix view, Matrix projection, Effect effect,
-            bool wireframe = true)
-        {
-            if (_simulation == null || _physicsBody.Value < 0) return;
-            EnsureDebugCube(gd);
-
-            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
-            var p = body.Pose.Position;
-            var q = body.Pose.Orientation;
-
-            var world =
-                Matrix.CreateScale(_debugBoxSize) *
-                Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(q.X, q.Y, q.Z, q.W)) *
-                Matrix.CreateTranslation(new Microsoft.Xna.Framework.Vector3(p.X, p.Y, p.Z));
-
-            // Set de matrices
-            effect.Parameters["World"]?.SetValue(world);
-            effect.Parameters["View"]?.SetValue(view);
-            effect.Parameters["Projection"]?.SetValue(projection);
-
-            // Rasterizer en wireframe si querés ver sólo el contorno
-            var old = gd.RasterizerState;
-            if (wireframe)
-                gd.RasterizerState =
-                    RasterizerState.CullNone; // y luego setear WireFrame en el Pass si tu efecto lo soporta
-
-            gd.SetVertexBuffer(_debugBoxVB);
-            gd.Indices = _debugBoxIB;
-
-            foreach (var pass in effect.CurrentTechnique.Passes)
-            {
-                pass.Apply();
-                gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, _debugBoxIB.IndexCount / 3);
-            }
-
-            gd.RasterizerState = old;
-        }
-
+        
         public void Update(GameTime gameTime, KeyboardState keyboardState)
         {
-            float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            
+            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
+            body.Awake = true;
+            
+            var throttle = 0f;
+            if (keyboardState.IsKeyDown(Keys.W)) throttle += 1f;
+            if (keyboardState.IsKeyDown(Keys.S)) throttle -= 1f;
 
-            bool hasSim = _simulation != null && _physicsBody.Value >= 0;
+            var steer = 0f; 
+            if (keyboardState.IsKeyDown(Keys.A)) steer -= 1f;
+            if (keyboardState.IsKeyDown(Keys.D)) steer += 1f;
 
-            if (hasSim)
-            {
-                var body = _simulation.Bodies.GetBodyReference(_physicsBody);
-                body.Awake = true;
+            //Restringo a Maximos y minimos
+            throttle = Math.Clamp(throttle, -1f, 1f);
+            steer = Math.Clamp(steer, -1f, 1f);
 
-                // Orientación actual del cuerpo físico -> ejes locales
-                var q = body.Pose.Orientation;
-                var rot = Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(q.X, q.Y, q.Z, q.W));
-                var forward = Vector3.Transform(-Vector3.UnitZ, rot); // tu “frente”
-                var forward3 = new System.Numerics.Vector3(forward.X, 0, forward.Z);
-/*
-                // Parámetros de control (ajustá a tu escala)
-                const float MotorForce = 25000f; // N
-                const float TurnForce = 3000f; // N·m
-                const float MaxSpeed = 120f; // límite simple en XZ
-
-                // Impulsos = fuerza * dt
-                float motorImpulse = MotorForce * dt;
-                float turnImpulse = TurnForce * dt;
-
-                // Límite de velocidad horizontal
-                var v = body.Velocity.Linear;
-                float speedXZ = MathF.Sqrt(v.X * v.X + v.Z * v.Z);
-
-                // W/S: impulso lineal hacia adelante/atrás
-                if (keyboardState.IsKeyDown(Keys.W) && speedXZ < MaxSpeed)
-                    body.ApplyLinearImpulse(forward3 * motorImpulse);
-                if (keyboardState.IsKeyDown(Keys.S) && speedXZ < MaxSpeed)
-                    body.ApplyLinearImpulse(-forward3 * motorImpulse);
-
-                // A/D: impulso angular alrededor de Y (giro)
-                if (keyboardState.IsKeyDown(Keys.A))
-                    body.ApplyAngularImpulse(new System.Numerics.Vector3(0, turnImpulse, 0));
-                if (keyboardState.IsKeyDown(Keys.D))
-                    body.ApplyAngularImpulse(new System.Numerics.Vector3(0, -turnImpulse, 0));
-
-                // Amortiguación suave (ajustable)
-                body.Velocity.Linear *= 0.999f;
-                body.Velocity.Angular *= 0.999f;
-
-                // ¡No pises la altura con el terreno cuando usás física!
-*/
-                var kb = Keyboard.GetState();
-
-                float throttle = 0f; // W adelante, S atrás
-                if (kb.IsKeyDown(Keys.W)) throttle += 1f;
-                if (kb.IsKeyDown(Keys.S)) throttle -= 1f;
-
-                float steer = 0f; // A izquierda, D derecha
-                if (kb.IsKeyDown(Keys.A)) steer -= 1f;
-                if (kb.IsKeyDown(Keys.D)) steer += 1f;
-
-                throttle = Math.Clamp(throttle, -1f, 1f);
-                steer = Math.Clamp(steer, -1f, 1f);
-
-                ControlForces(throttle, steer, dt);
-                // Sincronizar pose visual desde la física
-                SyncFromPhysics(); // ya lo tenés implementado
-            }
-            else
-            {
-                // Fallback sin física (tu comportamiento original)
-                bool moved = false;
-
-                if (keyboardState.IsKeyDown(Keys.W))
-                {
-                    MoveForward(dt);
-                    moved = true;
-                }
-
-                if (keyboardState.IsKeyDown(Keys.S))
-                {
-                    MoveBackward(dt);
-                    moved = true;
-                }
-
-                if (keyboardState.IsKeyDown(Keys.A))
-                {
-                    RotateLeft(dt);
-                    moved = true;
-                }
-
-                if (keyboardState.IsKeyDown(Keys.D))
-                {
-                    RotateRight(dt);
-                    moved = true;
-                }
-
-                // Sólo si NO hay física, ajustá la Y al terreno
-                if (_terrain != null && !hasSim)
-                {
-                    float terrainHeight = _terrain.GetHeightAtPosition(Position.X, Position.Z);
-                    Position = new Vector3(Position.X, terrainHeight + Scale * 0.02f, Position.Z); // <- + (no -)
-                }
-
-                if (moved)
-                    UpdatePhysicsBody(); // escribe la pose en la física sólo en este modo
-            }
-
+            ControlForces(throttle, steer, dt);
+            
             // Girar ruedas según distancia recorrida
             UpdateWheelSpinByDistance(dt);
 
@@ -552,65 +470,7 @@ namespace TGC.MonoGame.TP
 
             _lastPos = Position;
         }
-
-        private void MoveForward(float deltaTime)
-        {
-            Vector3 forward = Vector3.Transform(-Vector3.UnitZ, Matrix.CreateRotationY(Rotation));
-            Position += forward * MovementSpeed * deltaTime;
-        }
-
-        private void MoveBackward(float deltaTime)
-        {
-            Vector3 forward = Vector3.Transform(-Vector3.UnitZ, Matrix.CreateRotationY(Rotation));
-            Position -= forward * MovementSpeed * deltaTime;
-        }
-
-        private void RotateLeft(float deltaTime)
-        {
-            Rotation += RotationSpeed * deltaTime; // Cambiado de -= a +=
-        }
-
-        private void RotateRight(float deltaTime)
-        {
-            Rotation -= RotationSpeed * deltaTime; // Cambiado de += a -=
-        }
-
-        private void UpdatePhysicsBody()
-        {
-            if (_simulation != null && _physicsBody.Value >= 0)
-            {
-                // Actualizar posición en la física
-                var bodyReference = _simulation.Bodies.GetBodyReference(_physicsBody);
-                bodyReference.Pose.Position = new System.Numerics.Vector3(Position.X, Position.Y, Position.Z);
-                bodyReference.Pose.Orientation = System.Numerics.Quaternion.CreateFromYawPitchRoll(Rotation, 0, 0);
-
-                // Activar el cuerpo para que se actualice
-                bodyReference.Activity.SleepThreshold = -1;
-            }
-        }
-
-        private void SyncFromPhysics()
-        {
-            var bodyReference = _simulation.Bodies.GetBodyReference(_physicsBody);
-            var physicsPosition = bodyReference.Pose.Position;
-
-            Position = new Vector3(physicsPosition.X, physicsPosition.Y, physicsPosition.Z);
-
-            // 🔧 Ajustar para apoyar sobre el terreno (solo si estás sobre él)
-/*            if (_terrain != null)
-            {
-                float terrainHeight = _terrain.GetHeightAtPosition(Position.X, Position.Z);
-                float offset = _debugBoxSize.Y * 0.5f; // mitad de la caja física real
-                Position = new Vector3(Position.X, terrainHeight + offset, Position.Z);
-            }
-*/
-            // Extraer rotación Y del quaternion
-            var orientation = bodyReference.Pose.Orientation;
-            Rotation = MathF.Atan2(2.0f * (orientation.W * orientation.Y + orientation.X * orientation.Z),
-                1.0f - 2.0f * (orientation.Y * orientation.Y + orientation.Z * orientation.Z));
-        }
-
-        public void SyncFromPhysics2()
+        public void SyncFromPhysics()
         {
             var body = _simulation.Bodies.GetBodyReference(_physicsBody);
             var pose = body.Pose;

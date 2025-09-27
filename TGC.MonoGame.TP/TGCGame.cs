@@ -307,10 +307,11 @@ public class TGCGame : Game
 
         _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
         _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
-
         // Para que el juego sea pantalla completa se puede usar Graphics IsFullScreen.
+        
         // Carpeta raiz donde va a estar toda la Media.
         Content.RootDirectory = "Content";
+        
         // Hace que el mouse sea visible.
         IsMouseVisible = true;
     }
@@ -321,26 +322,23 @@ public class TGCGame : Game
     /// </summary>
     protected override void Initialize()
     {
-        // La logica de inicializacion que no depende del contenido se recomienda poner en este metodo.
-
-        // Inicializacion de camara
-        var size = GraphicsDevice.Viewport.Bounds.Size;
-        size.X /= 2;
-        size.Y /= 2;
-        //_camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, new Vector3(300, -100, 500), size);
         DesiredLookAt = Vector3.Zero;
         pos = Vector2.Zero;
-        _camera = new OrbitCamera(GraphicsDevice.Viewport.AspectRatio, Vector3.Zero, 800f, 5, 50000);
+        
+        _camera = new OrbitCamera(
+            GraphicsDevice.Viewport.AspectRatio, 
+            Vector3.Zero, 
+            800f, 
+            5, 
+            50000
+            );
+        
+        var bufferPool = new BufferPool();
+        _simulation = Simulation.Create(bufferPool, new NarrowPhaseCallbacks(),
+            new PoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
 
         _tank = new Tank(new Vector3(1500, 0, 4500), 0f, 10f);
-        // Configuramos nuestras matrices de la escena.
-        //_tank2.CrearObjetoUnico(20f,  0f, new Vector3(-300, 0, 300));
-        //_panzer.CrearObjetoUnico(0.25f,  0f, new Vector3(0, 0, 300));
-        //_t90.CrearObjetoUnico(0.25f,  180f, new Vector3(300, 37, 300));
-        //_houses.CrearObjetos();
-        //_rocks.CrearObjetos();
-        //_bushes.CrearObjetos();
-
+        
         base.Initialize();
     }
 
@@ -351,19 +349,16 @@ public class TGCGame : Game
     /// </summary>
     protected override void LoadContent()
     {
-        var bufferPool = new BufferPool();
-        _simulation = Simulation.Create(bufferPool, new NarrowPhaseCallbacks(),
-            new PoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
-
-        // Aca es donde deberiamos cargar todos los contenido necesarios antes de iniciar el juego.
-
-        // Cargo un efecto basico propio declarado en el Content pipeline.
-        // En el juego no pueden usar BasicEffect de MG, deben usar siempre efectos propios.
         _effect = Content.Load<Effect>(ContentFolderEffects + "Terrain");
 
-        _debugEffect = Content.Load<Effect>(ContentFolderEffects + "Debug"); // tu efecto
+        #region debug
+        _debugEffect = Content.Load<Effect>(ContentFolderEffects + "Debug"); 
         _debugEffect.Parameters["DebugColor"]?.SetValue(Color.Red.ToVector4());
-
+        
+        _spriteBatch = new SpriteBatch(GraphicsDevice);
+        _debugFont = Content.Load<SpriteFont>(ContentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
+        #endregion debug
+        
         // heights
         var terrainHeigthmap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/heightmap");
         // basic color
@@ -373,8 +368,14 @@ public class TGCGame : Game
         // blend texture 2
         var terrainGround = Content.Load<Texture2D>(ContentFolderTextures + "ground");
 
-        terrain = new Terrain(GraphicsDevice, terrainHeigthmap, terrainColorMap, terrainGrass, terrainGround, _effect,
-            _simulation);
+        terrain = new Terrain(GraphicsDevice, 
+            terrainHeigthmap, 
+            terrainColorMap, 
+            terrainGrass, 
+            terrainGround, 
+            _effect,
+            _simulation
+            );
 
         _tank.CargarModelo("tank/tank", _effect, Content, _simulation, terrain);
         //_tank2.CargarModelo("tank/tank", _effect, Content);
@@ -387,17 +388,14 @@ public class TGCGame : Game
 
         // Generacion de posiciones de modelos
         _positionGenerator = new PositionGenerator();
-
         var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
             .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
             .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
             .ToList();
-
         _positionGenerator.AgregarPosiciones(modelos);
 
         // Genero otros puntos para los arbustos
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
-
         _positionGenerator.AgregarPosiciones(arbustos, 450);
 
         _trees.CargarModelos(_effect, Content);
@@ -409,10 +407,7 @@ public class TGCGame : Game
         _rocks.CrearObjetos();
         _houses.CrearObjetos();
         _bushes.CrearObjetos();
-
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
-        _debugFont = Content.Load<SpriteFont>(ContentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
-
+        
         base.LoadContent();
     }
 
@@ -424,14 +419,16 @@ public class TGCGame : Game
     protected override void Update(GameTime gameTime)
     {
         var keyboardState = Keyboard.GetState();
+        var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        
         _tank?.Update(gameTime, keyboardState);
 
+        
         // Actualizar simulación física
-        float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         if (_simulation != null && deltaTime > 0.0f && deltaTime < 0.1f) // Máximo 100ms por frame
         {
             _simulation.Timestep(deltaTime);
-            _tank.SyncFromPhysics2();
+            _tank?.SyncFromPhysics();
         }
 
         // Capturar Input teclado
@@ -441,7 +438,7 @@ public class TGCGame : Game
             Exit();
         }
 
-        // Toggle con flanco (solo cuando se PRESIONA F2)
+        #region debug
         if (Keyboard.GetState().IsKeyDown(Keys.F2) && !_kbPrev.IsKeyDown(Keys.F2))
         {
             _showTerrainMeshDebug = !_showTerrainMeshDebug;
@@ -452,25 +449,18 @@ public class TGCGame : Game
             _showTankTelemetry = !_showTankTelemetry;
             _tank.DebugTelemetry = _showTankTelemetry;
         }
-
+        #endregion
+        
         _kbPrev = Keyboard.GetState();
         // Actualizar cámara para seguir al tanque
         if (_tank != null)
         {
             // Usar la posición y rotación del tanque
-            var tankPosition = _tank.Position;
-            var tankRotation = _tank.Rotation;
+            var targetHeight = terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z) + 50f; 
+            _camera.SetTarget(new Vector3(_tank.Position.X, targetHeight, _tank.Position.Z));
+            var dir = new Vector2(MathF.Cos(_tank.Rotation), MathF.Sin(_tank.Rotation));
 
-            var targetHeight =
-                terrain.GetHeightAtPosition(tankPosition.X, tankPosition.Z) + 50f; // Un poco arriba del tanque
-            _camera.SetTarget(new Vector3(tankPosition.X, targetHeight, tankPosition.Z));
-
-
-            var X = tankPosition.X;
-            var Z = tankPosition.Z;
-            var dir = new Vector2(MathF.Cos(tankRotation), MathF.Sin(tankRotation));
-
-            DesiredLookAt = new Vector3(X, terrain.GetHeightAtPosition(X, Z), Z);
+            DesiredLookAt = new Vector3(_tank.Position.X, terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z), _tank.Position.Z);
             if (!hay_lookAt)
             {
                 LookAt = DesiredLookAt;
@@ -482,7 +472,7 @@ public class TGCGame : Game
                 LookAt = DesiredLookAt * lamda + LookAt * (1 - lamda);
             }
 
-            var tankPos2D = new Vector2(X, Z);
+            var tankPos2D = new Vector2(_tank.Position.X, _tank.Position.Z);
             var cameraPos2D = tankPos2D - dir * 800; // Distancia de 800 unidades detrás del tanque
 
             // Calcular la altura máxima entre la cámara y el tanque
@@ -494,10 +484,7 @@ public class TGCGame : Game
                 var Hi = terrain.GetHeightAtPosition(p.X, p.Y) + 50;
                 if (Hi > H) H = Hi;
             }
-
-            //var Position = new Vector3(cameraPos2D.X, DesiredLookAt.Y + H, cameraPos2D.Y);
-            //_camera.View = Matrix.CreateLookAt(Position, LookAt, new Vector3(0, 1, 0));
-
+            
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime);
         }
@@ -511,15 +498,14 @@ public class TGCGame : Game
     /// </summary>
     protected override void Draw(GameTime gameTime)
     {
-        // Aca deberiamos poner toda la logia de renderizado del juego.
         GraphicsDevice.Clear(Color.Black);
         // Limpia también el depth buffer
         GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.Black, 1f, 0);
 
-// Estados por defecto para 3D
+        // Estados por defecto para 3D
         GraphicsDevice.BlendState = BlendState.Opaque;
         GraphicsDevice.DepthStencilState = DepthStencilState.Default;
-        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise; // o el que uses
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
         GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
 
         // Verificar que el efecto y el terreno no sean nulos antes de dibujar
@@ -529,9 +515,6 @@ public class TGCGame : Game
         // Para dibujar le modelo necesitamos pasarle informacion que el efecto esta esperando.
         _effect.Parameters["View"].SetValue(_camera.View);
         _effect.Parameters["Projection"].SetValue(_camera.Projection);
-
-        //_effect.Parameters["DiffuseColor"].SetValue(Color.ForestGreen.ToVector3());
-        //_ground.Draw(GraphicsDevice, _camera.View, _camera.Projection);
 
         var oldRasterizerState = GraphicsDevice.RasterizerState;
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
@@ -552,7 +535,9 @@ public class TGCGame : Game
         _rocks.Dibujar();
         _bushes.Dibujar();
 
-        if (_showTerrainMeshDebug)
+        #region debug
+
+                if (_showTerrainMeshDebug)
         {
             _debugEffect.Parameters["View"].SetValue(_camera.View);
             _debugEffect.Parameters["Projection"].SetValue(_camera.Projection);
@@ -653,6 +638,9 @@ public class TGCGame : Game
             _spriteBatch.DrawString(_debugFont, _tank.TelemetryText ?? "", new Vector2(14, 14), Color.LimeGreen);
             _spriteBatch.End();
         }
+
+        #endregion
+
     }
 
     /// <summary>
