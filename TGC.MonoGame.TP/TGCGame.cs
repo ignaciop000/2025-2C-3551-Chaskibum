@@ -1,4 +1,18 @@
-﻿using System;
+﻿// LISTA DE TAREAS
+// - Agregar Postes [SANTI]
+// - Incorporar otros tanques (sin IA) [SANTI]
+// - Mejorar movimiento tanque [MATEO]
+// - Usar camara que siga a la torreta con el mouse (+ movimientos torreta) [MATEO]
+// - Poner las texturas de tanque y otros objetos [SANTI]
+// - Disparar proyectiles [NACHO]
+// - Colisión entre tanques y objetos (con disparos se rompe todo, pero arboles y arbustos se rompen tambien con el tanque) [AGUS]
+
+// - Opcionales:
+// - Corregir angulo arbustos, rocas y casas para que sigan el piso
+// - Los objetos solo spawnean si el angulo es menor a X°, dependiendo del objeto. Casas muy bajo, el resto un poco mas, rocas no tienen restriccion
+// - Suaviavizar el mapazar el mapa
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -28,6 +42,8 @@ namespace TGC.MonoGame.TP;
 /// </summary>
 public class TGCGame : Game
 {
+    private float _escalaMapa = 100;
+    
     /// <summary>
     /// NarrowPhaseCallbacks es una estructura que define las operaciones relacionadas con la detección de colisiones
     /// en la fase estrecha dentro de la simulación física. Su implementación permite personalizar cómo se generan
@@ -272,6 +288,7 @@ public class TGCGame : Game
     public bool hay_lookAt;
     public Vector3 LookAt;
     public Vector2 pos;
+    private Effect _terrainEffect;
     private Effect _effect;
     private Effect _debugEffect;
     private Simulation _simulation;
@@ -349,7 +366,8 @@ public class TGCGame : Game
     /// </summary>
     protected override void LoadContent()
     {
-        _effect = Content.Load<Effect>(ContentFolderEffects + "Terrain");
+        _terrainEffect = Content.Load<Effect>(ContentFolderEffects + "Terrain");
+        _effect = Content.Load<Effect>(ContentFolderEffects + "BasicShader");
 
         #region debug
         _debugEffect = Content.Load<Effect>(ContentFolderEffects + "Debug"); 
@@ -373,11 +391,12 @@ public class TGCGame : Game
             terrainColorMap, 
             terrainGrass, 
             terrainGround, 
-            _effect,
-            _simulation
+            _terrainEffect,
+            _simulation,
+            _escalaMapa
             );
 
-        _tank.CargarModelo("tank/tank", _effect, Content, _simulation, terrain);
+        _tank.CargarModelo("tank/tank", _terrainEffect, Content, _simulation, terrain);
         //_tank2.CargarModelo("tank/tank", _effect, Content);
         //_panzer.CargarModelo("panzer/Panzer", _effect, Content);
         //_t90.CargarModelo("t90/T90", _effect, Content);
@@ -387,7 +406,11 @@ public class TGCGame : Game
         _bushes = new Bushes(terrain);
 
         // Generacion de posiciones de modelos
-        _positionGenerator = new PositionGenerator();
+
+        var anchoMapa = (terrain.HeightmapData.GetLength(0) - 1) * _escalaMapa;
+        var largoMapa = (terrain.HeightmapData.GetLength(1) - 1) * _escalaMapa;
+        
+        _positionGenerator = new PositionGenerator(anchoMapa, largoMapa);
         var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
             .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
             .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
@@ -398,15 +421,15 @@ public class TGCGame : Game
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
         _positionGenerator.AgregarPosiciones(arbustos, 450);
 
-        _trees.CargarModelos(_effect, Content);
-        _houses.CargarModelos(_effect, Content);
-        _rocks.CargarModelos(_effect, Content);
-        _bushes.CargarModelos(_effect, Content);
-
         _trees.CrearObjetos();
         _rocks.CrearObjetos();
         _houses.CrearObjetos();
         _bushes.CrearObjetos();
+        
+        _trees.CargarModelos(_effect, Content);
+        _houses.CargarModelos(_effect, Content);
+        _rocks.CargarModelos(_effect, Content);
+        _bushes.CargarModelos(_effect, Content);
         
         base.LoadContent();
     }
@@ -509,10 +532,13 @@ public class TGCGame : Game
         GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
 
         // Verificar que el efecto y el terreno no sean nulos antes de dibujar
-        if (_effect == null || terrain == null)
+        if (_terrainEffect == null || terrain == null)
             return;
 
-        // Para dibujar le modelo necesitamos pasarle informacion que el efecto esta esperando.
+        // Para dibujar el modelo necesitamos pasarle informacion que el efecto esta esperando.
+        _terrainEffect.Parameters["View"].SetValue(_camera.View);
+        _terrainEffect.Parameters["Projection"].SetValue(_camera.Projection);
+        
         _effect.Parameters["View"].SetValue(_camera.View);
         _effect.Parameters["Projection"].SetValue(_camera.Projection);
 
@@ -520,14 +546,9 @@ public class TGCGame : Game
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
         terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
         GraphicsDevice.RasterizerState = oldRasterizerState;
-
-        //_effect.Parameters["DiffuseColor"].SetValue(new Color(15, 15, 15).ToVector3());
+        
         _tank.Draw();
-
-        //_effect.Parameters["DiffuseColor"].SetValue(new Color(0, 39, 77).ToVector3());
         //_panzer.Dibujar();
-
-        //_effect.Parameters["DiffuseColor"].SetValue(new Color(95, 96, 98).ToVector3());
         //_t90.Dibujar();
 
         _trees.Dibujar();
@@ -537,7 +558,7 @@ public class TGCGame : Game
 
         #region debug
 
-                if (_showTerrainMeshDebug)
+        if (_showTerrainMeshDebug)
         {
             _debugEffect.Parameters["View"].SetValue(_camera.View);
             _debugEffect.Parameters["Projection"].SetValue(_camera.Projection);

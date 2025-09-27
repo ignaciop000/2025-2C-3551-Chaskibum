@@ -45,7 +45,7 @@ public abstract class ModelGroup
         }
     }
     
-    // Devuelve la lista lista para generar posiciones con porcentaje aplicado
+    // Devuelve la lista para generar posiciones con porcentaje aplicado
     public List<(ModelInstances modelo, double porcentaje)> GetModelosConPorcentaje(double porcentajeTotal)
     {
         double porcentajePorModelo = porcentajeTotal / Models.Count;

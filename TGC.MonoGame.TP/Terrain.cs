@@ -41,12 +41,12 @@ public class Terrain
     /// Representa una clase para modelar y renderizar un terreno en base a un mapa de alturas.
     /// Contiene funcionalidad para cargar un mapa de alturas, mapas de textura y generar la estructura del terreno.
     public Terrain(GraphicsDevice graphicsDevice, Texture2D heightMap, Texture2D colorMap,
-        Texture2D diffuseMap, Texture2D diffuseMap2, Effect effect, Simulation simulation)
+        Texture2D diffuseMap, Texture2D diffuseMap2, Effect effect, Simulation simulation, float scaleXZ)
     {
         //Shader
         _effect = effect;
         // cargo el heightmap
-        LoadHeightmap(graphicsDevice, heightMap, 100, 4, Vector3.Zero, simulation);
+        LoadHeightmap(graphicsDevice, heightMap, scaleXZ, 4, Vector3.Zero, simulation);
         // textura con el color Map
         _colorMapTexture = colorMap;
         // diffuse maps auxiliares

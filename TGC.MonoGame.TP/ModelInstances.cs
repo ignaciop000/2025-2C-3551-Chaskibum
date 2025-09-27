@@ -34,13 +34,11 @@ public class ModelInstances(Color color, Terrain terrain)
         {
             float escala = NextFloat(escalaMin, escalaMax); //elegimos la escala al azar en base al min y max
 
-            float
-                yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
-
-            altura = _terrain.GetHeightAtPosition(posicion.X, posicion.Y);
+            float yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
+            var alturaMapa = _terrain.GetHeightAtPosition(posicion.X, posicion.Y); // Es Y porque es un Vector2
             Matrix world = Matrix.CreateScale(escala, escala, escala) *
                            Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
-                           Matrix.CreateTranslation(posicion.X, altura, posicion.Y);
+                           Matrix.CreateTranslation(posicion.X, altura + alturaMapa, posicion.Y);
 
             _worlds.Add(world);
         }
@@ -64,7 +62,7 @@ public class ModelInstances(Color color, Terrain terrain)
 
     public void Dibujar()
     {
-        //_effect.Parameters["DiffuseColor"].SetValue(_color.ToVector3());
+        _effect.Parameters["DiffuseColor"].SetValue(_color.ToVector3());
         
         foreach (var world in _worlds)
         {

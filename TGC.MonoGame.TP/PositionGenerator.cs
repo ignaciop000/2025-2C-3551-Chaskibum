@@ -5,8 +5,10 @@ using Microsoft.Xna.Framework;
 
 namespace TGC.MonoGame.TP;
 
-public class PositionGenerator
+public class PositionGenerator(float anchoMapa, float largoMapa)
 {
+    private float _anchoMapa = anchoMapa;
+    private float _largoMapa = largoMapa;
     private Random _random = new Random();
     
     public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, float distanciaMinima = 550)
@@ -59,10 +61,13 @@ public class PositionGenerator
     }
     
     // Generar posiciones aleatorias que no se pisen
-    private List<Vector2> GenerarPuntos(float minDist, int width = 10000, int height = 10000, int attempts = 100)
+    private List<Vector2> GenerarPuntos(float minDist, int attempts = 100)
     {
         List<Vector2> points = new List<Vector2>();
         List<Vector2> active = new List<Vector2>();
+
+        double width = _anchoMapa / 2;
+        double height = _largoMapa / 2;
 
         // Primer punto
         Vector2 first = new Vector2(0, 0);
