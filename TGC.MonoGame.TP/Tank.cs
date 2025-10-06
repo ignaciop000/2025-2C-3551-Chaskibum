@@ -5,14 +5,12 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using System.Numerics;
 using Quaternion = Microsoft.Xna.Framework.Quaternion;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
-using BepuUtilities;
 using TGC.MonoGame.Samples.Cameras;
 using MathHelper = Microsoft.Xna.Framework.MathHelper;
 using Matrix = Microsoft.Xna.Framework.Matrix;
-using Vector2 = System.Numerics.Vector2;
+using Vector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace TGC.MonoGame.TP
 {
@@ -64,18 +62,18 @@ namespace TGC.MonoGame.TP
         public float RollRotation { get; private set; } // Inclinación lateral
 
         // ===== Control por fuerzas (tuneables) =====
-        public float EngineAccel = 45f; // m/s^2 (empuje hacia adelante)
-        public float BrakeAccel = 45f; // m/s^2 (empuje hacia atrás)
-        public float MaxSpeed = 30f; // m/s (límite velocidad plano XZ)
+        public float EngineAccel = 20f; // m/s^2 (empuje hacia adelante)
+        public float BrakeAccel = 20f; // m/s^2 (empuje hacia atrás)
+        public float MaxSpeed = 20f; // m/s (límite velocidad plano XZ)
         public float LateralGrip = 12f; // 1/s (mata deriva lateral)
         public float LinearDrag = 0.6f; // 1/s (freno aerodinámico simple)
-
+        
         public float TurnAccelYaw = 8.0f; // rad/s^2 (acel. angular deseada)
         public float MaxYawRate = 2.8f; // rad/s (límite giro)
         public float YawInertia = 350f; // kg·m^2 (fallback si no querés usar tensor)
 
-        public readonly float ColliderWidth = 4f;
-        public readonly float ColliderHeight = 2f;
+        public readonly float ColliderWidth = 6f;
+        public readonly float ColliderHeight = 4f;
         public readonly float ColliderLength = 8f;
 
         // Pequeño “clearance” para evitar nacer en penetración
@@ -107,6 +105,8 @@ namespace TGC.MonoGame.TP
         private float _brakeK = 10f; // coeficiente de frenado (tunable)
 
         private OrbitCamera _camera;
+        
+        public float VisualYOffset = -2f;
 
         // --- Helpers para extraer pos/axes de una Matrix ---
         private static Vector3 GetTranslation(in Matrix m) => new Vector3(m.M41, m.M42, m.M43);
@@ -373,9 +373,9 @@ namespace TGC.MonoGame.TP
             float invMass = body.LocalInertia.InverseMass;
             if (invMass <= 0f) return;
             float mass = 1f / invMass;
-
+            
             // 1) Empuje motor W/S -> impulso lineal sobre 'fwd'
-            float accel = (throttle >= 0f ? EngineAccel : BrakeAccel) * throttle; // [-1..1]
+            float accel = (throttle >= 0f ? EngineAccel : BrakeAccel) * throttle ; // [-1..1]
             if (speed > MaxSpeed && System.Numerics.Vector3.Dot(vPlanar, fwd) * MathF.Sign(throttle) > 0f)
                 accel = 0f;
 
@@ -443,7 +443,7 @@ namespace TGC.MonoGame.TP
             }
         }
 
-        public void Update(GameTime gameTime, KeyboardState keyboardState)
+        public void Update(GameTime gameTime, KeyboardState keyboardState,MouseState mouseState,Vector3 cameraForward)
         {
             var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
@@ -451,40 +451,85 @@ namespace TGC.MonoGame.TP
             body.Awake = true;
 
             var throttle = 0f;
-            if (keyboardState.IsKeyDown(Keys.W)) throttle += 1f;
-            if (keyboardState.IsKeyDown(Keys.S)) throttle -= 1f;
+            if (keyboardState.IsKeyDown(Keys.W)) throttle += 10f;
+            if (keyboardState.IsKeyDown(Keys.S)) throttle -= 10f;
 
             var steer = 0f;
             if (keyboardState.IsKeyDown(Keys.A)) steer -= 1f;
             if (keyboardState.IsKeyDown(Keys.D)) steer += 1f;
 
             //Restringo a Maximos y minimos
-            throttle = Math.Clamp(throttle, -1f, 1f);
-            steer = Math.Clamp(steer, -1f, 1f);
+            throttle = Math.Clamp(throttle, -1f, 10f);
+            steer = Math.Clamp(steer, -1f, 10f);
 
             ControlForces(throttle, steer, dt);
 
             // Girar ruedas según distancia recorrida
             UpdateWheelSpinByDistance(dt);
-
+            if (mouseState.RightButton == ButtonState.Pressed)
+                UpdateCanonAndTurretPositionByCamera(cameraForward, dt);
+                
             UpdateWorldMatrix();
         }
 
+        private void UpdateCanonAndTurretPositionByCamera(Vector3 cameraForward, float dt)
+        {
+            float minPitch = MathHelper.ToRadians(-45f); // límite hacia abajo
+            float maxPitch = MathHelper.ToRadians(10f);  // límite hacia arriba
+
+            // Dirección de la cámara normalizada
+            Vector3 cameraDir = Vector3.Normalize(cameraForward);
+
+            // Componente horizontal (plano XZ)
+            Vector3 flatDir = new Vector3(cameraDir.X, 0, cameraDir.Z);
+            if (flatDir.LengthSquared() > 0.0001f)
+                flatDir.Normalize();
+
+            // Ángulo objetivo de la torreta respecto al tanque
+            float globalTurretYaw = MathF.Atan2(flatDir.X, flatDir.Z);
+            float tankYaw = GetTankYawFromQuaternion(RotationQuaternion);
+            float desiredTurretYaw = MathHelper.WrapAngle(globalTurretYaw - tankYaw);
+
+            // Velocidad máxima de la torreta (rad/s)
+            float maxTurretYawSpeed = MathHelper.ToRadians(60f);
+            float maxDeltaYaw = maxTurretYawSpeed * dt;
+
+            // Interpolación gradual hacia el objetivo
+            TurretRotation = MathHelper.Clamp(desiredTurretYaw, TurretRotation - maxDeltaYaw, TurretRotation + maxDeltaYaw);
+
+            // --- Cañón (pitch) ---
+            float targetPitch = -MathF.Asin(cameraDir.Y);
+            targetPitch = Math.Clamp(targetPitch, minPitch, maxPitch);
+
+            // Velocidad máxima del cañón (pitch) - más lenta que antes
+            float maxCannonPitchSpeed = MathHelper.ToRadians(45f); // ejemplo: 45°/s
+            float maxDeltaPitch = maxCannonPitchSpeed * dt;
+
+            CannonRotation = MathHelper.Clamp(targetPitch, CannonRotation - maxDeltaPitch, CannonRotation + maxDeltaPitch);
+        }
+        
+        private static float GetTankYawFromQuaternion(Quaternion q)
+        {
+            // Extrae el yaw (rotación sobre Y) del quaternion
+            Vector3 forward = Vector3.Transform(Vector3.UnitZ, q);
+            return MathF.Atan2(forward.X, forward.Z);
+        }
+        
         private void UpdateWheelSpinByDistance(float dt)
         {
             var delta = Position - _lastPos;
             var dist = delta.Length();
 
             // Dirección “forward” actual para signo (+ avanza / - retrocede)
-            var forward = Vector3.Transform(-Vector3.UnitZ, Matrix.CreateRotationY(Rotation));
+            var forward = Vector3.Transform(-Vector3.UnitZ, Matrix.CreateFromQuaternion(RotationQuaternion));
             float sign = 0f;
             if (dist > 0.0001f)
             {
                 var dir = Vector3.Normalize(delta);
                 sign = MathF.Sign(Vector3.Dot(dir, forward));
             }
-
-            WheelRotation += sign * (dist / WheelRadius);
+            
+            WheelRotation -= sign * (dist / (WheelRadius * Scale));
 
             if (WheelRotation > MathHelper.TwoPi) WheelRotation -= MathHelper.TwoPi;
             else if (WheelRotation < -MathHelper.TwoPi) WheelRotation += MathHelper.TwoPi;
@@ -512,12 +557,22 @@ namespace TGC.MonoGame.TP
             Position = new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z);
             RotationQuaternion = new Quaternion(pose.Orientation.X, pose.Orientation.Y, pose.Orientation.Z,
                 pose.Orientation.W);
+            
+            // Construir offset visual en espacio local del modelo:
+            // - VisualYOffset está en unidades "modelo" (no escaladas). Lo escalamos por Scale.
+            // - Luego lo rotamos por la orientación del cuerpo para llevarlo al espacio mundo.
+            Vector3 localOffsetScaled = new Vector3(0f, VisualYOffset * Scale, 0f);
+            // Transformar por la rotación del body (Quaternion)
+            var offsetWorld = Vector3.Transform(localOffsetScaled, Matrix.CreateFromQuaternion(RotationQuaternion));
 
+            // Posición que usaremos para dibujar el modelo (pos física + offset rotado y escalado)
+            var visualPosition = Position + offsetWorld;
+            
             // 📦 Construir la matriz del mundo
             _world =
                 Matrix.CreateScale(Scale) *
                 Matrix.CreateFromQuaternion(RotationQuaternion) *
-                Matrix.CreateTranslation(Position);
+                Matrix.CreateTranslation(visualPosition);
         }
 
         private void CalculateTerrainRotation(out Matrix orientation)
@@ -643,14 +698,14 @@ namespace TGC.MonoGame.TP
         }
 
         // Dispara un pulso de retroceso y, opcionalmente, activa freno momentáneo.
-        public void TriggerRecoil(Microsoft.Xna.Framework.Vector3 fireDirXna,
+        public void TriggerRecoil(Vector3 fireDirXna,
             float projectileMass = 2f,
             float muzzleSpeed = 120f,
             float intensity = 1f,
             bool withBrake = true)
         {
             // Dirección normalizada en espacio mundo (hacia donde sale el disparo)
-            var dir = Microsoft.Xna.Framework.Vector3.Normalize(fireDirXna);
+            var dir = Vector3.Normalize(fireDirXna);
 
             // “Magnitud” base: momento del proyectil (m * v), escalado un poco
             var recoilMagnitude = projectileMass * muzzleSpeed * 2.0f * intensity;

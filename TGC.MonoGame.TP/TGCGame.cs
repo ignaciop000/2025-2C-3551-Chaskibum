@@ -2,7 +2,6 @@
 // - Agregar Postes [SANTI]
 // - Incorporar otros tanques (sin IA) [SANTI]
 // - Mejorar movimiento tanque [MATEO]
-// - Usar camara que siga a la torreta con el mouse (+ movimientos torreta) [MATEO]
 // - Poner las texturas de tanque y otros objetos [SANTI]
 // - Disparar proyectiles [NACHO]
 // - Colisión entre tanques y objetos (con disparos se rompe todo, pero arboles y arbustos se rompen tambien con el tanque) [AGUS]
@@ -42,7 +41,7 @@ namespace TGC.MonoGame.TP;
 /// </summary>
 public class TGCGame : Game
 {
-    private float _escalaMapa = 100;
+    private float _escalaMapa = 20;
     
     /// <summary>
     /// NarrowPhaseCallbacks es una estructura que define las operaciones relacionadas con la detección de colisiones
@@ -454,7 +453,7 @@ public class TGCGame : Game
         // cooldown
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
         
-        _tank?.Update(gameTime, keyboardState);
+        _tank?.Update(gameTime, keyboardState, mouseState, _camera.FrontDirection);
         
         // click izquierdo: dispara
         if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed && _mousePrev.LeftButton == ButtonState.Released)

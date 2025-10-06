@@ -30,7 +30,7 @@ namespace TGC.MonoGame.Samples.Cameras
         
         // Configuración de controles
         public float MouseSensitivity { get; set; } = 0.3f;
-        public float ZoomSpeed { get; set; } = 50f;
+        public float ZoomSpeed { get; set; } = 500f;
         
         // Control de mouse
         private Vector2 _lastMousePosition;
@@ -76,7 +76,7 @@ namespace TGC.MonoGame.Samples.Cameras
                     mouseDelta *= MouseSensitivity;
                     
                     // Actualizar ángulos
-                    _yaw -= mouseDelta.X;
+                    _yaw += mouseDelta.X;
                     _pitch += mouseDelta.Y;
                     
                     // Limitar el pitch para evitar que la cámara se voltee
