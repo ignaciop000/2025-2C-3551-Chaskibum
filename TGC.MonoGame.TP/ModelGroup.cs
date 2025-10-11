@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using BepuPhysics;
+using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -8,15 +10,17 @@ namespace TGC.MonoGame.TP;
 
 public abstract class ModelGroup
 {
+    protected readonly Simulation Simulation;
     protected readonly List<ModelInstances> Models = [];
-    protected Terrain _terrain;
+    protected Terrain Terrain;
 
-    protected ModelGroup(List<Color> colors, Terrain terrain)
+    protected ModelGroup(List<Color> colors, Terrain terrain, Simulation simulation)
     {
-        _terrain = terrain;
+        Terrain = terrain;
+        Simulation = simulation;
         foreach (var color in colors)
         {
-            Models.Add(new ModelInstances(color, _terrain));
+            Models.Add(new ModelInstances(color, Terrain, Simulation));
         }
     }
 
@@ -26,6 +30,15 @@ public abstract class ModelGroup
         {
             var (altura, escalaMin, escalaMax) = parametros[i];
             Models[i].CrearObjetos(altura, escalaMin, escalaMax);
+        }
+    }
+    
+    protected void CrearRigidBodies((float, float, float)[] parametros)
+    {
+        for (int i = 0; i < Models.Count; i++)
+        {
+            var (ancho, alto, profundidad) = parametros[i];
+            Models[i].CrearRigidBodies(ancho, alto, profundidad);
         }
     }
 

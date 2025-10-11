@@ -9,14 +9,16 @@
 // - Opcionales:
 // - Corregir angulo arbustos, rocas y casas para que sigan el piso
 // - Los objetos solo spawnean si el angulo es menor a X°, dependiendo del objeto. Casas muy bajo, el resto un poco mas, rocas no tienen restriccion
-// - Suaviavizar el mapazar el mapa
+// - Suavizar el mapa [COMPLETADO]
+// - Que la camara no traspase el piso
+// - Arreglar los arbustos, que a veces vuelan y otras estan bajo tierra
+// - Que las casas se coloquen manualmente
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Numerics;
-using System.Transactions;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.CollisionDetection;
@@ -412,10 +414,10 @@ public class TGCGame : Game
         //_tank2.CargarModelo("tank/tank", _effect, Content);
         //_panzer.CargarModelo("panzer/Panzer", _effect, Content);
         //_t90.CargarModelo("t90/T90", _effect, Content);
-        _trees = new Trees(terrain);
-        _houses = new Houses(terrain);
-        _rocks = new Rocks(terrain);
-        _bushes = new Bushes(terrain);
+        _trees = new Trees(terrain, _simulation);
+        _houses = new Houses(terrain, _simulation);
+        _rocks = new Rocks(terrain, _simulation);
+        _bushes = new Bushes(terrain, _simulation);
 
         // Generacion de posiciones de modelos
 

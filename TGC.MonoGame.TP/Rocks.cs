@@ -1,12 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using BepuPhysics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Rocks(Terrain terrain) : ModelGroup(Colors,terrain)
+public class Rocks(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
 {
     private static readonly List<Color> Colors = new List<Color>
     {
@@ -24,23 +25,41 @@ public class Rocks(Terrain terrain) : ModelGroup(Colors,terrain)
 
     public void CrearObjetos()
     {
-        var parametros = new (float, float, float)[]
+        var parametros = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (5, 0.1f, 0.2f), // Roca 0
-            (5, 0.1f, 0.2f), // Roca 1
-            (5, 0.1f, 0.2f), // Roca 2
-            (5, 0.1f, 0.2f), // Roca 3
-            (5, 0.1f, 0.2f), // Roca 4
-            (5, 0.1f, 0.2f), // Roca 5
-            (5, 0.1f, 0.2f), // Roca 6
-            (5, 0.1f, 0.2f), // Roca 7
-            (5, 0.1f, 0.2f), // Roca 8
-            (5, 0.1f, 0.2f)  // Roca 9
+            (5f, 0.1f, 0.2f), // Roca 0
+            (5f, 0.1f, 0.2f), // Roca 1
+            (5f, 0.1f, 0.2f), // Roca 2
+            (5f, 0.1f, 0.2f), // Roca 3
+            (5f, 0.1f, 0.2f), // Roca 4
+            (5f, 0.1f, 0.2f), // Roca 5
+            (5f, 0.1f, 0.2f), // Roca 6
+            (5f, 0.1f, 0.2f), // Roca 7
+            (5f, 0.1f, 0.2f), // Roca 8
+            (5f, 0.1f, 0.2f)  // Roca 9
         };
 
         base.CrearObjetos(parametros);
+        
+        var parametrosRigidBodies = new[]
+        { 
+            // Por si se quiere configurar cada modelo en concreto de forma distinta
+            // (ancho, alto, profundidad)
+            (100f, 200f, 100f), // Roca 0
+            (100f, 200f, 100f), // Roca 2
+            (100f, 200f, 100f), // Roca 1
+            (100f, 200f, 100f), // Roca 3
+            (100f, 200f, 100f), // Roca 4
+            (100f, 200f, 100f), // Roca 5
+            (100f, 200f, 100f), // Roca 6
+            (100f, 200f, 100f), // Roca 7
+            (100f, 200f, 100f), // Roca 8
+            (100f, 200f, 100f)  // Roca 9
+        };
+        
+        CrearRigidBodies(parametrosRigidBodies);
     }
     
     public void CargarModelos(Effect efecto, ContentManager content)
