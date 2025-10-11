@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using BepuPhysics;
 using BepuPhysics.Collidables;
+using BepuUtilities.Memory;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -8,13 +10,14 @@ using Microsoft.Xna.Framework.Input;
 using Quaternion = Microsoft.Xna.Framework.Quaternion;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 using TGC.MonoGame.Samples.Cameras;
+using TGC.MonoGame.Samples.Viewer.Gizmos;
 using MathHelper = Microsoft.Xna.Framework.MathHelper;
 using Matrix = Microsoft.Xna.Framework.Matrix;
 using Vector2 = Microsoft.Xna.Framework.Vector2;
 
-namespace TGC.MonoGame.TP
+namespace TGC.MonoGame.TP 
 {
-    public class Tank
+    public class Tank 
     {
         private Vector3 _lastPos;
         private const float WheelRadius = 2.0f; // ajustá según tu modelo/escala
@@ -49,7 +52,10 @@ namespace TGC.MonoGame.TP
         private VertexBuffer _debugBoxVB;
         private IndexBuffer _debugBoxIB;
         private bool _debugBuffersReady;
-
+        public Compound _debugCompoundShape;
+        
+        public Gizmos Gizmos { get; set;}
+        
         public Quaternion RotationQuaternion { get; private set; } = Quaternion.Identity;
 
         // Propiedades de movimiento
@@ -64,9 +70,12 @@ namespace TGC.MonoGame.TP
         // ===== Control por fuerzas (tuneables) =====
         public float EngineAccel = 20f; // m/s^2 (empuje hacia adelante)
         public float BrakeAccel = 20f; // m/s^2 (empuje hacia atrás)
-        public float MaxSpeed = 20f; // m/s (límite velocidad plano XZ)
+        public float MaxSpeed = 100f; // m/s (límite velocidad plano XZ)
         public float LateralGrip = 12f; // 1/s (mata deriva lateral)
         public float LinearDrag = 0.6f; // 1/s (freno aerodinámico simple)
+        
+        public Buffer<ConstraintHandle> LeftMotors;
+        public Buffer<ConstraintHandle> RightMotors;
         
         public float TurnAccelYaw = 8.0f; // rad/s^2 (acel. angular deseada)
         public float MaxYawRate = 2.8f; // rad/s (límite giro)
@@ -74,7 +83,7 @@ namespace TGC.MonoGame.TP
 
         public readonly float ColliderWidth = 6f;
         public readonly float ColliderHeight = 4f;
-        public readonly float ColliderLength = 8f;
+        public readonly float ColliderLength = 7f;
 
         // Pequeño “clearance” para evitar nacer en penetración
         public float SpawnClearance = 0.05f;
@@ -106,7 +115,8 @@ namespace TGC.MonoGame.TP
 
         private OrbitCamera _camera;
         
-        public float VisualYOffset = -2f;
+        public float VisualYOffset = -1.5f;
+        public float VisualZOffset = 0.5f;
 
         // --- Helpers para extraer pos/axes de una Matrix ---
         private static Vector3 GetTranslation(in Matrix m) => new Vector3(m.M41, m.M42, m.M43);
@@ -149,9 +159,16 @@ namespace TGC.MonoGame.TP
             _camera = camera;
         }
 
-        public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, Simulation simulation,
-            Terrain terrain = null)
+        public void SetSpeed(Buffer<ConstraintHandle> motors, float speed, float maximumForce)
         {
+            
+        }
+        
+        public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, Simulation simulation, BufferPool bufferPool,
+            GraphicsDevice graphicsDevice,Gizmos gizmos, Terrain terrain = null)
+        {
+            Gizmos = gizmos;
+            Gizmos.LoadContent(graphicsDevice, new ContentManager(content.ServiceProvider, "Content"));
             _effect = efecto;
             _simulation = simulation;
             _terrain = terrain; // Guardar referencia al terreno
@@ -203,39 +220,48 @@ namespace TGC.MonoGame.TP
             }
 
             // Crear cuerpo físico
-            CreatePhysicsBody();
-
+            CreatePhysicsBody(bufferPool);
+            
             // Calcular matriz inicial del mundo
             UpdateWorldMatrix();
         }
 
-        private void CreatePhysicsBody()
+        private void CreatePhysicsBody(BufferPool bufferPool)
         {
             if (_simulation == null) return;
 
             // Altura del suelo en (X,Z)
             float terrainY = _terrain != null ? _terrain.GetHeightAtPosition(Position.X, Position.Z) : Position.Y;
-            // Y de spawn: suelo + media altura del collider + clearance
-            float spawnY = terrainY + ColliderHeight * 0.5f + SpawnClearance;
-
+            
             // Calcular orientación inicial según el terreno
             CalculateTerrainRotation(out var orientationMatrix);
             var orientationQuat = Quaternion.CreateFromRotationMatrix(orientationMatrix);
-
-            // Dimensiones del collider (ajusta a tu modelo)
-            var boxShape = new Box(Scale * ColliderWidth, Scale * ColliderHeight, Scale * ColliderLength);
-            // Dimensiones del box (ya están escaladas por Scale)
-            float W = boxShape.Width;
-            float L = boxShape.Length;
+            
             float massKg = 1200f; // ej: 1.2 toneladas
-            // Inercia de yaw para una caja alrededor del eje vertical: I = (1/12) * m * (W^2 + L^2)
-            YawInertia = (1f / 12f) * massKg * (W * W + L * L);
 
             System.Diagnostics.Debug.WriteLine($"[TANK] YawInertia computed = {YawInertia:0.##}");
-            var shapeIndex = _simulation.Shapes.Add(boxShape);
-            _debugBoxSize = new Vector3(boxShape.Width, boxShape.Height, boxShape.Length); // para dibujarlo
-            // Masa e inercia física del tanque (ajustable)
-            var inertia = boxShape.ComputeInertia(massKg);
+            
+            var builder = new CompoundBuilder(bufferPool, _simulation.Shapes, 2);
+            builder.Add(new Box(50f, 27f, 62f), new RigidPose(new System.Numerics.Vector3(0f, -10f, -4f)), 10);
+            builder.Add(
+                new Cylinder(9f, 55f),
+                new RigidPose(new System.Numerics.Vector3(0f, -23f, 22f), 
+                    System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ, MathF.PI / 2) // rotar para que gire sobre X
+                ), 3);
+            builder.Add(
+                new Cylinder(12f, 59f),
+                new RigidPose(new System.Numerics.Vector3(0f, -20f, -26f), 
+                    System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ, MathF.PI / 2)
+                ), 5);
+            builder.BuildDynamicCompound(out var children, out var bodyInertia, out _);
+            builder.Dispose();
+            var bodyShapeCompound = new Compound(children);
+            _debugCompoundShape = bodyShapeCompound;
+
+            float lowestY = GetLowestYFromCompound(bodyShapeCompound);
+            float spawnY = terrainY - lowestY + SpawnClearance + 100;
+
+            var bodyShapeIndex = _simulation.Shapes.Add(bodyShapeCompound);
 
             // Pose inicial (posición + orientación que ya calculaste)
             var pose = new RigidPose(
@@ -243,18 +269,18 @@ namespace TGC.MonoGame.TP
                 new System.Numerics.Quaternion(orientationQuat.X, orientationQuat.Y, orientationQuat.Z,
                     orientationQuat.W)
             );
-
+            
             // Velocidad inicial en cero
             var velocity = new BodyVelocity(System.Numerics.Vector3.Zero, System.Numerics.Vector3.Zero);
 
             // Collidable + margen especulativo un poco mayor si nacía rozando el suelo
-            var collidable = new CollidableDescription(shapeIndex, 0.25f);
+            var collidable = new CollidableDescription(bodyShapeIndex, 0.25f);
 
             // Actividad (umbral de “sueño” bajo para que se mueva enseguida)
             var activity = new BodyActivityDescription(0.01f);
 
             // ✔️ Versión correcta para tu Bepu:
-            var bodyDesc = BodyDescription.CreateDynamic(pose, velocity, inertia, collidable, activity);
+            var bodyDesc = BodyDescription.CreateDynamic(pose, velocity, bodyInertia, collidable, activity);
 
             // Agregar a la simulación
             _physicsBody = _simulation.Bodies.Add(bodyDesc);
@@ -300,44 +326,93 @@ namespace TGC.MonoGame.TP
 
             _debugBuffersReady = true;
         }
-
-        public void DrawCollider(GraphicsDevice gd, Matrix view, Matrix projection, Effect effect,
-            bool wireframe = true)
+        
+        private float GetLowestYFromCompound(Compound compoundShape)
         {
-            if (_simulation == null || _physicsBody.Value < 0) return;
-            EnsureDebugCube(gd);
+            float lowestY = float.MaxValue;
 
-            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
-            var p = body.Pose.Position;
-            var q = body.Pose.Orientation;
-
-            var world =
-                Matrix.CreateScale(_debugBoxSize) *
-                Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(q.X, q.Y, q.Z, q.W)) *
-                Matrix.CreateTranslation(new Microsoft.Xna.Framework.Vector3(p.X, p.Y, p.Z));
-
-            // Set de matrices
-            effect.Parameters["World"]?.SetValue(world);
-            effect.Parameters["View"]?.SetValue(view);
-            effect.Parameters["Projection"]?.SetValue(projection);
-
-            // Rasterizer en wireframe si querés ver sólo el contorno
-            var old = gd.RasterizerState;
-            if (wireframe)
-                gd.RasterizerState =
-                    RasterizerState.CullNone; // y luego setear WireFrame en el Pass si tu efecto lo soporta
-
-            gd.SetVertexBuffer(_debugBoxVB);
-            gd.Indices = _debugBoxIB;
-
-            foreach (var pass in effect.CurrentTechnique.Passes)
+            for (int i = 0; i < compoundShape.Children.Length; i++)
             {
-                pass.Apply();
-                gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, _debugBoxIB.IndexCount / 3);
+                ref var child = ref compoundShape.Children[i];
+                var localPose = child.LocalPose;
+
+                // Obtener bounds del shape
+                _simulation.Shapes.UpdateBounds(localPose, ref child.ShapeIndex, out var bounds);
+
+                // Punto más bajo en espacio local
+                float localBottomY = bounds.Min.Y;
+
+                // Transformar al espacio del cuerpo (solo rotación + posición local)
+                var rotatedOffset = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, localBottomY, 0), localPose.Orientation);
+                float worldOffsetY = localPose.Position.Y + rotatedOffset.Y;
+
+                if (worldOffsetY < lowestY)
+                    lowestY = worldOffsetY;
             }
 
-            gd.RasterizerState = old;
+            return lowestY;
         }
+
+        
+        public void DrawCollider(GraphicsDevice gd, Matrix view, Matrix projection, Effect effect, bool wireframe = false)
+        {
+            if (_simulation == null || _physicsBody.Value < 0 || _debugCompoundShape.Children.Length == 0) return;
+            
+            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
+            var bodyPose = body.Pose;
+
+            for (int i = 0; i < _debugCompoundShape.Children.Length; i++)
+            {
+                var child = _debugCompoundShape.Children[i];
+                var localPose = child.LocalPose;
+
+                // Transformar posición local al mundo
+                var localPos = localPose.Position;
+                var worldPos = bodyPose.Position + System.Numerics.Vector3.Transform(localPos, bodyPose.Orientation);
+
+                // Combinar orientaciones
+                var worldOrientation = System.Numerics.Quaternion.Concatenate(localPose.Orientation, bodyPose.Orientation);
+
+                // Convertir a MonoGame
+                var posMG = new Microsoft.Xna.Framework.Vector3(worldPos.X, worldPos.Y, worldPos.Z);
+                var rotMG = new Microsoft.Xna.Framework.Quaternion(worldOrientation.X, worldOrientation.Y, worldOrientation.Z, worldOrientation.W);
+
+                // Obtener el tipo de shape
+                var shapeIndex = child.ShapeIndex;
+                int typeId = shapeIndex.Type;
+
+                if (typeId == default(Box).TypeId)
+                {
+                    var box = _simulation.Shapes.GetShape<Box>(shapeIndex.Index);
+                    var size = new Vector3(
+                        box.HalfWidth * 2f,
+                        box.HalfHeight * 2f,
+                        box.HalfLength * 2f
+                    );
+                    
+                    var worldMatrix =
+                        Matrix.CreateScale(size) *
+                        Matrix.CreateFromQuaternion(rotMG) *
+                        Matrix.CreateTranslation(posMG);
+
+                    Gizmos.DrawCube(worldMatrix, Color.Red);
+                }
+                else if (typeId == default(Cylinder).TypeId)
+                {
+                    var cylinder = _simulation.Shapes.GetShape<Cylinder>(shapeIndex.Index);
+                    float height = cylinder.HalfLength;
+
+                    var worldMatrix =
+                        Matrix.CreateScale(cylinder.Radius, height, cylinder.Radius) *
+                        Matrix.CreateFromQuaternion(rotMG) *
+                        Matrix.CreateTranslation(posMG);
+
+                    Gizmos.DrawCylinder(worldMatrix, Color.Orange);
+                }
+            }
+            Gizmos.Draw();
+        }
+
 
         #endregion
 
@@ -349,19 +424,18 @@ namespace TGC.MonoGame.TP
             // --- Ejes del tanque en mundo (modelo mira +Z) ---
             var q = body.Pose.Orientation;
 
-            // up del cuerpo en mundo
+            // up local del cuerpo
             var up = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 1, 0), q);
             up = up.LengthSquared() > 1e-12f
                 ? System.Numerics.Vector3.Normalize(up)
                 : new System.Numerics.Vector3(0, 1, 0);
 
-            // forward “raw” (+Z local) y proyección al plano perpendicular a up
+            // forward proyectado al plano perpendicular a up
             var fwdRaw = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, 1), q);
             var fwd = fwdRaw - System.Numerics.Vector3.Dot(fwdRaw, up) * up;
-            if (fwd.LengthSquared() < 1e-12f) fwd = new System.Numerics.Vector3(0, 0, 1);
-            else fwd = System.Numerics.Vector3.Normalize(fwd);
+            fwd = fwd.LengthSquared() < 1e-12f ? new System.Numerics.Vector3(0, 0, 1) : System.Numerics.Vector3.Normalize(fwd);
 
-            // base ortonormal (right,fwd) en el plano del suelo
+            // right ortogonal
             var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(up, fwd));
             fwd = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(right, up));
 
@@ -468,7 +542,7 @@ namespace TGC.MonoGame.TP
             UpdateWheelSpinByDistance(dt);
             if (mouseState.RightButton == ButtonState.Pressed)
                 UpdateCanonAndTurretPositionByCamera(cameraForward, dt);
-                
+            
             UpdateWorldMatrix();
         }
 
@@ -549,7 +623,7 @@ namespace TGC.MonoGame.TP
 
         private void UpdateWorldMatrix()
         {
-            // 🔁 Sincronizar posición y rotación desde la física
+            // Sincronizar posición y rotación desde la física
             var bodyReference = _simulation.Bodies.GetBodyReference(_physicsBody);
             ref var body = ref bodyReference;
             var pose = body.Pose;
@@ -558,17 +632,16 @@ namespace TGC.MonoGame.TP
             RotationQuaternion = new Quaternion(pose.Orientation.X, pose.Orientation.Y, pose.Orientation.Z,
                 pose.Orientation.W);
             
-            // Construir offset visual en espacio local del modelo:
-            // - VisualYOffset está en unidades "modelo" (no escaladas). Lo escalamos por Scale.
-            // - Luego lo rotamos por la orientación del cuerpo para llevarlo al espacio mundo.
-            Vector3 localOffsetScaled = new Vector3(0f, VisualYOffset * Scale, 0f);
-            // Transformar por la rotación del body (Quaternion)
+            // Construir offset visual en espacio local del modelo
+            // Lo rotamos por la orientación del cuerpo para llevarlo al espacio mundo
+            Vector3 localOffsetScaled = new Vector3(0f, VisualYOffset * Scale, VisualZOffset * Scale);
+            // Transformar por la rotación del body
             var offsetWorld = Vector3.Transform(localOffsetScaled, Matrix.CreateFromQuaternion(RotationQuaternion));
 
-            // Posición que usaremos para dibujar el modelo (pos física + offset rotado y escalado)
+            // Posición que usamos para dibujar el modelo
             var visualPosition = Position + offsetWorld;
             
-            // 📦 Construir la matriz del mundo
+            // Construir la matriz del mundo
             _world =
                 Matrix.CreateScale(Scale) *
                 Matrix.CreateFromQuaternion(RotationQuaternion) *
@@ -587,31 +660,31 @@ namespace TGC.MonoGame.TP
             float hU = _terrain.GetHeightAtPosition(x, z + h);
 
             // Gradientes (tangentes del heightfield)
-            var tangentX = new Microsoft.Xna.Framework.Vector3(2f * h, hR - hL, 0f); // (Δx, Δy, 0)
-            var tangentZ = new Microsoft.Xna.Framework.Vector3(0f, hU - hD, 2f * h); // (0, Δy, Δz)
+            var tangentX = new Vector3(2f * h, hR - hL, 0f); // (Δx, Δy, 0)
+            var tangentZ = new Vector3(0f, hU - hD, 2f * h); // (0, Δy, Δz)
 
             // Normal “up” del terreno
-            var up = Microsoft.Xna.Framework.Vector3.Normalize(
-                Microsoft.Xna.Framework.Vector3.Cross(tangentZ, tangentX));
+            var up = Vector3.Normalize(
+                Vector3.Cross(tangentZ, tangentX));
 
             // 2) Direcciones objetivo: mantené la YAW de la física
-            var yawForward = Microsoft.Xna.Framework.Vector3.Transform(
-                -Microsoft.Xna.Framework.Vector3.UnitZ,
+            var yawForward = Vector3.Transform(
+                -Vector3.UnitZ,
                 Matrix.CreateRotationY(Rotation));
 
             // Proyectá el forward sobre el plano del terreno para que siga la pendiente
-            var forwardOnPlane = yawForward - Microsoft.Xna.Framework.Vector3.Dot(yawForward, up) * up;
+            var forwardOnPlane = yawForward - Vector3.Dot(yawForward, up) * up;
             if (forwardOnPlane.LengthSquared() < 1e-6f)
-                forwardOnPlane = Microsoft.Xna.Framework.Vector3.Normalize(
-                    Microsoft.Xna.Framework.Vector3.Cross(
-                        new Microsoft.Xna.Framework.Vector3(1, 0, 0), up));
+                forwardOnPlane = Vector3.Normalize(
+                    Vector3.Cross(
+                        new Vector3(1, 0, 0), up));
             else
                 forwardOnPlane.Normalize();
 
-            var right = Microsoft.Xna.Framework.Vector3.Normalize(
-                Microsoft.Xna.Framework.Vector3.Cross(forwardOnPlane, up));
-            var forward = Microsoft.Xna.Framework.Vector3.Normalize(
-                Microsoft.Xna.Framework.Vector3.Cross(up, right));
+            var right = Vector3.Normalize(
+                Vector3.Cross(forwardOnPlane, up));
+            var forward = Vector3.Normalize(
+                Vector3.Cross(up, right));
 
             // 3) Matriz de orientación a partir de la base R-U-F
             orientation = new Matrix(

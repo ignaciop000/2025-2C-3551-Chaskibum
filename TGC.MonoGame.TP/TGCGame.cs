@@ -27,6 +27,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using TGC.MonoGame.Samples.Cameras;
+using TGC.MonoGame.Samples.Viewer.Gizmos;
 using MathHelper = BepuUtilities.MathHelper;
 using Matrix = Microsoft.Xna.Framework.Matrix;
 using Vector2 = System.Numerics.Vector2;
@@ -291,6 +292,8 @@ public class TGCGame : Game
     private Effect _effect;
     private Effect _debugEffect;
     private Simulation _simulation;
+    public Gizmos Gizmos { get; set;}
+    public BufferPool bufferPool { get; private set; }
 
     private PositionGenerator _positionGenerator;
     private float angle;
@@ -344,6 +347,8 @@ public class TGCGame : Game
     /// </summary>
     protected override void Initialize()
     {
+        Gizmos = new Gizmos();
+        bufferPool = new BufferPool();
         DesiredLookAt = Vector3.Zero;
         pos = Vector2.Zero;
         
@@ -355,12 +360,11 @@ public class TGCGame : Game
             50000
             );
         
-        var bufferPool = new BufferPool();
         _simulation = Simulation.Create(bufferPool, new NarrowPhaseCallbacks(),
-            new PoseIntegratorCallbacks(new Vector3(0, -10, 0)), new SolveDescription(8, 1));
-
-        _tank = new Tank(new Vector3(1500, 0, 4500), _camera, 0f, 10f );
+            new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
         
+        _tank = new Tank(new Vector3(0, 0, 1000), _camera, 0f, 10f );
+        //var bod = new BodyDescription();
         base.Initialize();
     }
 
@@ -401,7 +405,7 @@ public class TGCGame : Game
             _escalaMapa
             );
 
-        _tank.CargarModelo("tank/tank", _terrainEffect, Content, _simulation, terrain);
+        _tank.CargarModelo("tank/tank", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos,terrain);
         //_tank2.CargarModelo("tank/tank", _effect, Content);
         //_panzer.CargarModelo("panzer/Panzer", _effect, Content);
         //_t90.CargarModelo("t90/T90", _effect, Content);
@@ -546,8 +550,8 @@ public class TGCGame : Game
             
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime);
+            Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
         }
-
         base.Update(gameTime);
     }
 
@@ -607,8 +611,8 @@ public class TGCGame : Game
             GraphicsDevice.RasterizerState = new RasterizerState
                 { CullMode = CullMode.None, FillMode = FillMode.WireFrame };
 
-            _tank.DrawCollider(GraphicsDevice, _camera.View, _camera.Projection, _debugEffect, wireframe: true);
-
+            _tank.DrawCollider(GraphicsDevice, _camera.View, _camera.Projection, _debugEffect, wireframe: false);
+            
             GraphicsDevice.RasterizerState = oldRS;
 
             // --- DEBUG: ver el mesh físico del terreno ---

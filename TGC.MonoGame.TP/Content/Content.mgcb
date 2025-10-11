@@ -26,6 +26,12 @@
 /processorParam:DebugMode=Auto
 /build:Effects/Debug.fx
 
+#begin Effects/Gizmos.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/Gizmos.fx
+
 #begin Effects/Terrain.fx
 /importer:EffectImporter
 /processor:EffectProcessor
