@@ -9,7 +9,9 @@
 // - Opcionales:
 // - Corregir angulo arbustos, rocas y casas para que sigan el piso
 // - Los objetos solo spawnean si el angulo es menor a X°, dependiendo del objeto. Casas muy bajo, el resto un poco mas, rocas no tienen restriccion
-// - Suaviavizar el mapazar el mapa
+// - Suavizar el mapa [COMPLETADO]
+// - Que la camara no traspase el piso
+// - Arreglar los arbustos, que a veces vuelan y otras estan bajo tierra
 
 using System;
 using System.Collections.Generic;
