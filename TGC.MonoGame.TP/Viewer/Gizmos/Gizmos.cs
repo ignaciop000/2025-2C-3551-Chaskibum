@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using TGC.MonoGame.Samples.Viewer.Gizmos.Geometries;
+using TGC.MonoGame.TP;
 
 namespace TGC.MonoGame.Samples.Viewer.Gizmos
 {
@@ -77,7 +78,7 @@ namespace TGC.MonoGame.Samples.Viewer.Gizmos
             _polyLine = new PolyLineGizmoGeometry(_graphicsDevice);
             _disk = new DiskGizmoGeometry(_graphicsDevice, 20);
             _cylinder = new CylinderGizmoGeometry(_graphicsDevice, 20);
-            _axisLines = new AxisLines(_graphicsDevice, _content.Load<Model>("3D/geometries/arrow"));
+            _axisLines = new AxisLines(_graphicsDevice, _content.Load<Model>(TGCGame.ContentFolder3D + "arrow/arrow"));
 
             _drawInstances[_lineSegment] = new Dictionary<Color, List<Matrix>>();
             _drawInstances[_sphere] = new Dictionary<Color, List<Matrix>>();
