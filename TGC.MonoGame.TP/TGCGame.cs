@@ -23,6 +23,7 @@ using BepuPhysics.CollisionDetection;
 using BepuPhysics.Constraints;
 using BepuUtilities;
 using BepuUtilities.Memory;
+using Demos.Demos.Tanks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -304,6 +305,7 @@ public class TGCGame : Game
     private bool _showTankTelemetry = false;
     private SpriteBatch _spriteBatch;
     private SpriteFont _debugFont; 
+    public TankController PlayerController;
     
     private Tank _tank;
     // Proyectiles
@@ -406,6 +408,7 @@ public class TGCGame : Game
             );
 
         _tank.CargarModelo("tank/tank", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos,terrain);
+        PlayerController = new TankController(_tank, 20, 5, 2, 1, 3.5f);
         //_tank2.CargarModelo("tank/tank", _effect, Content);
         //_panzer.CargarModelo("panzer/Panzer", _effect, Content);
         //_t90.CargarModelo("t90/T90", _effect, Content);

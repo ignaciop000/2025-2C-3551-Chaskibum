@@ -13,7 +13,6 @@ using TGC.MonoGame.Samples.Cameras;
 using TGC.MonoGame.Samples.Viewer.Gizmos;
 using MathHelper = Microsoft.Xna.Framework.MathHelper;
 using Matrix = Microsoft.Xna.Framework.Matrix;
-using Vector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace TGC.MonoGame.TP 
 {
@@ -90,7 +89,10 @@ namespace TGC.MonoGame.TP
 
         // Parámetros de movimiento
         private const float MovementSpeed = 200f;
-        private const float RotationSpeed = 2f;
+        private const float _steerSpeed = 90f;
+        float maxSteer = 45f;
+        float minSteer = -45f;
+
 
         // Física
         private BodyHandle _physicsBody;
@@ -270,23 +272,14 @@ namespace TGC.MonoGame.TP
                     orientationQuat.W)
             );
             
-            // Velocidad inicial en cero
             var velocity = new BodyVelocity(System.Numerics.Vector3.Zero, System.Numerics.Vector3.Zero);
-
-            // Collidable + margen especulativo un poco mayor si nacía rozando el suelo
             var collidable = new CollidableDescription(bodyShapeIndex, 0.25f);
-
-            // Actividad (umbral de “sueño” bajo para que se mueva enseguida)
             var activity = new BodyActivityDescription(0.01f);
-
-            // ✔️ Versión correcta para tu Bepu:
             var bodyDesc = BodyDescription.CreateDynamic(pose, velocity, bodyInertia, collidable, activity);
-
-            // Agregar a la simulación
+            
             _physicsBody = _simulation.Bodies.Add(bodyDesc);
-
-            // Inicializar rotación visual también
             RotationQuaternion = orientationQuat;
+
         }
 
         #region debug
@@ -529,8 +522,11 @@ namespace TGC.MonoGame.TP
             if (keyboardState.IsKeyDown(Keys.S)) throttle -= 10f;
 
             var steer = 0f;
-            if (keyboardState.IsKeyDown(Keys.A)) steer -= 1f;
-            if (keyboardState.IsKeyDown(Keys.D)) steer += 1f;
+            if (keyboardState.IsKeyDown(Keys.A)) SteerRotation += _steerSpeed * dt;
+            else if(keyboardState.IsKeyDown(Keys.D))  SteerRotation -= _steerSpeed * dt;
+            else{ SteerRotation = MathHelper.Lerp(SteerRotation, 0f, dt * 5f); }
+            
+            SteerRotation = Math.Clamp(SteerRotation, minSteer, maxSteer);
 
             //Restringo a Maximos y minimos
             throttle = Math.Clamp(throttle, -1f, 10f);
@@ -705,7 +701,7 @@ namespace TGC.MonoGame.TP
             if (_model == null || _effect == null) return;
 
             var wheelRotation = Matrix.CreateRotationX(WheelRotation);
-            var steerRotation = Matrix.CreateRotationY(SteerRotation);
+            var steerRotation = Matrix.CreateRotationY(MathHelper.ToRadians(SteerRotation));
             var turretRotation = Matrix.CreateRotationY(TurretRotation);
             var cannonRotation = Matrix.CreateRotationX(CannonRotation);
             var hatchRotation = Matrix.CreateRotationX(HatchRotation);
@@ -717,7 +713,7 @@ namespace TGC.MonoGame.TP
 
             _leftSteerBone.Transform = steerRotation * _leftSteerTransform;
             _rightSteerBone.Transform = steerRotation * _rightSteerTransform;
-
+            
             _turretBone.Transform = turretRotation * _turretTransform;
             _cannonBone.Transform = cannonRotation * _cannonTransform;
             _hatchBone.Transform = hatchRotation * _hatchTransform;
