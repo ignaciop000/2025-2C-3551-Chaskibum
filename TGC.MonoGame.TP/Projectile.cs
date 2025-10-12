@@ -19,7 +19,7 @@ namespace TGC.MonoGame.TP
         private float _lifeMax;
         private float _life;
 
-        private BodyHandle _body;
+        public BodyHandle Body;
         private XnaVector3 _pos;
         private XnaQuaternion _rot = XnaQuaternion.Identity;
 
@@ -77,7 +77,7 @@ namespace TGC.MonoGame.TP
                 new BodyActivityDescription(0.01f)
             );
 
-            _body = _simulation.Bodies.Add(bodyDesc);
+            Body = _simulation.Bodies.Add(bodyDesc);
             _pos = spawnPos;
 
             EnsurePrimitive(effect.GraphicsDevice);
@@ -95,7 +95,7 @@ namespace TGC.MonoGame.TP
             }
 
             // sync pose desde física
-            var bodyRef = _simulation.Bodies.GetBodyReference(_body);
+            var bodyRef = _simulation.Bodies.GetBodyReference(Body);
             var p = bodyRef.Pose.Position;
             _pos = ToXna(p);
 
@@ -113,7 +113,7 @@ namespace TGC.MonoGame.TP
             IsDead = true;
 
             // Quitar el cuerpo una sola vez (sin Exists/HandleExists)
-            _simulation.Bodies.Remove(_body);
+            _simulation.Bodies.Remove(Body);
         }
 
         public void Draw(GraphicsDevice gd, Matrix view, Matrix proj)

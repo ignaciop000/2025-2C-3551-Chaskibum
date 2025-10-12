@@ -33,12 +33,17 @@ public abstract class ModelGroup
         }
     }
     
-    protected void CrearRigidBodies((float, float, float)[] parametros)
+    protected void CrearRigidBodies((float, float, float, float)[] parametros)
     {
         for (int i = 0; i < Models.Count; i++)
         {
-            var (ancho, alto, profundidad) = parametros[i];
-            Models[i].CrearRigidBodies(ancho, alto, profundidad);
+            var (ancho, alto, profundidad, yaw) = parametros[i];
+            var handles = Models[i].CrearRigidBodies(ancho, alto, profundidad, yaw);
+
+            foreach (var handle in handles)
+            {
+                TGCGame.HandleToGroup[handle] = this;
+            }
         }
     }
 
@@ -65,5 +70,17 @@ public abstract class ModelGroup
         return Models
             .Select(m => (modelo: m, porcentaje: porcentajePorModelo))
             .ToList();
+    }
+
+    public virtual void OnCollisionWithTank(StaticHandle handle)
+    {
+        // Por defecto, solo choca con el objeto
+    }
+    
+    public void OnCollisionWithProjectile(StaticHandle handle)
+    {
+        // Por defecto, rompe el objeto
+        var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
+        model?.DestruirInstancia(handle);
     }
 }

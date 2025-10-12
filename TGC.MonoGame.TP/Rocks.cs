@@ -20,7 +20,7 @@ public class Rocks(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         new Color(140, 140, 140), // Roca 6
         new Color(166, 166, 166), // Roca 7
         new Color(179, 179, 179), // Roca 8
-        new Color(204, 204, 204)  // Roca 9
+        new Color(0, 0, 255)  // Roca 9
     };
 
     public void CrearObjetos()
@@ -46,17 +46,17 @@ public class Rocks(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         var parametrosRigidBodies = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
-            // (ancho, alto, profundidad)
-            (100f, 200f, 100f), // Roca 0
-            (100f, 200f, 100f), // Roca 2
-            (100f, 200f, 100f), // Roca 1
-            (100f, 200f, 100f), // Roca 3
-            (100f, 200f, 100f), // Roca 4
-            (100f, 200f, 100f), // Roca 5
-            (100f, 200f, 100f), // Roca 6
-            (100f, 200f, 100f), // Roca 7
-            (100f, 200f, 100f), // Roca 8
-            (100f, 200f, 100f)  // Roca 9
+            // (ancho, alto, profundidad, yawEnGrados)
+            (1300f, 250f, 700f, 30f), // Roca 0
+            (1400f, 400f, 800f, 30f), // Roca 1
+            (800f, 200f, 1000f, 0f), // Roca 2
+            (850f, 350f, 950f, 30f), // Roca 3
+            (400f, 350f, 500f, 25f), // Roca 4
+            (450f, 300f, 500f, 35f), // Roca 5
+            (1700f, 150f, 850f, -60f), // Roca 6
+            (600f, 150f, 350f, -7f), // Roca 7
+            (500f, 200f, 950f, 55f), // Roca 8
+            (750f, 250f, 450f, -75f)  // Roca 9
         };
         
         CrearRigidBodies(parametrosRigidBodies);

@@ -28,8 +28,8 @@ public class Bushes(Terrain terrain, Simulation simulation) : ModelGroup(Colors,
         var parametrosRigidBodies = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
-            // (ancho, alto, profundidad)
-            (10f, 20f, 10f) // Bush
+            // (ancho, alto, profundidad, yawEnGrados)
+            (20f, 10f, 20f, 0f) // Bush
         };
         
         CrearRigidBodies(parametrosRigidBodies);
@@ -43,6 +43,13 @@ public class Bushes(Terrain terrain, Simulation simulation) : ModelGroup(Colors,
         };
         
         base.CargarModelos(efecto, content, paths);
+    }
+    
+    public override void OnCollisionWithTank(StaticHandle handle)
+    {
+        // Rompe el objeto
+        var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
+        model?.DestruirInstancia(handle);
     }
     
 }

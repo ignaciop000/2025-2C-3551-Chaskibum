@@ -13,7 +13,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
 {
     private Model _model;
     private readonly List<Matrix> _worlds = [];
-    private readonly List<StaticHandle> _handles = [];
+    public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
     private Terrain _terrain = terrain;
     private Simulation _simulation = simulation;
@@ -52,49 +52,46 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         _altura = altura;
     }
 
-    public void CrearRigidBodies(float ancho, float alto, float profundidad)
+    public List<StaticHandle> CrearRigidBodies(float ancho, float alto, float profundidad, float yawInDegrees)
     {
+        List<StaticHandle> handles = [];
+        
         foreach (var world in _worlds)
         {
-            // Extraer escala, rotacion y traslacion de la world matrix
             world.Decompose(out var scale, out var rotation, out var translation);
 
-            // Escalar dimensiones
-            float anchoEscalado  = ancho  * scale.X;
+            float anchoEscalado = ancho * scale.X;
             float altoEscalado = alto * scale.Y;
-            float profundidadEscalada  = profundidad  * scale.Z;
+            float profundidadEscalada = profundidad * scale.Z;
 
-            // Crear shape escalado
             var shape = new Box(anchoEscalado, altoEscalado, profundidadEscalada);
             var shapeIndex = _simulation.Shapes.Add(shape);
 
-            // Ajustar posición: subir el centro para que la base quede en el piso
-            // Diferencia entre la altura escalada y la altura base
             float offsetY = (altoEscalado / 2f) - _altura;
 
-            // Aplicar offset al centro
             var correctedPos = new System.Numerics.Vector3(
                 translation.X,
                 translation.Y + offsetY,
                 translation.Z
             );
-            
-            // Crear StaticDescription con el índice del shape
+
+            // Aplicar rotación extra en yaw
+            var yawRotation = Quaternion.CreateFromAxisAngle(Vector3.Up, MathHelper.ToRadians(yawInDegrees));
+            var finalRotation = rotation * yawRotation;
+
             var desc = new StaticDescription(
-                new RigidPose(
-                    correctedPos,
-                    new System.Numerics.Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W)
-                ),
+                new RigidPose(correctedPos, new System.Numerics.Quaternion(finalRotation.X, finalRotation.Y, finalRotation.Z, finalRotation.W)),
                 shapeIndex
             );
 
-            // Agregar a la simulación
             var handle = _simulation.Statics.Add(desc);
-            
-            // Guardar referencia para poder borrarlo después
-            _handles.Add(handle);
+            Handles.Add(handle);
+            handles.Add(handle);
         }
+        
+        return handles;
     }
+
 
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content)
     {
@@ -127,6 +124,14 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
                 mesh.Draw();
             }
         }
+    }
+
+    public void DestruirInstancia(StaticHandle handle)
+    {
+        var index = Handles.IndexOf(handle);
+        _simulation.Statics.Remove(handle);
+        Handles.Remove(handle);
+        _worlds.RemoveAt(index);
     }
 
     private float NextFloat(float min, float max)

@@ -32,10 +32,10 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         var parametrosRigidBodies = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
-            // (ancho, alto, profundidad)
-            (0.5f, 2.5f, 0.3f), // Tree
-            (65f, 400f, 75f), // Tree 2
-            (0.6f, 12f, 0.6f) // Tree 3
+            // (ancho, alto, profundidad, yawEnGrados)
+            (0.5f, 2.5f, 0.3f, 0f), // Tree
+            (65f, 400f, 75f, 0f), // Tree 2
+            (0.6f, 12f, 0.6f, 0f) // Tree 3
         };
         
         CrearRigidBodies(parametrosRigidBodies);
@@ -51,5 +51,12 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         };
         
         base.CargarModelos(efecto, content, paths);
+    }
+    
+    public override void OnCollisionWithTank(StaticHandle handle)
+    {
+        // Rompe el objeto
+        var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
+        model?.DestruirInstancia(handle);
     }
 }

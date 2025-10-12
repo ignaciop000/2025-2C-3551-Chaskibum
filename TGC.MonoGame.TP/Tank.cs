@@ -95,7 +95,7 @@ namespace TGC.MonoGame.TP
 
 
         // Física
-        private BodyHandle _physicsBody;
+        public BodyHandle PhysicsBody;
         private Simulation _simulation;
         private Terrain _terrain;
 
@@ -277,7 +277,7 @@ namespace TGC.MonoGame.TP
             var activity = new BodyActivityDescription(0.01f);
             var bodyDesc = BodyDescription.CreateDynamic(pose, velocity, bodyInertia, collidable, activity);
             
-            _physicsBody = _simulation.Bodies.Add(bodyDesc);
+            PhysicsBody = _simulation.Bodies.Add(bodyDesc);
             RotationQuaternion = orientationQuat;
 
         }
@@ -349,9 +349,9 @@ namespace TGC.MonoGame.TP
         
         public void DrawCollider(GraphicsDevice gd, Matrix view, Matrix projection, Effect effect, bool wireframe = false)
         {
-            if (_simulation == null || _physicsBody.Value < 0 || _debugCompoundShape.Children.Length == 0) return;
+            if (_simulation == null || PhysicsBody.Value < 0 || _debugCompoundShape.Children.Length == 0) return;
             
-            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
+            var body = _simulation.Bodies.GetBodyReference(PhysicsBody);
             var bodyPose = body.Pose;
 
             for (int i = 0; i < _debugCompoundShape.Children.Length; i++)
@@ -411,8 +411,8 @@ namespace TGC.MonoGame.TP
 
         public void ControlForces(float throttle, float steer, float dt)
         {
-            if (_simulation == null || _physicsBody.Value < 0) return;
-            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
+            if (_simulation == null || PhysicsBody.Value < 0) return;
+            var body = _simulation.Bodies.GetBodyReference(PhysicsBody);
 
             // --- Ejes del tanque en mundo (modelo mira +Z) ---
             var q = body.Pose.Orientation;
@@ -514,7 +514,7 @@ namespace TGC.MonoGame.TP
         {
             var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
+            var body = _simulation.Bodies.GetBodyReference(PhysicsBody);
             body.Awake = true;
 
             var throttle = 0f;
@@ -609,7 +609,7 @@ namespace TGC.MonoGame.TP
 
         public void SyncFromPhysics()
         {
-            var body = _simulation.Bodies.GetBodyReference(_physicsBody);
+            var body = _simulation.Bodies.GetBodyReference(PhysicsBody);
             var pose = body.Pose;
 
             Position = new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z);
@@ -620,7 +620,7 @@ namespace TGC.MonoGame.TP
         private void UpdateWorldMatrix()
         {
             // Sincronizar posición y rotación desde la física
-            var bodyReference = _simulation.Bodies.GetBodyReference(_physicsBody);
+            var bodyReference = _simulation.Bodies.GetBodyReference(PhysicsBody);
             ref var body = ref bodyReference;
             var pose = body.Pose;
 
@@ -796,7 +796,7 @@ namespace TGC.MonoGame.TP
         public void ApplyRecoilAndBrake(float dt, Simulation simulation)
         {
             // Referencia al cuerpo físico del tanque
-            var bodyRef = simulation.Bodies.GetBodyReference(_physicsBody); // usa tu handle del tanque
+            var bodyRef = simulation.Bodies.GetBodyReference(PhysicsBody); // usa tu handle del tanque
 
             // Retroceso: empuja en dirección opuesta por un tiempo corto
             if (_recoilTime > 0f)

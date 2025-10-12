@@ -1,9 +1,8 @@
 ﻿using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
-using TGC.MonoGame.TP;
 
-namespace TGC.MonoGame.Samples.Cameras
+namespace TGC.MonoGame.TP
 {
     /// <summary>
     /// Cámara que orbita alrededor de un objetivo específico usando controles de mouse.
@@ -27,6 +26,10 @@ namespace TGC.MonoGame.Samples.Cameras
         // Ángulos de rotación
         private float _yaw = -50f;   // Rotación horizontal
         private float _pitch = 30f; // Rotación vertical (empezamos ligeramente hacia abajo)
+        
+        // (Los expongo para poder usarlos afuera)
+        public float Yaw => _yaw;
+        public float Pitch => _pitch;
         
         // Configuración de controles
         public float MouseSensitivity { get; set; } = 0.3f;

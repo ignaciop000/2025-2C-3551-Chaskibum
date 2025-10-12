@@ -30,9 +30,9 @@ public class Houses(Terrain terrain, Simulation simulation) : ModelGroup(Colors,
         var parametrosRigidBodies = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
-            // (ancho, alto, profundidad)
-            (3.75f, 4.5f, 3.25f), // house
-            (3200f, 1500f, 1700f) // cottage
+            // (ancho, alto, profundidad, yawEnGrados)
+            (3.75f, 4.5f, 3.25f, 0f), // house
+            (3500f, 1500f, 1725f, 5f) // cottage
         };
         
         CrearRigidBodies(parametrosRigidBodies);

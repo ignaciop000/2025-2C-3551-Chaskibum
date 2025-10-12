@@ -4,7 +4,7 @@
 // - Mejorar movimiento tanque [MATEO]
 // - Poner las texturas de tanque y otros objetos [SANTI]
 // - Disparar proyectiles [NACHO]
-// - Colisión entre tanques y objetos (con disparos se rompe todo, pero arboles y arbustos se rompen tambien con el tanque) [AGUS]
+// - Colisión entre tanques y objetos (con disparos se rompen todos, pero arboles y arbustos se rompen tambien con el tanque) [AGUS] [COMPLETADO]
 
 // - Opcionales:
 // - Corregir angulo arbustos, rocas y casas para que sigan el piso
@@ -83,6 +83,9 @@ public class TGCGame : Game
         /// físico más realista en las interacciones entre los objetos.
         /// </summary>
         private float FrictionCoefficient { get; set; }
+        
+        // Evento para notificar colisiones a la lógica de juego
+        public Action<CollidablePair> OnCollision;
 
         /// <summary>
         /// Inicializa la simulación física configurando valores predeterminados
@@ -134,7 +137,10 @@ public class TGCGame : Game
             pairMaterial.FrictionCoefficient = 1f;
             pairMaterial.MaximumRecoveryVelocity = 2f;
             pairMaterial.SpringSettings = new SpringSettings(30, 1);
-            //For the purposes of the demo, contact constraints are always generated.
+            
+            // Notificar colisión a la lógica de juego
+            OnCollision?.Invoke(pair);
+            
             return true;
         }
 
@@ -286,7 +292,8 @@ public class TGCGame : Game
 
     private readonly GraphicsDeviceManager _graphics;
     private readonly Random _rnd = new Random();
-    private OrbitCamera _camera;
+    private OrbitCamera _orbitCamera;
+    private Camera _camera;
     public Vector3 DesiredLookAt;
     public bool hay_lookAt;
     public Vector3 LookAt;
@@ -324,7 +331,8 @@ public class TGCGame : Game
     private Trees _trees;
     private Bushes _bushes;
     
-
+    // Diccionario para mapear StaticHandle a ModelGroup
+    public static readonly Dictionary<StaticHandle, ModelGroup> HandleToGroup = new();
 
     /// <summary>
     ///     Constructor del juego.
@@ -356,7 +364,9 @@ public class TGCGame : Game
         DesiredLookAt = Vector3.Zero;
         pos = Vector2.Zero;
         
-        _camera = new OrbitCamera(
+        // Inicialización de cámaras
+        
+        _orbitCamera = new OrbitCamera(
             GraphicsDevice.Viewport.AspectRatio, 
             Vector3.Zero, 
             800f, 
@@ -364,11 +374,48 @@ public class TGCGame : Game
             50000
             );
         
-        _simulation = Simulation.Create(bufferPool, new NarrowPhaseCallbacks(),
+        // Seteo la cámara inicial como la orbital
+        _camera = _orbitCamera;
+        
+        var narrowPhase = new NarrowPhaseCallbacks();
+        narrowPhase.OnCollision = pair =>
+        {
+            CollidableReference estatico, movil;
+
+            if (pair.A.Mobility == CollidableMobility.Static && pair.B.Mobility != CollidableMobility.Static)
+            {
+                estatico = pair.A;
+                movil = pair.B;
+            }
+            else if (pair.B.Mobility == CollidableMobility.Static && pair.A.Mobility != CollidableMobility.Static)
+            {
+                estatico = pair.B;
+                movil = pair.A;
+            }
+            else
+            {
+                return; // no nos interesa este caso
+            }
+
+            var staticHandle = estatico.StaticHandle;
+            if (!HandleToGroup.TryGetValue(staticHandle, out var group))
+                return;
+
+            if (movil.BodyHandle == _tank.PhysicsBody)
+            {
+                group.OnCollisionWithTank(staticHandle);
+            }
+            else if (_missiles.Select(projectil => projectil.Body).Contains(movil.BodyHandle))
+            {
+                group.OnCollisionWithProjectile(staticHandle);
+            }
+        };
+
+        
+        _simulation = Simulation.Create(bufferPool, narrowPhase,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
         
-        _tank = new Tank(new Vector3(0, 0, 1000), _camera, 0f, 10f );
-        //var bod = new BodyDescription();
+        _tank = new Tank(new Vector3(0, 0, 1000), _orbitCamera, 0f, 10f );
         base.Initialize();
     }
 
@@ -462,7 +509,7 @@ public class TGCGame : Game
         // cooldown
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
         
-        _tank?.Update(gameTime, keyboardState, mouseState, _camera.FrontDirection);
+        _tank?.Update(gameTime, keyboardState, mouseState, _orbitCamera.FrontDirection);
         
         // click izquierdo: dispara
         if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed && _mousePrev.LeftButton == ButtonState.Released)
@@ -516,6 +563,18 @@ public class TGCGame : Game
             _showTankTelemetry = !_showTankTelemetry;
             _tank.DebugTelemetry = _showTankTelemetry;
         }
+        if (keyboardState.IsKeyDown(Keys.F4) && !_kbPrev.IsKeyDown(Keys.F4))
+        {
+            if (_camera == _orbitCamera)
+            {
+                var size = GraphicsDevice.Viewport.Bounds.Size;
+                size.X /= 2;
+                size.Y /= 2;
+                _camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, _orbitCamera.Position, _orbitCamera.FrontDirection, size);
+            } else {
+                _camera = _orbitCamera;
+            }
+        }
         #endregion
         
         _kbPrev = keyboardState;
@@ -525,7 +584,7 @@ public class TGCGame : Game
         {
             // Usar la posición y rotación del tanque
             var targetHeight = terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z) + 50f; 
-            _camera.SetTarget(new Vector3(_tank.Position.X, targetHeight, _tank.Position.Z));
+            _orbitCamera.SetTarget(new Vector3(_tank.Position.X, targetHeight, _tank.Position.Z));
             var dir = new Vector2(MathF.Cos(_tank.Rotation), MathF.Sin(_tank.Rotation));
 
             DesiredLookAt = new Vector3(_tank.Position.X, terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z), _tank.Position.Z);
