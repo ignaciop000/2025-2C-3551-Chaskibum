@@ -15,6 +15,8 @@ namespace TGC.MonoGame.TP;
 /// </summary>
 public struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
 {
+    public CollidableProperty<TankBodyProperties> Properties;
+
     /// <summary>
     /// Propiedad que define la elasticidad del resorte utilizado para manejar los contactos
     /// en la simulación física. Esta elasticidad está representada por los parámetros
@@ -55,6 +57,7 @@ public struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
     /// <param name="simulation">Simulación física que será configurada.</param>
     public void Initialize(Simulation simulation)
     {
+        Properties.Initialize(simulation);
         if (ContactSpringiness.AngularFrequency == 0 && ContactSpringiness.TwiceDampingRatio == 0)
         {
             ContactSpringiness = new SpringSettings(30, 1);

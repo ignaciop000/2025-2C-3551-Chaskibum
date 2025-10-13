@@ -175,7 +175,7 @@ public class Terrain
             }
         }
 
-        // ⚙️ Crear el mesh con escala unitaria
+        // Crear el mesh con escala unitaria
         var mesh = new Mesh(triangles, new System.Numerics.Vector3(1, 1, 1), simulation.BufferPool);
 
         // Agregar el mesh al simulador

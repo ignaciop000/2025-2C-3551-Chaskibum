@@ -87,7 +87,7 @@ public class Debug
             //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); // si tu .fx lo usa
             DrawPhysicsMeshDebug(DebugEffect, _camera.View, _camera.Projection);
 
-            // 🔍 Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
+            // Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
             DebugEffect.Parameters["View"].SetValue(_camera.View);
             DebugEffect.Parameters["Projection"].SetValue(_camera.Projection);
 
