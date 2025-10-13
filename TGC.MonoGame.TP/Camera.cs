@@ -93,5 +93,7 @@ namespace TGC.MonoGame.TP
         /// </summary>
         /// <param name="gameTime">Holds the time state of a <see cref="Game" />.</param>
         public abstract void Update(GameTime gameTime);
+
+        public abstract void ConstrainAboveTerrain(Terrain terrain, float clearance, int samples);
     }
 }

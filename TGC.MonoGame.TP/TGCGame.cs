@@ -3,14 +3,14 @@
 // - Incorporar otros tanques (sin IA) [SANTI]
 // - Mejorar movimiento tanque [MATEO]
 // - Poner las texturas de tanque y otros objetos [SANTI]
-// - Disparar proyectiles [NACHO]
+// - Disparar proyectiles [NACHO] [COMPLETADO]
 // - Colisión entre tanques y objetos (con disparos se rompen todos, pero arboles y arbustos se rompen tambien con el tanque) [AGUS] [COMPLETADO]
 
 // - Opcionales:
 // - Corregir angulo arbustos, rocas y casas para que sigan el piso [COMPLETADO]
 // - Los objetos solo spawnean si el angulo es menor a X°, dependiendo del objeto. Casas muy bajo, el resto un poco mas, rocas no tienen restriccion [COMPLETADO]
 // - Suavizar el mapa [COMPLETADO]
-// - Que la camara no traspase el piso
+// - Que la camara no traspase el piso [COMPLETADO]
 // - Arreglar los arbustos, que a veces vuelan y otras estan bajo tierra
 // - Que las casas se coloquen manualmente
 
@@ -380,6 +380,7 @@ public class TGCGame : Game
             
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime);
+            _camera.ConstrainAboveTerrain(terrain, clearance: 50f, samples: 16);
             Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
         }
         

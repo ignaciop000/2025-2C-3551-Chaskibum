@@ -71,5 +71,10 @@ namespace TGC.MonoGame.Samples.Cameras
         {
             // This camera has no movement, once initialized with position and lookAt it is no longer updated automatically.
         }
+
+        public override void ConstrainAboveTerrain(Terrain terrain, float clearance, int samples)
+        {
+            
+        }
     }
 }

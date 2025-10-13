@@ -54,6 +54,11 @@ namespace  TGC.MonoGame.TP
                 CalculateView();
         }
 
+        public override void ConstrainAboveTerrain(Terrain terrain, float clearance, int samples)
+        {
+            
+        }
+
         private void ProcessKeyboard(float elapsedTime)
         {
             var keyboardState = Keyboard.GetState();

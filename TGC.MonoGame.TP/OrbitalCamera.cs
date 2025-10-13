@@ -191,5 +191,36 @@ namespace TGC.MonoGame.TP
             _shakeFreqY = 33f;
             _shakeFreqR = 25f;
         }
+        
+        public override void ConstrainAboveTerrain(Terrain terrain, float clearance = 50f, int samples = 16)
+        {
+            //Altura mínima bajo la cámara
+            var alturaMinima = terrain.GetHeightAtPosition(Position.X, Position.Z) + clearance;
+            
+            var from = new Vector2(Target.X, Target.Z);
+            var to = new Vector2(Position.X, Position.Z);
+
+            for (var i = 0; i <= samples; i++)
+            {
+                var t = i / (float)samples;
+                var puntoInterpolado = from * (1 - t) + to * t; //LERP - Interpolacion Lineal
+                var alturaInterpolacion = terrain.GetHeightAtPosition(puntoInterpolado.X, puntoInterpolado.Y) + clearance;
+                if (alturaInterpolacion > alturaMinima) alturaMinima = alturaInterpolacion;
+            }
+            
+            if (!(Position.Y < alturaMinima)) return;
+            // si estoy por debajo, subo la Y y reconstruyo View mirando al Target
+            Position = new Vector3(Position.X, alturaMinima, Position.Z);
+            RebuildView();
+        }
+
+        // Reconstruye matrices y ejes a partir de la Position actual y el Target
+        private void RebuildView()
+        {
+            FrontDirection = Vector3.Normalize(Target - Position);
+            RightDirection = Vector3.Normalize(Vector3.Cross(Vector3.Up, FrontDirection));
+            UpDirection = Vector3.Cross(FrontDirection, RightDirection);
+            View = Matrix.CreateLookAt(Position, Target, UpDirection);
+        }
     }
 }
