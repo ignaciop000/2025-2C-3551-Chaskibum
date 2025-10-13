@@ -1,5 +1,6 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
+using BepuUtilities.Collections;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -20,14 +21,14 @@ public class Debug
     private GraphicsDevice _graphicsDevice;
     private Terrain _terrain;
     private Simulation _simulation;
-    
-    public Gizmos Gizmos { get; set;}
-    
+
+    public Gizmos Gizmos { get; set; }
+
     private Vector3 _debugBoxSize;
     private VertexBuffer _debugBoxVB;
     private IndexBuffer _debugBoxIB;
     private bool _debugBuffersReady;
-    
+
     // Debug mesh (físico) del terreno
     private VertexBuffer _physDbgVB;
     private IndexBuffer _physDbgIB;
@@ -79,8 +80,8 @@ public class Debug
             _graphicsDevice.RasterizerState = new RasterizerState
                 { CullMode = CullMode.None, FillMode = FillMode.WireFrame };
 
-            DrawCollider(_graphicsDevice, _camera.View, _camera.Projection, DebugEffect, wireframe: false);
-            
+            DrawCollider();
+
             _graphicsDevice.RasterizerState = oldRS;
 
             // --- DEBUG: ver el mesh físico del terreno ---
@@ -129,38 +130,6 @@ public class Debug
                 }
             }
 
-            // -------- DINÁMICOS (tanque, etc.) --------
-            var activeSet = _simulation.Bodies.ActiveSet;
-
-            for (int i = 0; i < activeSet.Count; i++)
-            {
-                var handle = activeSet.IndexToHandle[i];
-                var bodyRef = _simulation.Bodies.GetBodyReference(handle);
-
-                var shapeIndex = bodyRef.Collidable.Shape.Index;
-                if (shapeIndex < 0)
-                    continue;
-
-                var shape = _simulation.Shapes.GetShape<BepuPhysics.Collidables.Box>(shapeIndex);
-
-                var worldMatrix =
-                    Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
-                    Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(
-                        bodyRef.Pose.Orientation.X,
-                        bodyRef.Pose.Orientation.Y,
-                        bodyRef.Pose.Orientation.Z,
-                        bodyRef.Pose.Orientation.W)) *
-                    Matrix.CreateTranslation(bodyRef.Pose.Position.X, bodyRef.Pose.Position.Y, bodyRef.Pose.Position.Z);
-
-                DebugEffect.Parameters["World"].SetValue(worldMatrix);
-
-                foreach (var pass in DebugEffect.CurrentTechnique.Passes)
-                {
-                    pass.Apply();
-                    DebugPrimitiveRenderer.DrawCube(_graphicsDevice);
-                }
-            }
-
             _graphicsDevice.RasterizerState = oldRS2;
         }
 
@@ -171,198 +140,197 @@ public class Debug
             _spriteBatch.End();
         }
     }
-    
+
     private void EnsureDebugCube(GraphicsDevice gd)
+    {
+        if (_debugBuffersReady) return;
+
+        // Un cubo unitario centrado en el origen (vértices -0.5..+0.5)
+        var v = new[]
         {
-            if (_debugBuffersReady) return;
+            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, -0.5f, -0.5f), Color.Red),
+            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, -0.5f, -0.5f), Color.Red),
+            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, 0.5f, -0.5f), Color.Red),
+            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, 0.5f, -0.5f), Color.Red),
+            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, -0.5f, 0.5f), Color.Red),
+            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, -0.5f, 0.5f), Color.Red),
+            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, 0.5f, 0.5f), Color.Red),
+            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, 0.5f, 0.5f), Color.Red),
+        };
 
-            // Un cubo unitario centrado en el origen (vértices -0.5..+0.5)
-            var v = new[]
-            {
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, -0.5f, -0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, -0.5f, -0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, 0.5f, -0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, 0.5f, -0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, -0.5f, 0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, -0.5f, 0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, 0.5f, 0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, 0.5f, 0.5f), Color.Red),
-            };
-
-            var idx = new ushort[]
-            {
-                // caras (triángulos) – sólido
-                0, 1, 2, 0, 2, 3, // z-
-                4, 6, 5, 4, 7, 6, // z+
-                0, 4, 5, 0, 5, 1, // y-
-                3, 2, 6, 3, 6, 7, // y+
-                0, 3, 7, 0, 7, 4, // x-
-                1, 5, 6, 1, 6, 2 // x+
-            };
-
-            _debugBoxVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, v.Length, BufferUsage.WriteOnly);
-            _debugBoxVB.SetData(v);
-            _debugBoxIB = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
-            _debugBoxIB.SetData(idx);
-
-            _debugBuffersReady = true;
-        }
-        
-        public void DrawCollider(GraphicsDevice gd, Matrix view, Matrix projection, Effect effect, bool wireframe = false)
+        var idx = new ushort[]
         {
-            if (_simulation == null || _tank.PhysicsBody.Value < 0 || _tank.bodyShapeCompound.Children.Length == 0) return;
-            
-            var body = _simulation.Bodies.GetBodyReference(_tank.PhysicsBody);
+            // caras (triángulos) – sólido
+            0, 1, 2, 0, 2, 3, // z-
+            4, 6, 5, 4, 7, 6, // z+
+            0, 4, 5, 0, 5, 1, // y-
+            3, 2, 6, 3, 6, 7, // y+
+            0, 3, 7, 0, 7, 4, // x-
+            1, 5, 6, 1, 6, 2 // x+
+        };
+
+        _debugBoxVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, v.Length, BufferUsage.WriteOnly);
+        _debugBoxVB.SetData(v);
+        _debugBoxIB = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
+        _debugBoxIB.SetData(idx);
+
+        _debugBuffersReady = true;
+    }
+
+    public void DrawCollider()
+    {
+        for (int j = 0; j < _tank.bodyHandles.Count; j++)
+        {
+            BodyHandle bodyHandle = _tank.bodyHandles[j];
+            if (_simulation == null || bodyHandle.Value < 0) return;
+
+            var body = _simulation.Bodies.GetBodyReference(bodyHandle);
             var bodyPose = body.Pose;
 
-            for (int i = 0; i < _tank.bodyShapeCompound.Children.Length; i++)
+            // Convertir a MonoGame
+            var posMg = new Vector3(bodyPose.Position.X, bodyPose.Position.Y, bodyPose.Position.Z);
+            var rotMg = new Quaternion(bodyPose.Orientation.X, bodyPose.Orientation.Y, bodyPose.Orientation.Z,
+                bodyPose.Orientation.W);
+
+            // Obtener el tipo de shape
+            var shapeIndex = body.Collidable.Shape;
+            int typeId = shapeIndex.Type;
+
+            if (typeId == default(Box).TypeId)
             {
-                var child = _tank.bodyShapeCompound.Children[i];
-                var localPose = child.LocalPose;
+                var box = _simulation.Shapes.GetShape<Box>(shapeIndex.Index);
+                var size = new Vector3(
+                    box.HalfWidth * 2f,
+                    box.HalfHeight * 2f,
+                    box.HalfLength * 2f
+                );
 
-                // Transformar posición local al mundo
-                var localPos = localPose.Position;
-                var worldPos = bodyPose.Position + System.Numerics.Vector3.Transform(localPos, bodyPose.Orientation);
+                var worldMatrix =
+                    Matrix.CreateScale(size) *
+                    Matrix.CreateFromQuaternion(rotMg) *
+                    Matrix.CreateTranslation(posMg);
 
-                // Combinar orientaciones
-                var worldOrientation = System.Numerics.Quaternion.Concatenate(localPose.Orientation, bodyPose.Orientation);
+                Gizmos.DrawCube(worldMatrix, Color.Yellow);
+            }
+            else if (typeId == default(Cylinder).TypeId)
+            {
+                var cylinder = _simulation.Shapes.GetShape<Cylinder>(shapeIndex.Index);
+                float height = cylinder.HalfLength;
 
-                // Convertir a MonoGame
-                var posMG = new Microsoft.Xna.Framework.Vector3(worldPos.X, worldPos.Y, worldPos.Z);
-                var rotMG = new Microsoft.Xna.Framework.Quaternion(worldOrientation.X, worldOrientation.Y, worldOrientation.Z, worldOrientation.W);
+                var worldMatrix =
+                    Matrix.CreateScale(cylinder.Radius, height, cylinder.Radius) *
+                    Matrix.CreateFromQuaternion(rotMg) *
+                    Matrix.CreateTranslation(posMg);
 
-                // Obtener el tipo de shape
-                var shapeIndex = child.ShapeIndex;
-                int typeId = shapeIndex.Type;
+                Gizmos.DrawCylinder(worldMatrix, Color.Orange);
+            }
+        }
 
-                if (typeId == default(Box).TypeId)
+        Gizmos.Draw();
+    }
+
+    private void EnsurePhysicsDebugBuffers()
+    {
+        if (_physDbgReady) return;
+
+        int width = _terrain.HeightmapData.GetLength(0);
+        int length = _terrain.HeightmapData.GetLength(1);
+
+        // 1) VERTS (grid compartido)
+        var verts = new VertexPositionColor[width * length];
+        int vi = 0;
+        for (int z = 0; z < length; z++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float h = _terrain.HeightmapData[x, z] * _terrain._scaleY;
+                var p = new Microsoft.Xna.Framework.Vector3(
+                    _terrain.Center.X + x * _terrain._scaleXZ,
+                    _terrain.Center.Y + h,
+                    _terrain.Center.Z + z * _terrain._scaleXZ
+                );
+                verts[vi++] = new VertexPositionColor(p, Color.Yellow);
+            }
+        }
+
+        // 2) ÍNDICES (2 triángulos por celda)
+        int quadsX = width - 1;
+        int quadsZ = length - 1;
+        int triCount = quadsX * quadsZ * 2;
+        int indexCount = triCount * 3;
+
+        bool need32 = (width * length) > 65535;
+        if (!need32)
+        {
+            var idx = new ushort[indexCount];
+            int k = 0;
+            for (int z = 0; z < quadsZ; z++)
+            {
+                for (int x = 0; x < quadsX; x++)
                 {
-                    var box = _simulation.Shapes.GetShape<Box>(shapeIndex.Index);
-                    var size = new Vector3(
-                        box.HalfWidth * 2f,
-                        box.HalfHeight * 2f,
-                        box.HalfLength * 2f
-                    );
-                    
-                    var worldMatrix =
-                        Matrix.CreateScale(size) *
-                        Matrix.CreateFromQuaternion(rotMG) *
-                        Matrix.CreateTranslation(posMG);
+                    int i0 = z * width + x;
+                    int i1 = z * width + (x + 1);
+                    int i2 = (z + 1) * width + x;
+                    int i3 = (z + 1) * width + (x + 1);
 
-                    Gizmos.DrawCube(worldMatrix, Color.Red);
+                    // t0: i0, i2, i1
+                    idx[k++] = (ushort)i0;
+                    idx[k++] = (ushort)i2;
+                    idx[k++] = (ushort)i1;
+                    // t1: i1, i2, i3
+                    idx[k++] = (ushort)i1;
+                    idx[k++] = (ushort)i2;
+                    idx[k++] = (ushort)i3;
                 }
-                else if (typeId == default(Cylinder).TypeId)
+            }
+
+            var gd = DebugEffect.GraphicsDevice;
+            _physDbgVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length,
+                BufferUsage.WriteOnly);
+            _physDbgVB.SetData(verts);
+
+            _physDbgIB = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
+            _physDbgIB.SetData(idx);
+
+            _physDbgIndexCount = idx.Length;
+        }
+        else
+        {
+            var idx = new int[indexCount];
+            int k = 0;
+            for (int z = 0; z < quadsZ; z++)
+            {
+                for (int x = 0; x < quadsX; x++)
                 {
-                    var cylinder = _simulation.Shapes.GetShape<Cylinder>(shapeIndex.Index);
-                    float height = cylinder.HalfLength;
+                    int i0 = z * width + x;
+                    int i1 = z * width + (x + 1);
+                    int i2 = (z + 1) * width + x;
+                    int i3 = (z + 1) * width + (x + 1);
 
-                    var worldMatrix =
-                        Matrix.CreateScale(cylinder.Radius, height, cylinder.Radius) *
-                        Matrix.CreateFromQuaternion(rotMG) *
-                        Matrix.CreateTranslation(posMG);
-
-                    Gizmos.DrawCylinder(worldMatrix, Color.Orange);
+                    // t0: i0, i2, i1
+                    idx[k++] = i0;
+                    idx[k++] = i2;
+                    idx[k++] = i1;
+                    // t1: i1, i2, i3
+                    idx[k++] = i1;
+                    idx[k++] = i2;
+                    idx[k++] = i3;
                 }
             }
-            Gizmos.Draw();
-        }
-        
-        private void EnsurePhysicsDebugBuffers()
-{
-    if (_physDbgReady) return;
 
-    int width  = _terrain.HeightmapData.GetLength(0);
-    int length = _terrain.HeightmapData.GetLength(1);
+            var gd = DebugEffect.GraphicsDevice;
+            _physDbgVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length,
+                BufferUsage.WriteOnly);
+            _physDbgVB.SetData(verts);
 
-    // 1) VERTS (grid compartido)
-    var verts = new VertexPositionColor[width * length];
-    int vi = 0;
-    for (int z = 0; z < length; z++)
-    {
-        for (int x = 0; x < width; x++)
-        {
-            float h = _terrain.HeightmapData[x, z] * _terrain._scaleY;
-            var p = new Microsoft.Xna.Framework.Vector3(
-                _terrain.Center.X + x * _terrain._scaleXZ,
-                _terrain.Center.Y + h,
-                _terrain.Center.Z + z * _terrain._scaleXZ
-            );
-            verts[vi++] = new VertexPositionColor(p, Color.Yellow);
+            _physDbgIB = new IndexBuffer(gd, IndexElementSize.ThirtyTwoBits, idx.Length, BufferUsage.WriteOnly);
+            _physDbgIB.SetData(idx);
+
+            _physDbgIndexCount = idx.Length;
         }
+
+        _physDbgReady = true;
     }
-
-    // 2) ÍNDICES (2 triángulos por celda)
-    int quadsX = width  - 1;
-    int quadsZ = length - 1;
-    int triCount = quadsX * quadsZ * 2;
-    int indexCount = triCount * 3;
-
-    bool need32 = (width * length) > 65535;
-    if (!need32)
-    {
-        var idx = new ushort[indexCount];
-        int k = 0;
-        for (int z = 0; z < quadsZ; z++)
-        {
-            for (int x = 0; x < quadsX; x++)
-            {
-                int i0 =  z      * width + x;
-                int i1 =  z      * width + (x + 1);
-                int i2 = (z + 1) * width + x;
-                int i3 = (z + 1) * width + (x + 1);
-
-                // t0: i0, i2, i1
-                idx[k++] = (ushort)i0;
-                idx[k++] = (ushort)i2;
-                idx[k++] = (ushort)i1;
-                // t1: i1, i2, i3
-                idx[k++] = (ushort)i1;
-                idx[k++] = (ushort)i2;
-                idx[k++] = (ushort)i3;
-            }
-        }
-
-        var gd = DebugEffect.GraphicsDevice;
-        _physDbgVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length, BufferUsage.WriteOnly);
-        _physDbgVB.SetData(verts);
-
-        _physDbgIB = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
-        _physDbgIB.SetData(idx);
-
-        _physDbgIndexCount = idx.Length;
-    }
-    else
-    {
-        var idx = new int[indexCount];
-        int k = 0;
-        for (int z = 0; z < quadsZ; z++)
-        {
-            for (int x = 0; x < quadsX; x++)
-            {
-                int i0 =  z      * width + x;
-                int i1 =  z      * width + (x + 1);
-                int i2 = (z + 1) * width + x;
-                int i3 = (z + 1) * width + (x + 1);
-
-                // t0: i0, i2, i1
-                idx[k++] = i0; idx[k++] = i2; idx[k++] = i1;
-                // t1: i1, i2, i3
-                idx[k++] = i1; idx[k++] = i2; idx[k++] = i3;
-            }
-        }
-
-        var gd = DebugEffect.GraphicsDevice;
-        _physDbgVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length, BufferUsage.WriteOnly);
-        _physDbgVB.SetData(verts);
-
-        _physDbgIB = new IndexBuffer(gd, IndexElementSize.ThirtyTwoBits, idx.Length, BufferUsage.WriteOnly);
-        _physDbgIB.SetData(idx);
-
-        _physDbgIndexCount = idx.Length;
-    }
-
-    _physDbgReady = true;
-}
 
     public void DrawPhysicsMeshDebug(Effect debugEffect, Matrix view, Matrix projection)
     {
@@ -388,5 +356,4 @@ public class Debug
 
         gd.RasterizerState = old;
     }
-
 }
