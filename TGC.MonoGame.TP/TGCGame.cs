@@ -38,6 +38,26 @@ using Vector3 = System.Numerics.Vector3;
 
 namespace TGC.MonoGame.TP;
 
+public struct TankBodyProperties
+{
+    /// <summary>
+    /// Controls which collidables the body can collide with.
+    /// </summary>
+    public SubgroupCollisionFilter Filter;
+    /// <summary>
+    /// Friction coefficient to use for the body.
+    /// </summary>
+    public float Friction;
+    /// <summary>
+    /// True if the body is a projectile and should explode on contact.
+    /// </summary>
+    public bool Projectile;
+    /// <summary>
+    /// True if the body is part of a tank.
+    /// </summary>
+    public bool TankPart;
+}
+
 /// <summary>
 ///     Esta es la clase principal del juego.
 ///     Inicialmente puede ser renombrado o copiado para hacer mas ejemplos chicos, en el caso de copiar para que se
@@ -66,6 +86,7 @@ public class TGCGame : Game
     private Effect _effect;
     private Effect _debugEffect;
     private Simulation _simulation;
+    CollidableProperty<TankBodyProperties> bodyProperties;
     public Gizmos Gizmos { get; set;}
     public BufferPool bufferPool { get; private set; }
 
@@ -139,7 +160,6 @@ public class TGCGame : Game
             5, 
             50000
             );
-        
         // Seteo la cámara inicial como la orbital
         _camera = _orbitCamera;
         
@@ -176,12 +196,13 @@ public class TGCGame : Game
                 group.OnCollisionWithProjectile(staticHandle);
             }
         };
-
         
-        _simulation = Simulation.Create(bufferPool, narrowPhase,
+        bodyProperties = new CollidableProperty<TankBodyProperties>();
+        _simulation = Simulation.Create(bufferPool, new TankCallbacks() { Properties = bodyProperties},
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
         
-        _tank = new Tank(new Vector3(0, 0, 1000), _orbitCamera, 0f, 10f );
+        _tank = new Tank(new Vector3(0, 0, 0), _camera, 0f, 0.1f );
+        //var bod = new BodyDescription();
         
         _debug = new Debug();
         base.Initialize();
@@ -216,11 +237,9 @@ public class TGCGame : Game
             _escalaMapa
             );
 
-        _tank.CargarModelo("tank/tank", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos,terrain);
-        PlayerController = new TankController(_tank, 20, 5, 2, 1, 3.5f);
-        //_tank2.CargarModelo("tank/tank", _effect, Content);
-        //_panzer.CargarModelo("panzer/Panzer", _effect, Content);
-        //_t90.CargarModelo("t90/T90", _effect, Content);
+        _tank.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos, bodyProperties, terrain);
+        PlayerController = new TankController(_tank, 20,500 , 2, 1, 3.5f);
+
         _trees = new Trees(terrain, _simulation);
         _houses = new Houses(terrain, _simulation);
         _rocks = new Rocks(terrain, _simulation);
@@ -280,9 +299,74 @@ public class TGCGame : Game
     /// </summary>
     protected override void Update(GameTime gameTime)
     {
+        var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
-        var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        
+        float leftTargetSpeedFraction = 0;
+        float rightTargetSpeedFraction = 0;
+        var left = keyboardState.IsKeyDown(Keys.A);
+        var right = keyboardState.IsKeyDown(Keys.D);
+        var forward = keyboardState.IsKeyDown(Keys.W);
+        var backward = keyboardState.IsKeyDown(Keys.S);
+
+        if (forward)
+        {
+            if ((left && right) || (!left && !right))
+            {
+                leftTargetSpeedFraction = 1f;
+                rightTargetSpeedFraction = 1f;
+            }
+            //Note turns require a bit of help from the opposing track to overcome friction.
+            else if (left)
+            {
+                leftTargetSpeedFraction = 0.5f;
+                rightTargetSpeedFraction = 1f;
+            }
+            else if (right)
+            {
+                leftTargetSpeedFraction = 1f;
+                rightTargetSpeedFraction = 0.5f;
+            }
+        }
+        else if (backward)
+        {
+            if ((left && right) || (!left && !right))
+            {
+                leftTargetSpeedFraction = -1f;
+                rightTargetSpeedFraction = -1f;
+            }
+            else if (left)
+            {
+                leftTargetSpeedFraction = -0.5f;
+                rightTargetSpeedFraction = -1f;
+            }
+            else if (right)
+            {
+                leftTargetSpeedFraction = -1f;
+                rightTargetSpeedFraction = -0.5f;
+            }
+        }
+        else
+        {
+            //Not trying to move. Turn?
+            if (left && !right)
+            {
+                leftTargetSpeedFraction = -1f;
+                rightTargetSpeedFraction = 1f;
+            }
+            else if (right && !left)
+            {
+                leftTargetSpeedFraction = 1f;
+                rightTargetSpeedFraction = -1f;
+            }
+        }
+        
+        var zoom = keyboardState.IsKeyDown(Keys.LeftShift);
+        var brake = keyboardState.IsKeyDown(Keys.Space);
+        var frontDirection = new Vector3(_camera.FrontDirection.X, _camera.FrontDirection.Y, _camera.FrontDirection.Z);
+
+        PlayerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom, brake, brake, frontDirection);
         
         // cooldown
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
@@ -297,7 +381,7 @@ public class TGCGame : Game
             float speed = 300f;
             float projMass = 2f;
             // Uso el mismo efecto de debug para dibujar el proyectil sin assets extra
-            var (muzzle, dir) = _tank.GetMuzzle(3.2f); // offset local del cañón (ajustá a tu modelo)
+            var (muzzle, dir) = _tank.GetMuzzle(300.2f); // offset local del cañón (ajustá a tu modelo)
             var proj = new Projectile(_simulation, terrain, _debug.DebugEffect, muzzle, dir, speed);
             _missiles.Add(proj);
             
