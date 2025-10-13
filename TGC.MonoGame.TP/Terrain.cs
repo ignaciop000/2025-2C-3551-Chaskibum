@@ -47,7 +47,7 @@ public class Terrain
         //Shader
         _effect = effect;
         // cargo el heightmap
-        LoadHeightmap(graphicsDevice, heightMap, scaleXZ, 4, Vector3.Zero, simulation);
+        LoadHeightmap(graphicsDevice, heightMap, scaleXZ, 1, Vector3.Zero, simulation);
         // textura con el color Map
         _colorMapTexture = colorMap;
         // diffuse maps auxiliares

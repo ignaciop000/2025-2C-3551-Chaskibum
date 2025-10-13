@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System;
+using System.Numerics;
 using BepuPhysics;
 using TGC.MonoGame.TP;
 
@@ -52,6 +53,7 @@ public struct TankController
     {
         var leftTargetSpeed = brakeLeft ? 0 : leftTargetSpeedFraction * Speed;
         var rightTargetSpeed = brakeRight ? 0 : rightTargetSpeedFraction * Speed;
+        
         if (zoom)
         {
             leftTargetSpeed *= ZoomMultiplier;
@@ -59,8 +61,9 @@ public struct TankController
         }
         var leftForce = brakeLeft ? BrakeForce : leftTargetSpeedFraction == 0 ? IdleForce : Force;
         var rightForce = brakeRight ? BrakeForce : rightTargetSpeedFraction == 0 ? IdleForce : Force;
-
-
+        
+        var (targetSwivelAngle, targetPitchAngle) = Tank.ComputeTurretAngles(simulation, aimDirection);
+        
         if (leftTargetSpeed != previousLeftTargetSpeed || rightTargetSpeed != previousRightTargetSpeed ||
             leftForce != previousLeftForce || rightForce != previousRightForce)
         {
@@ -72,8 +75,10 @@ public struct TankController
             previousRightTargetSpeed = rightTargetSpeed;
             previousLeftForce = leftForce;
             previousRightForce = rightForce;
+            Tank.SetAim(simulation, targetSwivelAngle, targetPitchAngle);
+            previousTurretSwivel = targetSwivelAngle;
+            previousBarrelPitch = targetPitchAngle;
+            
         }
-
-
     }
 }

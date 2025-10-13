@@ -36,6 +36,26 @@ using Vector3 = System.Numerics.Vector3;
 
 namespace TGC.MonoGame.TP;
 
+public struct TankBodyProperties
+{
+    /// <summary>
+    /// Controls which collidables the body can collide with.
+    /// </summary>
+    public SubgroupCollisionFilter Filter;
+    /// <summary>
+    /// Friction coefficient to use for the body.
+    /// </summary>
+    public float Friction;
+    /// <summary>
+    /// True if the body is a projectile and should explode on contact.
+    /// </summary>
+    public bool Projectile;
+    /// <summary>
+    /// True if the body is part of a tank.
+    /// </summary>
+    public bool TankPart;
+}
+
 /// <summary>
 ///     Esta es la clase principal del juego.
 ///     Inicialmente puede ser renombrado o copiado para hacer mas ejemplos chicos, en el caso de copiar para que se
@@ -53,6 +73,8 @@ public class TGCGame : Game
     /// </summary>
     struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
     {
+        public CollidableProperty<TankBodyProperties> Properties;
+        
         /// <summary>
         /// Propiedad que define la elasticidad del resorte utilizado para manejar los contactos
         /// en la simulación física. Esta elasticidad está representada por los parámetros
@@ -90,6 +112,7 @@ public class TGCGame : Game
         /// <param name="simulation">Simulación física que será configurada.</param>
         public void Initialize(Simulation simulation)
         {
+            Properties.Initialize(simulation);
             if (ContactSpringiness.AngularFrequency == 0 && ContactSpringiness.TwiceDampingRatio == 0)
             {
                 ContactSpringiness = new SpringSettings(30, 1);
@@ -129,7 +152,12 @@ public class TGCGame : Game
             [UnscopedRef] out PairMaterialProperties pairMaterial)
             where TManifold : unmanaged, IContactManifold<TManifold>
         {
-            pairMaterial.FrictionCoefficient = 1f;
+            pairMaterial.FrictionCoefficient = Properties[pair.A.BodyHandle].Friction;
+            if (pair.B.Mobility != CollidableMobility.Static)
+            {
+                //If two bodies collide, just average the friction.
+                pairMaterial.FrictionCoefficient = (pairMaterial.FrictionCoefficient + Properties[pair.B.BodyHandle].Friction) * 0.5f;
+            }
             pairMaterial.MaximumRecoveryVelocity = 2f;
             pairMaterial.SpringSettings = new SpringSettings(30, 1);
             //For the purposes of the demo, contact constraints are always generated.
@@ -293,6 +321,7 @@ public class TGCGame : Game
     private Effect _effect;
     private Effect _debugEffect;
     private Simulation _simulation;
+    CollidableProperty<TankBodyProperties> bodyProperties;
     public Gizmos Gizmos { get; set;}
     public BufferPool bufferPool { get; private set; }
 
@@ -361,11 +390,11 @@ public class TGCGame : Game
             5, 
             50000
             );
-        
-        _simulation = Simulation.Create(bufferPool, new NarrowPhaseCallbacks(),
+        bodyProperties = new CollidableProperty<TankBodyProperties>();
+        _simulation = Simulation.Create(bufferPool, new TankCallbacks() { Properties = bodyProperties},
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
         
-        _tank = new Tank(new Vector3(0, 0, 1000), _camera, 0f, 10f );
+        _tank = new Tank(new Vector3(0, 0, 0), _camera, 0f, 0.1f );
         //var bod = new BodyDescription();
         base.Initialize();
     }
@@ -406,12 +435,10 @@ public class TGCGame : Game
             _simulation,
             _escalaMapa
             );
-
-        _tank.CargarModelo("tank/tank", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos,terrain);
-        PlayerController = new TankController(_tank, 20, 5, 2, 1, 3.5f);
-        //_tank2.CargarModelo("tank/tank", _effect, Content);
-        //_panzer.CargarModelo("panzer/Panzer", _effect, Content);
-        //_t90.CargarModelo("t90/T90", _effect, Content);
+        
+        _tank.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos, bodyProperties, terrain);
+        PlayerController = new TankController(_tank, 20,500 , 2, 1, 3.5f);
+        
         _trees = new Trees(terrain);
         _houses = new Houses(terrain);
         _rocks = new Rocks(terrain);
@@ -453,9 +480,74 @@ public class TGCGame : Game
     /// </summary>
     protected override void Update(GameTime gameTime)
     {
+        var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
-        var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        
+        float leftTargetSpeedFraction = 0;
+        float rightTargetSpeedFraction = 0;
+        var left = keyboardState.IsKeyDown(Keys.A);
+        var right = keyboardState.IsKeyDown(Keys.D);
+        var forward = keyboardState.IsKeyDown(Keys.W);
+        var backward = keyboardState.IsKeyDown(Keys.S);
+
+        if (forward)
+        {
+            if ((left && right) || (!left && !right))
+            {
+                leftTargetSpeedFraction = 1f;
+                rightTargetSpeedFraction = 1f;
+            }
+            //Note turns require a bit of help from the opposing track to overcome friction.
+            else if (left)
+            {
+                leftTargetSpeedFraction = 0.5f;
+                rightTargetSpeedFraction = 1f;
+            }
+            else if (right)
+            {
+                leftTargetSpeedFraction = 1f;
+                rightTargetSpeedFraction = 0.5f;
+            }
+        }
+        else if (backward)
+        {
+            if ((left && right) || (!left && !right))
+            {
+                leftTargetSpeedFraction = -1f;
+                rightTargetSpeedFraction = -1f;
+            }
+            else if (left)
+            {
+                leftTargetSpeedFraction = -0.5f;
+                rightTargetSpeedFraction = -1f;
+            }
+            else if (right)
+            {
+                leftTargetSpeedFraction = -1f;
+                rightTargetSpeedFraction = -0.5f;
+            }
+        }
+        else
+        {
+            //Not trying to move. Turn?
+            if (left && !right)
+            {
+                leftTargetSpeedFraction = -1f;
+                rightTargetSpeedFraction = 1f;
+            }
+            else if (right && !left)
+            {
+                leftTargetSpeedFraction = 1f;
+                rightTargetSpeedFraction = -1f;
+            }
+        }
+        
+        var zoom = keyboardState.IsKeyDown(Keys.LeftShift);
+        var brake = keyboardState.IsKeyDown(Keys.Space);
+        var frontDirection = new Vector3(_camera.FrontDirection.X, _camera.FrontDirection.Y, _camera.FrontDirection.Z);
+
+        PlayerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom, brake, brake, frontDirection);
         
         // cooldown
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
@@ -470,7 +562,7 @@ public class TGCGame : Game
             float speed = 300f;
             float projMass = 2f;
             // Uso el mismo efecto de debug para dibujar el proyectil sin assets extra
-            var (muzzle, dir) = _tank.GetMuzzle(3.2f); // offset local del cañón (ajustá a tu modelo)
+            var (muzzle, dir) = _tank.GetMuzzle(300.2f); // offset local del cañón (ajustá a tu modelo)
             var proj = new Projectile(_simulation, terrain, _debugEffect, muzzle, dir, speed);
             _missiles.Add(proj);
             
@@ -614,7 +706,7 @@ public class TGCGame : Game
             GraphicsDevice.RasterizerState = new RasterizerState
                 { CullMode = CullMode.None, FillMode = FillMode.WireFrame };
 
-            _tank.DrawCollider(GraphicsDevice, _camera.View, _camera.Projection, _debugEffect, wireframe: false);
+            _tank.DrawCollider();
             
             GraphicsDevice.RasterizerState = oldRS;
 
@@ -636,14 +728,14 @@ public class TGCGame : Game
             // -------- ESTÁTICOS (terreno) --------
             for (int i = 0; i < _simulation.Statics.Count; i++)
             {
-                var handle = new BepuPhysics.StaticHandle(i);
+                var handle = new StaticHandle(i);
 
-                BepuPhysics.StaticDescription desc;
+                StaticDescription desc;
                 _simulation.Statics.GetDescription(handle, out desc);
 
-                if (desc.Shape.Type == BepuPhysics.Collidables.Box.Id)
+                if (desc.Shape.Type == Box.Id)
                 {
-                    var shape = _simulation.Shapes.GetShape<BepuPhysics.Collidables.Box>(desc.Shape.Index);
+                    var shape = _simulation.Shapes.GetShape<Box>(desc.Shape.Index);
 
                     var worldMatrix =
                         Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
@@ -661,38 +753,6 @@ public class TGCGame : Game
                         pass.Apply();
                         DebugPrimitiveRenderer.DrawCube(GraphicsDevice);
                     }
-                }
-            }
-
-            // -------- DINÁMICOS (tanque, etc.) --------
-            var activeSet = _simulation.Bodies.ActiveSet;
-
-            for (int i = 0; i < activeSet.Count; i++)
-            {
-                var handle = activeSet.IndexToHandle[i];
-                var bodyRef = _simulation.Bodies.GetBodyReference(handle);
-
-                var shapeIndex = bodyRef.Collidable.Shape.Index;
-                if (shapeIndex < 0)
-                    continue;
-
-                var shape = _simulation.Shapes.GetShape<BepuPhysics.Collidables.Box>(shapeIndex);
-
-                var worldMatrix =
-                    Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
-                    Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(
-                        bodyRef.Pose.Orientation.X,
-                        bodyRef.Pose.Orientation.Y,
-                        bodyRef.Pose.Orientation.Z,
-                        bodyRef.Pose.Orientation.W)) *
-                    Matrix.CreateTranslation(bodyRef.Pose.Position.X, bodyRef.Pose.Position.Y, bodyRef.Pose.Position.Z);
-
-                _debugEffect.Parameters["World"].SetValue(worldMatrix);
-
-                foreach (var pass in _debugEffect.CurrentTechnique.Passes)
-                {
-                    pass.Apply();
-                    DebugPrimitiveRenderer.DrawCube(GraphicsDevice);
                 }
             }
 
