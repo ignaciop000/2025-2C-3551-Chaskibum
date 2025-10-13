@@ -295,4 +295,65 @@ public class Terrain
     }
 
     
+    public Quaternion CalculateRotation(Microsoft.Xna.Framework.Vector3 position, float rotation, out Matrix orientationMatrix)
+    {
+        //obtenemos la normal
+        var normalHaciaArriba = GetNormalAtPosition(position.X, position.Z);
+            
+        // Direcciones objetivo: mantené la YAW de la física
+        var yawForward = Microsoft.Xna.Framework.Vector3.Transform(
+            -Microsoft.Xna.Framework.Vector3.UnitZ,
+            Matrix.CreateRotationY(rotation));
+
+        // Proyectá el forward sobre el plano del terreno para que siga la pendiente
+        var forwardOnPlane = yawForward - Microsoft.Xna.Framework.Vector3.Dot(yawForward, normalHaciaArriba) * normalHaciaArriba;
+        if (forwardOnPlane.LengthSquared() < 1e-6f)
+            forwardOnPlane = Microsoft.Xna.Framework.Vector3.Normalize(
+                Microsoft.Xna.Framework.Vector3.Cross(
+                    new Microsoft.Xna.Framework.Vector3(1, 0, 0), normalHaciaArriba));
+        else
+            forwardOnPlane.Normalize();
+
+        var right = Microsoft.Xna.Framework.Vector3.Normalize(
+            Microsoft.Xna.Framework.Vector3.Cross(forwardOnPlane, normalHaciaArriba));
+        var forward = Microsoft.Xna.Framework.Vector3.Normalize(
+            Microsoft.Xna.Framework.Vector3.Cross(normalHaciaArriba, right));
+
+        // Matriz de orientación a partir de la base R-U-F
+        orientationMatrix = new Matrix(
+            right.X, right.Y, right.Z, 0f,
+            normalHaciaArriba.X, normalHaciaArriba.Y, normalHaciaArriba.Z, 0f,
+            forward.X, forward.Y, forward.Z, 0f,
+            0f, 0f, 0f, 1f
+        );
+        
+        return Quaternion.CreateFromRotationMatrix(orientationMatrix);
+    }
+    
+    public Microsoft.Xna.Framework.Vector3 GetNormalAtPosition(float worldX, float worldZ)
+    {
+        var h = _scaleXZ * 0.5f; 
+        var x = worldX;
+        var z = worldZ;
+
+        var hL = GetHeightAtPosition(x - h, z);
+        var hR = GetHeightAtPosition(x + h, z);
+        var hD = GetHeightAtPosition(x, z - h);
+        var hU = GetHeightAtPosition(x, z + h);
+
+        var tangentX = new Vector3(2f * h, hR - hL, 0f);
+        var tangentZ = new Vector3(0f, hU - hD, 2f * h);
+        
+        return  Vector3.Normalize(Vector3.Cross(tangentZ, tangentX));
+    }
+    
+    public float GetSlopeDegreesAt(float worldX, float worldZ)
+    {
+        var n = GetNormalAtPosition(worldX, worldZ);
+        var dot = Microsoft.Xna.Framework.Vector3.Dot(n, Microsoft.Xna.Framework.Vector3.Up);
+        dot = MathHelper.Clamp(dot, -1f, 1f);
+        var radians = MathF.Acos(dot);
+        return MathHelper.ToDegrees(radians);
+    }
+    
 }

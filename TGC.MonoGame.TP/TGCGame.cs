@@ -7,8 +7,8 @@
 // - Colisión entre tanques y objetos (con disparos se rompen todos, pero arboles y arbustos se rompen tambien con el tanque) [AGUS] [COMPLETADO]
 
 // - Opcionales:
-// - Corregir angulo arbustos, rocas y casas para que sigan el piso
-// - Los objetos solo spawnean si el angulo es menor a X°, dependiendo del objeto. Casas muy bajo, el resto un poco mas, rocas no tienen restriccion
+// - Corregir angulo arbustos, rocas y casas para que sigan el piso [COMPLETADO]
+// - Los objetos solo spawnean si el angulo es menor a X°, dependiendo del objeto. Casas muy bajo, el resto un poco mas, rocas no tienen restriccion [COMPLETADO]
 // - Suavizar el mapa [COMPLETADO]
 // - Que la camara no traspase el piso
 // - Arreglar los arbustos, que a veces vuelan y otras estan bajo tierra
@@ -225,6 +225,12 @@ public class TGCGame : Game
         _houses = new Houses(terrain, _simulation);
         _rocks = new Rocks(terrain, _simulation);
         _bushes = new Bushes(terrain, _simulation);
+        
+        _houses.SetPlacementRules(5f,  false); // ≤ 5°, NO se inclinan
+        _trees.SetPlacementRules(20f,  true);  // ≤ 20°, se inclinan
+        _bushes.SetPlacementRules(25f, true);  // ≤ 25°, se inclinan
+        _rocks.SetPlacementRules(null, true);  // sin restricción, se inclinan
+
 
         // Generacion de posiciones de modelos
 

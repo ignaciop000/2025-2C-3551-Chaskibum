@@ -19,10 +19,14 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     private Simulation _simulation = simulation;
     private Effect _effect;
     private float _altura;
+    
     public List<Vector2> Positions { get; set; } = [];
 
     private const string ContentFolder3D = TGCGame.ContentFolder3D;
     private readonly Random _random = new Random();
+    
+    public float? MaxSlopeDegrees { get; set; } = null;
+    public bool AlignToTerrain { get; set; } = true;
 
     public void CrearObjetoUnico(float escala, float yawInDegrees, Vector3 position)
     { 
@@ -37,14 +41,32 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     {
         foreach (var posicion in Positions)
         {
-            float escala = NextFloat(escalaMin, escalaMax); //elegimos la escala al azar en base al min y max
+            //Filtro por inclinación
+            var slopeDeg = _terrain.GetSlopeDegreesAt(posicion.X, posicion.Y);
+            if (MaxSlopeDegrees.HasValue && slopeDeg > MaxSlopeDegrees.Value)
+                continue;
 
-            float yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
-            var alturaMapa = _terrain.GetHeightAtPosition(posicion.X, posicion.Y); // Es Y porque es un Vector2
-            Matrix world = Matrix.CreateScale(escala, escala, escala) *
-                           Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
-                           Matrix.CreateTranslation(posicion.X, altura + alturaMapa, posicion.Y);
+            //Altura en el mapa
+            var alturaMapa = _terrain.GetHeightAtPosition(posicion.X, posicion.Y);
+            var escala = NextFloat(escalaMin, escalaMax); //elegimos la escala al azar en base al min y max
+            var yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
 
+            Matrix world;
+            if (AlignToTerrain)
+            {
+                // Alinear al plano del terreno
+                var pos3 = new Vector3(posicion.X, altura + alturaMapa, posicion.Y);
+                Matrix orient;
+                var q = _terrain.CalculateRotation(pos3, yaw, out orient);
+                world = Matrix.CreateScale(escala) * Matrix.CreateFromQuaternion(q) * Matrix.CreateTranslation(pos3);
+            }
+            else
+            {
+                // Mantener vertical (solo yaw)
+                world = Matrix.CreateScale(escala) *
+                        Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
+                        Matrix.CreateTranslation(posicion.X, altura + alturaMapa, posicion.Y);
+            }
             _worlds.Add(world);
         }
 

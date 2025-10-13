@@ -83,4 +83,13 @@ public abstract class ModelGroup
         var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
         model?.DestruirInstancia(handle);
     }
+    
+    public void SetPlacementRules(float? maxSlopeDegrees, bool alignToTerrain)
+    {
+        foreach (var m in Models)
+        {
+            m.MaxSlopeDegrees = maxSlopeDegrees;
+            m.AlignToTerrain = alignToTerrain;
+        }
+    }
 }
