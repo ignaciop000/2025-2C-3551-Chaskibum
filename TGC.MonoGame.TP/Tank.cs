@@ -46,12 +46,6 @@ namespace TGC.MonoGame.TP
         private Matrix _hatchTransform;
 
         private Matrix[] _boneTransforms;
-
-        private Vector3 _debugBoxSize;
-        private VertexBuffer _debugBoxVB;
-        private IndexBuffer _debugBoxIB;
-        private bool _debugBuffersReady;
-        public Compound _debugCompoundShape;
         
         public Gizmos Gizmos { get; set;}
         
@@ -151,6 +145,8 @@ namespace TGC.MonoGame.TP
         ///     Gets or sets the entry hatch rotation amount.
         /// </summary>
         public float HatchRotation { get; set; }
+
+        public Compound bodyShapeCompound;
 
         public Tank(Vector3 initialPosition, OrbitCamera camera, float initialRotation = 0f, float scale = 20f)
         {
@@ -257,8 +253,7 @@ namespace TGC.MonoGame.TP
                 ), 5);
             builder.BuildDynamicCompound(out var children, out var bodyInertia, out _);
             builder.Dispose();
-            var bodyShapeCompound = new Compound(children);
-            _debugCompoundShape = bodyShapeCompound;
+            bodyShapeCompound = new Compound(children);
 
             float lowestY = GetLowestYFromCompound(bodyShapeCompound);
             float spawnY = terrainY - lowestY + SpawnClearance + 100;
@@ -280,44 +275,6 @@ namespace TGC.MonoGame.TP
             PhysicsBody = _simulation.Bodies.Add(bodyDesc);
             RotationQuaternion = orientationQuat;
 
-        }
-
-        #region debug
-
-        private void EnsureDebugCube(GraphicsDevice gd)
-        {
-            if (_debugBuffersReady) return;
-
-            // Un cubo unitario centrado en el origen (vértices -0.5..+0.5)
-            var v = new[]
-            {
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, -0.5f, -0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, -0.5f, -0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, 0.5f, -0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, 0.5f, -0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, -0.5f, 0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, -0.5f, 0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, 0.5f, 0.5f), Color.Red),
-                new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, 0.5f, 0.5f), Color.Red),
-            };
-
-            var idx = new ushort[]
-            {
-                // caras (triángulos) – sólido
-                0, 1, 2, 0, 2, 3, // z-
-                4, 6, 5, 4, 7, 6, // z+
-                0, 4, 5, 0, 5, 1, // y-
-                3, 2, 6, 3, 6, 7, // y+
-                0, 3, 7, 0, 7, 4, // x-
-                1, 5, 6, 1, 6, 2 // x+
-            };
-
-            _debugBoxVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, v.Length, BufferUsage.WriteOnly);
-            _debugBoxVB.SetData(v);
-            _debugBoxIB = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
-            _debugBoxIB.SetData(idx);
-
-            _debugBuffersReady = true;
         }
         
         private float GetLowestYFromCompound(Compound compoundShape)
@@ -345,70 +302,7 @@ namespace TGC.MonoGame.TP
 
             return lowestY;
         }
-
         
-        public void DrawCollider(GraphicsDevice gd, Matrix view, Matrix projection, Effect effect, bool wireframe = false)
-        {
-            if (_simulation == null || PhysicsBody.Value < 0 || _debugCompoundShape.Children.Length == 0) return;
-            
-            var body = _simulation.Bodies.GetBodyReference(PhysicsBody);
-            var bodyPose = body.Pose;
-
-            for (int i = 0; i < _debugCompoundShape.Children.Length; i++)
-            {
-                var child = _debugCompoundShape.Children[i];
-                var localPose = child.LocalPose;
-
-                // Transformar posición local al mundo
-                var localPos = localPose.Position;
-                var worldPos = bodyPose.Position + System.Numerics.Vector3.Transform(localPos, bodyPose.Orientation);
-
-                // Combinar orientaciones
-                var worldOrientation = System.Numerics.Quaternion.Concatenate(localPose.Orientation, bodyPose.Orientation);
-
-                // Convertir a MonoGame
-                var posMG = new Microsoft.Xna.Framework.Vector3(worldPos.X, worldPos.Y, worldPos.Z);
-                var rotMG = new Microsoft.Xna.Framework.Quaternion(worldOrientation.X, worldOrientation.Y, worldOrientation.Z, worldOrientation.W);
-
-                // Obtener el tipo de shape
-                var shapeIndex = child.ShapeIndex;
-                int typeId = shapeIndex.Type;
-
-                if (typeId == default(Box).TypeId)
-                {
-                    var box = _simulation.Shapes.GetShape<Box>(shapeIndex.Index);
-                    var size = new Vector3(
-                        box.HalfWidth * 2f,
-                        box.HalfHeight * 2f,
-                        box.HalfLength * 2f
-                    );
-                    
-                    var worldMatrix =
-                        Matrix.CreateScale(size) *
-                        Matrix.CreateFromQuaternion(rotMG) *
-                        Matrix.CreateTranslation(posMG);
-
-                    Gizmos.DrawCube(worldMatrix, Color.Red);
-                }
-                else if (typeId == default(Cylinder).TypeId)
-                {
-                    var cylinder = _simulation.Shapes.GetShape<Cylinder>(shapeIndex.Index);
-                    float height = cylinder.HalfLength;
-
-                    var worldMatrix =
-                        Matrix.CreateScale(cylinder.Radius, height, cylinder.Radius) *
-                        Matrix.CreateFromQuaternion(rotMG) *
-                        Matrix.CreateTranslation(posMG);
-
-                    Gizmos.DrawCylinder(worldMatrix, Color.Orange);
-                }
-            }
-            Gizmos.Draw();
-        }
-
-
-        #endregion
-
         public void ControlForces(float throttle, float steer, float dt)
         {
             if (_simulation == null || PhysicsBody.Value < 0) return;

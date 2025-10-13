@@ -334,6 +334,8 @@ public class TGCGame : Game
     // Diccionario para mapear StaticHandle a ModelGroup
     public static readonly Dictionary<StaticHandle, ModelGroup> HandleToGroup = new();
 
+    private Debug _debug;
+
     /// <summary>
     ///     Constructor del juego.
     /// </summary>
@@ -416,6 +418,8 @@ public class TGCGame : Game
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
         
         _tank = new Tank(new Vector3(0, 0, 1000), _orbitCamera, 0f, 10f );
+        
+        _debug = new Debug();
         base.Initialize();
     }
 
@@ -428,14 +432,6 @@ public class TGCGame : Game
     {
         _terrainEffect = Content.Load<Effect>(ContentFolderEffects + "Terrain");
         _effect = Content.Load<Effect>(ContentFolderEffects + "BasicShader");
-
-        #region debug
-        _debugEffect = Content.Load<Effect>(ContentFolderEffects + "Debug"); 
-        _debugEffect.Parameters["DebugColor"]?.SetValue(Color.Red.ToVector4());
-        
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
-        _debugFont = Content.Load<SpriteFont>(ContentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
-        #endregion debug
         
         // heights
         var terrainHeigthmap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/heightmap");
@@ -492,6 +488,18 @@ public class TGCGame : Game
         _rocks.CargarModelos(_effect, Content);
         _bushes.CargarModelos(_effect, Content);
         
+        _debug.LoadContent(
+            Content, 
+            ContentFolderEffects, 
+            ContentFolderSpriteFonts, 
+            GraphicsDevice, 
+            _tank, 
+            _orbitCamera,
+            _simulation, 
+            terrain,
+            Gizmos
+        );
+        
         base.LoadContent();
     }
 
@@ -520,7 +528,7 @@ public class TGCGame : Game
             float projMass = 2f;
             // Uso el mismo efecto de debug para dibujar el proyectil sin assets extra
             var (muzzle, dir) = _tank.GetMuzzle(3.2f); // offset local del cañón (ajustá a tu modelo)
-            var proj = new Projectile(_simulation, terrain, _debugEffect, muzzle, dir, speed);
+            var proj = new Projectile(_simulation, terrain, _debug.DebugEffect, muzzle, dir, speed);
             _missiles.Add(proj);
             
             // Retroceso + freno breve
@@ -552,17 +560,6 @@ public class TGCGame : Game
             Exit();
         }
 
-        #region debug
-        if (keyboardState.IsKeyDown(Keys.F2) && !_kbPrev.IsKeyDown(Keys.F2))
-        {
-            _showTerrainMeshDebug = !_showTerrainMeshDebug;
-        }
-
-        if (keyboardState.IsKeyDown(Keys.F3) && !_kbPrev.IsKeyDown(Keys.F3))
-        {
-            _showTankTelemetry = !_showTankTelemetry;
-            _tank.DebugTelemetry = _showTankTelemetry;
-        }
         if (keyboardState.IsKeyDown(Keys.F4) && !_kbPrev.IsKeyDown(Keys.F4))
         {
             if (_camera == _orbitCamera)
@@ -575,10 +572,9 @@ public class TGCGame : Game
                 _camera = _orbitCamera;
             }
         }
-        #endregion
         
-        _kbPrev = keyboardState;
-        _mousePrev = mouseState;
+        _debug.Update(keyboardState, _kbPrev, deltaTime, _camera);
+
         // Actualizar cámara para seguir al tanque
         if (_tank != null)
         {
@@ -616,6 +612,9 @@ public class TGCGame : Game
             _camera.Update(gameTime);
             Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
         }
+        
+        _kbPrev = keyboardState;
+        _mousePrev = mouseState;
         base.Update(gameTime);
     }
 
@@ -663,111 +662,7 @@ public class TGCGame : Game
         foreach (var s in _missiles)
             s.Draw(GraphicsDevice, _camera.View, _camera.Projection);
 
-        #region debug
-
-        if (_showTerrainMeshDebug)
-        {
-            _debugEffect.Parameters["View"].SetValue(_camera.View);
-            _debugEffect.Parameters["Projection"].SetValue(_camera.Projection);
-            _debugEffect.Parameters["World"].SetValue(Matrix.Identity);
-
-            var oldRS = GraphicsDevice.RasterizerState;
-            GraphicsDevice.RasterizerState = new RasterizerState
-                { CullMode = CullMode.None, FillMode = FillMode.WireFrame };
-
-            _tank.DrawCollider(GraphicsDevice, _camera.View, _camera.Projection, _debugEffect, wireframe: false);
-            
-            GraphicsDevice.RasterizerState = oldRS;
-
-            // --- DEBUG: ver el mesh físico del terreno ---
-            //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); // si tu .fx lo usa
-            terrain.DrawPhysicsMeshDebug(_debugEffect, _camera.View, _camera.Projection);
-
-            // 🔍 Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
-            _debugEffect.Parameters["View"].SetValue(_camera.View);
-            _debugEffect.Parameters["Projection"].SetValue(_camera.Projection);
-
-            var oldRS2 = GraphicsDevice.RasterizerState;
-            GraphicsDevice.RasterizerState = new RasterizerState
-            {
-                CullMode = CullMode.None,
-                FillMode = FillMode.WireFrame
-            };
-
-            // -------- ESTÁTICOS (terreno) --------
-            for (int i = 0; i < _simulation.Statics.Count; i++)
-            {
-                var handle = new BepuPhysics.StaticHandle(i);
-
-                BepuPhysics.StaticDescription desc;
-                _simulation.Statics.GetDescription(handle, out desc);
-
-                if (desc.Shape.Type == BepuPhysics.Collidables.Box.Id)
-                {
-                    var shape = _simulation.Shapes.GetShape<BepuPhysics.Collidables.Box>(desc.Shape.Index);
-
-                    var worldMatrix =
-                        Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
-                        Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(
-                            desc.Pose.Orientation.X,
-                            desc.Pose.Orientation.Y,
-                            desc.Pose.Orientation.Z,
-                            desc.Pose.Orientation.W)) *
-                        Matrix.CreateTranslation(desc.Pose.Position.X, desc.Pose.Position.Y, desc.Pose.Position.Z);
-
-                    _debugEffect.Parameters["World"].SetValue(worldMatrix);
-
-                    foreach (var pass in _debugEffect.CurrentTechnique.Passes)
-                    {
-                        pass.Apply();
-                        DebugPrimitiveRenderer.DrawCube(GraphicsDevice);
-                    }
-                }
-            }
-
-            // -------- DINÁMICOS (tanque, etc.) --------
-            var activeSet = _simulation.Bodies.ActiveSet;
-
-            for (int i = 0; i < activeSet.Count; i++)
-            {
-                var handle = activeSet.IndexToHandle[i];
-                var bodyRef = _simulation.Bodies.GetBodyReference(handle);
-
-                var shapeIndex = bodyRef.Collidable.Shape.Index;
-                if (shapeIndex < 0)
-                    continue;
-
-                var shape = _simulation.Shapes.GetShape<BepuPhysics.Collidables.Box>(shapeIndex);
-
-                var worldMatrix =
-                    Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
-                    Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(
-                        bodyRef.Pose.Orientation.X,
-                        bodyRef.Pose.Orientation.Y,
-                        bodyRef.Pose.Orientation.Z,
-                        bodyRef.Pose.Orientation.W)) *
-                    Matrix.CreateTranslation(bodyRef.Pose.Position.X, bodyRef.Pose.Position.Y, bodyRef.Pose.Position.Z);
-
-                _debugEffect.Parameters["World"].SetValue(worldMatrix);
-
-                foreach (var pass in _debugEffect.CurrentTechnique.Passes)
-                {
-                    pass.Apply();
-                    DebugPrimitiveRenderer.DrawCube(GraphicsDevice);
-                }
-            }
-
-            GraphicsDevice.RasterizerState = oldRS2;
-        }
-
-        if (_showTankTelemetry && _debugFont != null)
-        {
-            _spriteBatch.Begin();
-            _spriteBatch.DrawString(_debugFont, _tank.TelemetryText ?? "", new Vector2(14, 14), Color.LimeGreen);
-            _spriteBatch.End();
-        }
-
-        #endregion
+        _debug.Draw();
 
     }
 

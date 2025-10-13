@@ -11,20 +11,14 @@ namespace TGC.MonoGame.TP;
 public class Terrain
 {
     private readonly Effect _effect;
-    private float _scaleXZ = 1;
-    private float _scaleY = 1;
+    public float _scaleXZ = 1;
+    public float _scaleY = 1;
     private VertexBuffer _vbTerrain;
     private IndexBuffer _ibTerrain;
     private readonly Texture2D _colorMapTexture;
     private readonly Texture2D _terrainTexture;
     private readonly Texture2D _terrainTexture2;
-
-    // Debug mesh (físico) del terreno
-    private VertexBuffer _physDbgVB;
-    private IndexBuffer _physDbgIB;
-    private int _physDbgIndexCount;
-    private bool _physDbgReady;
-
+    
     /// <summary>
     /// Datos del mapa de altura (Heightmap) utilizados para representar la topografía de un terreno.
     /// Este array bidimensional almacena los valores de altura para cada punto del terreno,
@@ -199,37 +193,7 @@ public class Terrain
         // Liberar el buffer (ya fue copiado internamente)
         simulation.BufferPool.Return(ref triangles);
     }
-
-
-    /// <summary>
-    /// Crea boxes estáticas para representar el terreno
-    /// </summary>
-    private void CreateTerrainBoxes(Simulation simulation, int width, int height)
-    {
-        // Crear boxes pequeñas para cada celda del heightmap
-        for (int x = 0; x < width - 1; x++)
-        {
-            for (int z = 0; z < height - 1; z++)
-            {
-                float h11 = HeightmapData[x, z] * _scaleY;
-                float h21 = HeightmapData[x + 1, z] * _scaleY;
-                float h12 = HeightmapData[x, z + 1] * _scaleY;
-                float h22 = HeightmapData[x + 1, z + 1] * _scaleY;
-                float heightY = MathF.Max(0.1f, MathF.Max(MathF.Max(h11, h21), MathF.Max(h12, h22)));
-                var position = new System.Numerics.Vector3(
-                    Center.X + (x + 0.5f) * _scaleXZ,
-                    Center.Y + heightY * 0.5f,
-                    Center.Z + (z + 0.5f) * _scaleXZ
-                );
-                var box = new BepuPhysics.Collidables.Box(_scaleXZ, heightY, _scaleXZ);
-
-                var shapeIndex = simulation.Shapes.Add(box);
-                simulation.Statics.Add(new StaticDescription(position, System.Numerics.Quaternion.Identity,
-                    shapeIndex));
-            }
-        }
-    }
-
+    
     /// Carga un mapa de alturas desde una textura para ser utilizado como datos de elevación.
     /// <param name="texture">La textura que contiene el mapa de alturas.</param>
     /// <returns>Una matriz bidimensional de enteros que representa los valores de altura extraídos de la textura.</returns>
@@ -330,125 +294,5 @@ public class Terrain
         return Center.Y + finalHeight;
     }
 
-    private void EnsurePhysicsDebugBuffers()
-{
-    if (_physDbgReady) return;
-
-    int width  = HeightmapData.GetLength(0);
-    int length = HeightmapData.GetLength(1);
-
-    // 1) VERTS (grid compartido)
-    var verts = new VertexPositionColor[width * length];
-    int vi = 0;
-    for (int z = 0; z < length; z++)
-    {
-        for (int x = 0; x < width; x++)
-        {
-            float h = HeightmapData[x, z] * _scaleY;
-            var p = new Microsoft.Xna.Framework.Vector3(
-                Center.X + x * _scaleXZ,
-                Center.Y + h,
-                Center.Z + z * _scaleXZ
-            );
-            verts[vi++] = new VertexPositionColor(p, Color.Yellow);
-        }
-    }
-
-    // 2) ÍNDICES (2 triángulos por celda)
-    int quadsX = width  - 1;
-    int quadsZ = length - 1;
-    int triCount = quadsX * quadsZ * 2;
-    int indexCount = triCount * 3;
-
-    bool need32 = (width * length) > 65535;
-    if (!need32)
-    {
-        var idx = new ushort[indexCount];
-        int k = 0;
-        for (int z = 0; z < quadsZ; z++)
-        {
-            for (int x = 0; x < quadsX; x++)
-            {
-                int i0 =  z      * width + x;
-                int i1 =  z      * width + (x + 1);
-                int i2 = (z + 1) * width + x;
-                int i3 = (z + 1) * width + (x + 1);
-
-                // t0: i0, i2, i1
-                idx[k++] = (ushort)i0;
-                idx[k++] = (ushort)i2;
-                idx[k++] = (ushort)i1;
-                // t1: i1, i2, i3
-                idx[k++] = (ushort)i1;
-                idx[k++] = (ushort)i2;
-                idx[k++] = (ushort)i3;
-            }
-        }
-
-        var gd = _effect.GraphicsDevice;
-        _physDbgVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length, BufferUsage.WriteOnly);
-        _physDbgVB.SetData(verts);
-
-        _physDbgIB = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
-        _physDbgIB.SetData(idx);
-
-        _physDbgIndexCount = idx.Length;
-    }
-    else
-    {
-        var idx = new int[indexCount];
-        int k = 0;
-        for (int z = 0; z < quadsZ; z++)
-        {
-            for (int x = 0; x < quadsX; x++)
-            {
-                int i0 =  z      * width + x;
-                int i1 =  z      * width + (x + 1);
-                int i2 = (z + 1) * width + x;
-                int i3 = (z + 1) * width + (x + 1);
-
-                // t0: i0, i2, i1
-                idx[k++] = i0; idx[k++] = i2; idx[k++] = i1;
-                // t1: i1, i2, i3
-                idx[k++] = i1; idx[k++] = i2; idx[k++] = i3;
-            }
-        }
-
-        var gd = _effect.GraphicsDevice;
-        _physDbgVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length, BufferUsage.WriteOnly);
-        _physDbgVB.SetData(verts);
-
-        _physDbgIB = new IndexBuffer(gd, IndexElementSize.ThirtyTwoBits, idx.Length, BufferUsage.WriteOnly);
-        _physDbgIB.SetData(idx);
-
-        _physDbgIndexCount = idx.Length;
-    }
-
-    _physDbgReady = true;
-}
-
-    public void DrawPhysicsMeshDebug(Effect debugEffect, Matrix view, Matrix projection)
-    {
-        EnsurePhysicsDebugBuffers();
-
-        var gd = _effect.GraphicsDevice;
-
-        debugEffect.Parameters["View"]?.SetValue(view);
-        debugEffect.Parameters["Projection"]?.SetValue(projection);
-        debugEffect.Parameters["World"]?.SetValue(Matrix.Identity);
-
-        var old = gd.RasterizerState;
-        gd.RasterizerState = new RasterizerState { CullMode = CullMode.None, FillMode = FillMode.WireFrame };
-
-        gd.SetVertexBuffer(_physDbgVB);
-        gd.Indices = _physDbgIB;
-
-        foreach (var pass in debugEffect.CurrentTechnique.Passes)
-        {
-            pass.Apply();
-            gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, _physDbgIndexCount / 3);
-        }
-
-        gd.RasterizerState = old;
-    }
+    
 }
