@@ -20,79 +20,7 @@ using TGC.MonoGame.Samples.Viewer.Gizmos;
 using MathHelper = Microsoft.Xna.Framework.MathHelper;
 using Matrix = Microsoft.Xna.Framework.Matrix;
 
-public struct SubgroupCollisionFilter
-{
-    /// <summary>
-    /// A mask of 16 bits, each set bit representing a collision group that an object belongs to.
-    /// </summary>
-    public ushort SubgroupMembership;
-    /// <summary>
-    /// A mask of 16 bits, each set bit representing a collision group that an object can interact with.
-    /// </summary>
-    public ushort CollidableSubgroups;
-    /// <summary>
-    /// Id of the owner of the object. Objects belonging to different groups always collide.
-    /// </summary>
-    public int GroupId;
 
-    /// <summary>
-    /// Initializes a collision filter that collides with everything in the group.
-    /// </summary>
-    /// <param name="groupId">Id of the group that this filter operates within.</param>
-    public SubgroupCollisionFilter(int groupId)
-    {
-        GroupId = groupId;
-        SubgroupMembership = ushort.MaxValue;
-        CollidableSubgroups = ushort.MaxValue;
-    }
-
-    /// <summary>
-    /// Initializes a collision filter that belongs to one specific subgroup and can collide with any other subgroup.
-    /// </summary>
-    /// <param name="groupId">Id of the group that this filter operates within.</param>
-    /// <param name="subgroupId">Id of the subgroup to put this collidable into.</param>
-    public SubgroupCollisionFilter(int groupId, int subgroupId)
-    {
-        GroupId = groupId;
-        Debug.Assert(subgroupId >= 0 && subgroupId < 16, "The subgroup field is a ushort; it can only hold 16 distinct subgroups.");
-        SubgroupMembership = (ushort)(1 << subgroupId);
-        CollidableSubgroups = ushort.MaxValue;
-    }
-
-    /// <summary>
-    /// Disables a collision between this filter and the specified subgroup.
-    /// </summary>
-    /// <param name="subgroupId">Subgroup id to disable collision with.</param>
-    public void DisableCollision(int subgroupId)
-    {
-        Debug.Assert(subgroupId >= 0 && subgroupId < 16, "The subgroup field is a ushort; it can only hold 16 distinct subgroups.");
-        CollidableSubgroups ^= (ushort)(1 << subgroupId);
-    }
-
-    /// <summary>
-    /// Modifies the interactable subgroups such that filterB does not interact with the subgroups defined by filter a and vice versa.
-    /// </summary>
-    /// <param name="a">Filter from which to remove collisions with filter b's subgroups.</param>
-    /// <param name="b">Filter from which to remove collisions with filter a's subgroups.</param>
-    public static void DisableCollision(ref SubgroupCollisionFilter filterA, ref SubgroupCollisionFilter filterB)
-    {
-        filterA.CollidableSubgroups &= (ushort)~filterB.SubgroupMembership;
-        filterB.CollidableSubgroups &= (ushort)~filterA.SubgroupMembership;
-    }
-
-    /// <summary>
-    /// Checks if the filters can collide by checking if b's membership can be collided by a's collidable groups.
-    /// </summary>
-    /// <param name="a">First filter to test.</param>c
-    /// <param name="b">Second filter to test.</param>
-    /// <returns>True if the filters can collide, false otherwise.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool AllowCollision(in SubgroupCollisionFilter a, in SubgroupCollisionFilter b)
-    {
-        return a.GroupId != b.GroupId || (a.CollidableSubgroups & b.SubgroupMembership) > 0;
-    }
-
-}
 
 namespace TGC.MonoGame.TP 
 {
@@ -230,6 +158,9 @@ namespace TGC.MonoGame.TP
         public float HatchRotation { get; set; }
 
         public Compound bodyShapeCompound;
+        
+        public System.Numerics.Vector3 AimDirectionWorld { get; set; } = new System.Numerics.Vector3(0, 0, 1);
+
 
         public Tank(Vector3 initialPosition, Camera camera, float initialRotation = 0f, float scale = 1f)
         {
@@ -478,7 +409,8 @@ namespace TGC.MonoGame.TP
                 Barrel = TankPartDescription.Create(0.5f, new Box(2f, 2f, 30f), new System.Numerics.Vector3(0, 8.5f, 4f - 10f - 15f), 0.5f, _simulation.Shapes),
                 TurretAnchor = new System.Numerics.Vector3(0f, 0.5f, 0.4f),
                 BarrelAnchor = new System.Numerics.Vector3(0, 0.5f + 0.35f, 0.4f - 1f),
-                TurretBasis = System.Numerics.Quaternion.Identity,
+                TurretBasis = System.Numerics.Quaternion.CreateFromAxisAngle(
+                    System.Numerics.Vector3.UnitY, MathF.PI),
                 TurretServo = new ServoSettings(1f, 0f, 40f),
                 TurretSpring = new SpringSettings(10f, 1f),
                 BarrelServo = new ServoSettings(1f, 0f, 40f),
@@ -804,46 +736,41 @@ namespace TGC.MonoGame.TP
 
             // Girar ruedas según distancia recorrida
             UpdateWheelSpinByDistance(dt);
-            if (mouseState.RightButton == ButtonState.Pressed)
-                UpdateCanonAndTurretPositionByCamera(cameraForward, dt);
+            
+            UpdateCanonAndTurretTowards(new Vector3(AimDirectionWorld.X, AimDirectionWorld.Y, AimDirectionWorld.Z), dt);
             
             UpdateWorldMatrix();
         }
 
-        private void UpdateCanonAndTurretPositionByCamera(Vector3 cameraForward, float dt)
+        public void UpdateCanonAndTurretTowards(Vector3 worldAimDir, float dt)
         {
-            float minPitch = MathHelper.ToRadians(-45f); // límite hacia abajo
-            float maxPitch = MathHelper.ToRadians(10f);  // límite hacia arriba
+            float minPitch = MathHelper.ToRadians(-45f);
+            float maxPitch = MathHelper.ToRadians(10f);
 
-            // Dirección de la cámara normalizada
-            Vector3 cameraDir = Vector3.Normalize(cameraForward);
+            // Normalizar
+            var dir = Vector3.Normalize(worldAimDir);
 
-            // Componente horizontal (plano XZ)
-            Vector3 flatDir = new Vector3(cameraDir.X, 0, cameraDir.Z);
-            if (flatDir.LengthSquared() > 0.0001f)
-                flatDir.Normalize();
+            // --- Yaw de la torreta ---
+            var flat = new Vector3(dir.X, 0, dir.Z);
+            if (flat.LengthSquared() > 1e-6f) flat.Normalize();
 
-            // Ángulo objetivo de la torreta respecto al tanque
-            float globalTurretYaw = MathF.Atan2(flatDir.X, flatDir.Z);
+            var globalTurretYaw = MathF.Atan2(flat.X, flat.Z) + MathF.PI;
+
+            // Yaw actual del tanque a partir del quaternion de física
             float tankYaw = GetTankYawFromQuaternion(RotationQuaternion);
+
             float desiredTurretYaw = MathHelper.WrapAngle(globalTurretYaw - tankYaw);
 
-            // Velocidad máxima de la torreta (rad/s)
             float maxTurretYawSpeed = MathHelper.ToRadians(60f);
             float maxDeltaYaw = maxTurretYawSpeed * dt;
-
-            // Interpolación gradual hacia el objetivo
             TurretRotation = InterpolateAngle(TurretRotation, desiredTurretYaw, maxDeltaYaw);
 
-
-            // --- Cañón (pitch) ---
-            float targetPitch = -MathF.Asin(cameraDir.Y);
+            // --- Pitch del cañón ---
+            float targetPitch = -MathF.Asin(dir.Y);
             targetPitch = Math.Clamp(targetPitch, minPitch, maxPitch);
 
-            // Velocidad máxima del cañón (pitch) - más lenta que antes
-            float maxCannonPitchSpeed = MathHelper.ToRadians(45f); // ejemplo: 45°/s
+            float maxCannonPitchSpeed = MathHelper.ToRadians(45f);
             float maxDeltaPitch = maxCannonPitchSpeed * dt;
-
             CannonRotation = MathHelper.Clamp(targetPitch, CannonRotation - maxDeltaPitch, CannonRotation + maxDeltaPitch);
         }
         
@@ -977,7 +904,7 @@ namespace TGC.MonoGame.TP
             if (_model == null || _effect == null) return;
 
             var wheelRotation = Matrix.CreateRotationX(WheelRotation);
-            var turretRotation = Matrix.CreateRotationZ(TurretRotation + MathF.PI);
+            var turretRotation = Matrix.CreateRotationZ(TurretRotation);
             var cannonRotation = Matrix.CreateRotationX(- CannonRotation);
             
             

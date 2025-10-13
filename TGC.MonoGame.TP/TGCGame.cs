@@ -102,7 +102,7 @@ public class TGCGame : Game
     public static readonly Dictionary<StaticHandle, ModelGroup> HandleToGroup = new();
 
     private Debug _debug;
-
+    
     /// <summary>
     ///     Constructor del juego.
     /// </summary>
@@ -285,6 +285,8 @@ public class TGCGame : Game
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
         
+        
+        
         float leftTargetSpeedFraction = 0;
         float rightTargetSpeedFraction = 0;
         var left = keyboardState.IsKeyDown(Keys.A);
@@ -348,7 +350,18 @@ public class TGCGame : Game
         var brake = keyboardState.IsKeyDown(Keys.Space);
         var frontDirection = new Vector3(_camera.FrontDirection.X, _camera.FrontDirection.Y, _camera.FrontDirection.Z);
 
-        PlayerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom, brake, brake, frontDirection);
+        // Dirección de mira a partir del mouse (si hay hit en el terreno)
+        var aimDir = frontDirection; // fallback
+        var hit = PickOnTerrain(mouseState.Position);
+        if (hit.HasValue)
+        {
+            var aimXna = hit.Value - new Microsoft.Xna.Framework.Vector3(_tank.Position.X, _tank.Position.Y, _tank.Position.Z);
+            if (aimXna.LengthSquared() > 1e-6f)
+                aimXna.Normalize();
+            aimDir = new System.Numerics.Vector3(aimXna.X, aimXna.Y, aimXna.Z);
+        }
+        _tank.AimDirectionWorld = aimDir;
+        PlayerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom, brake, brake, aimDir);
         
         // cooldown
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
@@ -501,6 +514,37 @@ public class TGCGame : Game
 
         _debug.Draw();
 
+    }
+    
+    private Microsoft.Xna.Framework.Vector3? PickOnTerrain(Point mouse)
+    {
+        // Desarma matrices
+        var view = _camera.View;
+        var proj = _camera.Projection;
+        var vp = GraphicsDevice.Viewport;
+
+        // Dos puntos en NDC (near/far) -> espacio mundo
+        var nearPoint = vp.Unproject(new Microsoft.Xna.Framework.Vector3(mouse.X, mouse.Y, 0f), proj, view, Matrix.Identity);
+        var farPoint  = vp.Unproject(new Microsoft.Xna.Framework.Vector3(mouse.X, mouse.Y, 1f), proj, view, Matrix.Identity);
+
+        var dir = Microsoft.Xna.Framework.Vector3.Normalize(farPoint - nearPoint);
+        var origin = nearPoint;
+
+        // Busco intersección por búsqueda binaria contra la altura del terreno
+        float tMin = 0f, tMax = 5000f; // alcance del rayo
+        for (int i = 0; i < 48; i++) // precisión suficiente
+        {
+            float tMid = 0.5f * (tMin + tMax);
+            var p = origin + dir * tMid;
+            float terrainY = terrain.GetHeightAtPosition(p.X, p.Z); // ← tu helper
+            if (p.Y > terrainY) tMin = tMid; else tMax = tMid;
+        }
+
+        var hit = origin + dir * tMax;
+
+        // Si estamos muy lejos o fuera del mapa, descartamos
+        if (float.IsNaN(hit.X)) return null;
+        return hit;
     }
 
     /// <summary>
