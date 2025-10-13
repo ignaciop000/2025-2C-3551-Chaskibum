@@ -1,22 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using BepuPhysics;
+using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class ModelInstances(Color color)
+public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
 {
     private Model _model;
     private readonly List<Matrix> _worlds = [];
+    public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
+    private Terrain _terrain = terrain;
+    private Simulation _simulation = simulation;
     private Effect _effect;
+    private float _altura;
+    
     public List<Vector2> Positions { get; set; } = [];
 
     private const string ContentFolder3D = TGCGame.ContentFolder3D;
     private readonly Random _random = new Random();
+    
+    public float? MaxSlopeDegrees { get; set; } = null;
+    public bool AlignToTerrain { get; set; } = true;
 
     public void CrearObjetoUnico(float escala, float yawInDegrees, Vector3 position)
     { 
@@ -31,18 +41,79 @@ public class ModelInstances(Color color)
     {
         foreach (var posicion in Positions)
         {
-            float escala = NextFloat(escalaMin, escalaMax); //elegimos la escala al azar en base al min y max
+            //Filtro por inclinación
+            var slopeDeg = _terrain.GetSlopeDegreesAt(posicion.X, posicion.Y);
+            if (MaxSlopeDegrees.HasValue && slopeDeg > MaxSlopeDegrees.Value)
+                continue;
 
-            float
-                yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
+            //Altura en el mapa
+            var alturaMapa = _terrain.GetHeightAtPosition(posicion.X, posicion.Y);
+            var escala = NextFloat(escalaMin, escalaMax); //elegimos la escala al azar en base al min y max
+            var yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
 
-            Matrix world = Matrix.CreateScale(escala, escala, escala) *
-                           Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
-                           Matrix.CreateTranslation(posicion.X, altura, posicion.Y);
-
+            Matrix world;
+            if (AlignToTerrain)
+            {
+                // Alinear al plano del terreno
+                var pos3 = new Vector3(posicion.X, altura + alturaMapa, posicion.Y);
+                Matrix orient;
+                var q = _terrain.CalculateRotation(pos3, yaw, out orient);
+                world = Matrix.CreateScale(escala) * Matrix.CreateFromQuaternion(q) * Matrix.CreateTranslation(pos3);
+            }
+            else
+            {
+                // Mantener vertical (solo yaw)
+                world = Matrix.CreateScale(escala) *
+                        Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
+                        Matrix.CreateTranslation(posicion.X, altura + alturaMapa, posicion.Y);
+            }
             _worlds.Add(world);
         }
+
+        // Me guardo la altura para luego escalar correctamente el RigidBody
+        _altura = altura;
     }
+
+    public List<StaticHandle> CrearRigidBodies(float ancho, float alto, float profundidad, float yawInDegrees)
+    {
+        List<StaticHandle> handles = [];
+        
+        foreach (var world in _worlds)
+        {
+            world.Decompose(out var scale, out var rotation, out var translation);
+
+            float anchoEscalado = ancho * scale.X;
+            float altoEscalado = alto * scale.Y;
+            float profundidadEscalada = profundidad * scale.Z;
+
+            var shape = new Box(anchoEscalado, altoEscalado, profundidadEscalada);
+            var shapeIndex = _simulation.Shapes.Add(shape);
+
+            float offsetY = (altoEscalado / 2f) - _altura;
+
+            var correctedPos = new System.Numerics.Vector3(
+                translation.X,
+                translation.Y + offsetY,
+                translation.Z
+            );
+
+            // Aplicar rotación extra en yaw
+            var yawRotation = Quaternion.CreateFromAxisAngle(Vector3.Up, MathHelper.ToRadians(yawInDegrees));
+            var finalRotation = rotation * yawRotation;
+
+            var desc = new StaticDescription(
+                new RigidPose(correctedPos, new System.Numerics.Quaternion(finalRotation.X, finalRotation.Y, finalRotation.Z, finalRotation.W)),
+                shapeIndex
+            );
+
+            var handle = _simulation.Statics.Add(desc);
+            Handles.Add(handle);
+            handles.Add(handle);
+        }
+        
+        return handles;
+    }
+
 
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content)
     {
@@ -75,6 +146,14 @@ public class ModelInstances(Color color)
                 mesh.Draw();
             }
         }
+    }
+
+    public void DestruirInstancia(StaticHandle handle)
+    {
+        var index = Handles.IndexOf(handle);
+        _simulation.Statics.Remove(handle);
+        Handles.Remove(handle);
+        _worlds.RemoveAt(index);
     }
 
     private float NextFloat(float min, float max)

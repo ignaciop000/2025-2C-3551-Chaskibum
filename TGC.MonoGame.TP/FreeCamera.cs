@@ -12,26 +12,29 @@ namespace  TGC.MonoGame.TP
         private bool _changed;
 
         private Vector2 _pastMousePosition;
-        private float _pitch;
-
+        
         // Angles
-        private float _yaw = -90f;
+        private float _pitch;
+        private float _yaw;
 
-        public FreeCamera(float aspectRatio, Vector3 position, Point screenCenter) : this(aspectRatio, position)
+        public FreeCamera(float aspectRatio, Vector3 position, Vector3 frontDirection, Point screenCenter) : this(aspectRatio, position, frontDirection)
         {
             _lockMouse = true;
             this._screenCenter = screenCenter;
         }
 
-        public FreeCamera(float aspectRatio, Vector3 position) : base(aspectRatio)
+        public FreeCamera(float aspectRatio, Vector3 position, Vector3 frontDirection) : base(aspectRatio, 0.1f, 50000f)
         {
             Position = position;
+            frontDirection = Vector3.Normalize(frontDirection);
+            _pitch = MathHelper.ToDegrees(MathF.Asin(frontDirection.Y));
+            _yaw   = MathHelper.ToDegrees(MathF.Atan2(frontDirection.Z, frontDirection.X)); // ojo, distinto orden
             _pastMousePosition = Mouse.GetState().Position.ToVector2();
             UpdateCameraVectors();
             CalculateView();
         }
 
-        public float MovementSpeed { get; set; } = 100f;
+        public float MovementSpeed { get; set; } = 300f;
         public float MouseSensitivity { get; set; } = 5f;
 
         private void CalculateView()
@@ -51,13 +54,22 @@ namespace  TGC.MonoGame.TP
                 CalculateView();
         }
 
+        public override void ConstrainAboveTerrain(Terrain terrain, float clearance, int samples)
+        {
+            
+        }
+
+        public override void StartShake(float amplitude, float f, float rotational)
+        {
+        }
+
         private void ProcessKeyboard(float elapsedTime)
         {
             var keyboardState = Keyboard.GetState();
 
             var currentMovementSpeed = MovementSpeed;
             if (keyboardState.IsKeyDown(Keys.LeftShift))
-                currentMovementSpeed *= 5f;
+                currentMovementSpeed *= 3f;
 
             if (keyboardState.IsKeyDown(Keys.A) || keyboardState.IsKeyDown(Keys.Left))
             {
