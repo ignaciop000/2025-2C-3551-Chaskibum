@@ -76,5 +76,9 @@ namespace TGC.MonoGame.Samples.Cameras
         {
             
         }
+
+        public override void StartShake(float amplitude, float f, float rotational)
+        {
+        }
     }
 }

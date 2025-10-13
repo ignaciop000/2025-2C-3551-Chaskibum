@@ -59,6 +59,10 @@ namespace  TGC.MonoGame.TP
             
         }
 
+        public override void StartShake(float amplitude, float f, float rotational)
+        {
+        }
+
         private void ProcessKeyboard(float elapsedTime)
         {
             var keyboardState = Keyboard.GetState();

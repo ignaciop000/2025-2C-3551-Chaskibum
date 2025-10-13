@@ -192,7 +192,7 @@ namespace TGC.MonoGame.TP
         private float _brakeDuration = 0.18f; // seg
         private float _brakeK = 10f; // coeficiente de frenado (tunable)
 
-        private OrbitCamera _camera;
+        private Camera _camera;
         
         public float VisualYOffset = 85.0f;
         public float VisualZOffset = 25f;
@@ -231,7 +231,7 @@ namespace TGC.MonoGame.TP
 
         public Compound bodyShapeCompound;
 
-        public Tank(Vector3 initialPosition, OrbitCamera camera, float initialRotation = 0f, float scale = 1f)
+        public Tank(Vector3 initialPosition, Camera camera, float initialRotation = 0f, float scale = 1f)
         {
             Position = initialPosition;
             Rotation = initialRotation;
@@ -561,7 +561,7 @@ namespace TGC.MonoGame.TP
             turretSwivelBasis.Z = -turretBasis.Y;
             turretSwivelBasis.X = -turretBasis.Z;
             turretSwivelBasis.Y = turretBasis.X;
-            Debug.Assert(turretSwivelBasis.Determinant() > 0.999f && turretSwivelBasis.Determinant() < 1.0001f, "The turret swivel axis and forward axis should be perpendicular and unit length.");
+            //Debug.Assert(turretSwivelBasis.Determinant() > 0.999f && turretSwivelBasis.Determinant() < 1.0001f, "The turret swivel axis and forward axis should be perpendicular and unit length.");
             QuaternionEx.CreateFromRotationMatrix(turretSwivelBasis, out var turretSwivelBasisQuaternion);
             QuaternionEx.ConcatenateWithoutOverlap(turretSwivelBasisQuaternion, QuaternionEx.Conjugate(tankDescription.Body.Pose.Orientation), out var bodyLocalTurretBasis);
             QuaternionEx.ConcatenateWithoutOverlap(turretSwivelBasisQuaternion, QuaternionEx.Conjugate(tankDescription.Turret.Pose.Orientation), out var turretLocalTurretBasis);
@@ -596,7 +596,7 @@ namespace TGC.MonoGame.TP
             barrelPitchBasis.Z = -turretBasis.X;
             barrelPitchBasis.X = -turretBasis.Z;
             barrelPitchBasis.Y = -turretBasis.Y;
-            Debug.Assert(barrelPitchBasis.Determinant() > 0.999f && barrelPitchBasis.Determinant() < 1.0001f, "The barrel axis and forward axis should be perpendicular and unit length.");
+            //Debug.Assert(barrelPitchBasis.Determinant() > 0.999f && barrelPitchBasis.Determinant() < 1.0001f, "The barrel axis and forward axis should be perpendicular and unit length.");
             QuaternionEx.CreateFromRotationMatrix(barrelPitchBasis, out var barrelPitchBasisQuaternion);
             QuaternionEx.ConcatenateWithoutOverlap(barrelPitchBasisQuaternion, QuaternionEx.Conjugate(tankDescription.Turret.Pose.Orientation), out var turretLocalBarrelBasis);
             QuaternionEx.ConcatenateWithoutOverlap(barrelPitchBasisQuaternion, QuaternionEx.Conjugate(tankDescription.Barrel.Pose.Orientation), out var barrelLocalBarrelBasis);

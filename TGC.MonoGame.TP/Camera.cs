@@ -95,5 +95,6 @@ namespace TGC.MonoGame.TP
         public abstract void Update(GameTime gameTime);
 
         public abstract void ConstrainAboveTerrain(Terrain terrain, float clearance, int samples);
+        public abstract void StartShake(float amplitude, float f, float rotational);
     }
 }

@@ -176,7 +176,7 @@ namespace TGC.MonoGame.TP
         /// duration: segundos.
         /// rotational: roll (radianes). 0 si no querés giro.
         /// </summary>
-        public void StartShake(float amplitude, float duration, float rotational = 0f)
+        public override void StartShake(float amplitude, float duration, float rotational = 0f)
         {
             _shakeTranslation = amplitude;
             _shakeRoll  = rotational;
