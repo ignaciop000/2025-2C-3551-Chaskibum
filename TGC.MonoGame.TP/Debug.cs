@@ -148,6 +148,7 @@ public class Debug
         for (int i = 0; i < _tanks.Count; i++)
         {
             var _tank = _tanks[i];
+            if (_tank.IsDead) return;
             for (int j = 0; j < _tank.BodyHandles.Count; j++)
             {
                 BodyHandle bodyHandle = _tank.BodyHandles[j];
