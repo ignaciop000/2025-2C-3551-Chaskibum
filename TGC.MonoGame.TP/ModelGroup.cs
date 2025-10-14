@@ -2,6 +2,7 @@
 using System.Linq;
 using BepuPhysics;
 using BepuPhysics.Collidables;
+using Demos.Demos.Tanks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -42,7 +43,7 @@ public abstract class ModelGroup
 
             foreach (var handle in handles)
             {
-                TGCGame.HandleToGroup[handle] = this;
+                TankCallbacks.HandleToGroup[handle] = this;
             }
         }
     }

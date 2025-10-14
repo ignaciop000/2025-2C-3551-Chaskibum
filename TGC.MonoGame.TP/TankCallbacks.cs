@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using BepuPhysics;
 using BepuPhysics.Collidables;
@@ -49,12 +51,25 @@ public struct ProjectileImpact
 /// </summary>
 struct TankCallbacks : INarrowPhaseCallbacks
 {
+    // Diccionario para mapear StaticHandle a ModelGroup
+    public static readonly Dictionary<StaticHandle, ModelGroup> HandleToGroup = new();
+    
     public CollidableProperty<TankBodyProperties> Properties;
     public SpinLock ProjectileLock;
     public QuickList<ProjectileImpact> ProjectileImpacts;
+    
+    private List<BodyHandle> _tankBodies;
+    private List<BodyHandle> _projectileBodies;
+    
     public void Initialize(Simulation simulation)
     {
         Properties.Initialize(simulation);
+    }
+    
+    public void Configure(List<BodyHandle> tankBodies, List<BodyHandle> projectileBodies)
+    {
+        _tankBodies = tankBodies;
+        _projectileBodies = projectileBodies;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -130,8 +145,8 @@ struct TankCallbacks : INarrowPhaseCallbacks
         pairMaterial.MaximumRecoveryVelocity = 2f;
         pairMaterial.SpringSettings = new SpringSettings(30, 1);
 
-        if (propertiesA.Projectile || (pair.B.Mobility != CollidableMobility.Static && Properties[pair.B.BodyHandle].Projectile))
-        {
+        //if (propertiesA.Projectile || (pair.B.Mobility != CollidableMobility.Static && Properties[pair.B.BodyHandle].Projectile))
+        //{
             for (int i = 0; i < manifold.Count; ++i)
             {
                 //This probably looks a bit odd. You can't return refs to the this instance in structs, and interfaces can't require static functions...
@@ -144,6 +159,8 @@ struct TankCallbacks : INarrowPhaseCallbacks
                 if (manifold.GetDepth(ref manifold, i) >= -1e-3f)
                 { 
                     //An actual collision was found. 
+                    HandleObstacleCollision(pair);
+                    
                     if (propertiesA.Projectile)
                     {
                         TryAddProjectileImpact(pair.A.BodyHandle, pair.B);
@@ -156,7 +173,7 @@ struct TankCallbacks : INarrowPhaseCallbacks
                     break;
                 }
             }
-        }
+        //}
         return true;
     }
 
@@ -169,5 +186,44 @@ struct TankCallbacks : INarrowPhaseCallbacks
     public void Dispose()
     {
         Properties.Dispose();
+    }
+    
+    private void HandleObstacleCollision(CollidablePair pair)
+    {
+        if (!TryGetStaticAndMovil(pair, out var estatico, out var movil))
+            return;
+
+        var staticHandle = estatico.StaticHandle;
+        if (!HandleToGroup.TryGetValue(staticHandle, out var group))
+            return;
+
+        if (_tankBodies.Contains(movil.BodyHandle))
+        {
+            group.OnCollisionWithTank(staticHandle);
+        }
+        else if (_projectileBodies.Contains(movil.BodyHandle))
+        {
+            group.OnCollisionWithProjectile(staticHandle);
+        }
+    }
+    
+    private bool TryGetStaticAndMovil(CollidablePair pair, out CollidableReference estatico, out CollidableReference movil)
+    {
+        if (pair.A.Mobility == CollidableMobility.Static && pair.B.Mobility != CollidableMobility.Static)
+        {
+            estatico = pair.A;
+            movil = pair.B;
+            return true;
+        }
+        if (pair.B.Mobility == CollidableMobility.Static && pair.A.Mobility != CollidableMobility.Static)
+        {
+            estatico = pair.B;
+            movil = pair.A;
+            return true;
+        }
+
+        estatico = default;
+        movil = default;
+        return false;
     }
 }

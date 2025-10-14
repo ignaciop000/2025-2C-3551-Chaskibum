@@ -107,7 +107,7 @@ namespace TGC.MonoGame.TP
         public float SteerSign = -1f; // ← por defecto invierto A/D (cámbialo en runtime con F4)
         private float _telemetryTimer = 0f;
         public string TelemetryText = "";
-        public QuickList<BodyHandle> bodyHandles;
+        public QuickList<BodyHandle> BodyHandles;
 
         // Recoil
         private float _recoilTime = 0f;
@@ -237,7 +237,7 @@ namespace TGC.MonoGame.TP
             _effect = efecto;
             _simulation = simulation;
             _terrain = terrain; // Guardar referencia al terreno
-            bodyHandles = new QuickList<BodyHandle>(11, bufferPool);
+            BodyHandles = new QuickList<BodyHandle>(11, bufferPool);
 
             // Ajustar Y inicial del tanque al terreno para no arrancar “flotando”
             if (_terrain != null)
@@ -433,9 +433,9 @@ namespace TGC.MonoGame.TP
             var leftMotors = new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread, bufferPool);
             var rightMotors = new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread, bufferPool);
             
-            ref var bodyFilter = ref CreatePart(_simulation, tankDescription.Body, pose, properties, ref bodyHandles, out Body);
-            ref var turretFilter = ref CreatePart(_simulation, tankDescription.Turret, pose, properties, ref bodyHandles, out Turret);
-            ref var barrelFilter = ref CreatePart(_simulation, tankDescription.Barrel, pose, properties, ref bodyHandles, out Barrel);
+            ref var bodyFilter = ref CreatePart(_simulation, tankDescription.Body, pose, properties, ref BodyHandles, out Body);
+            ref var turretFilter = ref CreatePart(_simulation, tankDescription.Turret, pose, properties, ref BodyHandles, out Turret);
+            ref var barrelFilter = ref CreatePart(_simulation, tankDescription.Barrel, pose, properties, ref BodyHandles, out Barrel);
             
             bodyFilter = new SubgroupCollisionFilter(Body.Value, 0);
             turretFilter = new SubgroupCollisionFilter(Body.Value, 1);
@@ -524,12 +524,12 @@ namespace TGC.MonoGame.TP
                     tankDescription.WheelShape, tankDescription.WheelInertia, tankDescription.WheelFriction, Body, ref properties[Body].Filter,
                     tankDescription.RightTreadOffset + wheelOffsetFromTread - tankDescription.Body.Pose.Position,
                     tankDescription.SuspensionLength, tankDescription.SuspensionSettings, tankDescription.WheelOrientation,
-                    ref wheelHandles, ref constraints, ref rightMotors, ref bodyHandles);
+                    ref wheelHandles, ref constraints, ref rightMotors, ref BodyHandles);
                 var leftWheelHandle = CreateWheel(_simulation, properties, pose, tankDescription.Body.Pose,
                     tankDescription.WheelShape, tankDescription.WheelInertia, tankDescription.WheelFriction, Body, ref properties[Body].Filter,
                     tankDescription.LeftTreadOffset + wheelOffsetFromTread - tankDescription.Body.Pose.Position,
                     tankDescription.SuspensionLength, tankDescription.SuspensionSettings, tankDescription.WheelOrientation,
-                    ref wheelHandles, ref constraints, ref leftMotors, ref bodyHandles);
+                    ref wheelHandles, ref constraints, ref leftMotors, ref BodyHandles);
 
                 if (i >= 1)
                 {

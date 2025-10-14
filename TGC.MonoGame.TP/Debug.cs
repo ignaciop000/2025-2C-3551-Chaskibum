@@ -148,9 +148,9 @@ public class Debug
         for (int i = 0; i < _tanks.Count; i++)
         {
             var _tank = _tanks[i];
-            for (int j = 0; j < _tank.bodyHandles.Count; j++)
+            for (int j = 0; j < _tank.BodyHandles.Count; j++)
             {
-                BodyHandle bodyHandle = _tank.bodyHandles[j];
+                BodyHandle bodyHandle = _tank.BodyHandles[j];
                 if (_simulation == null || bodyHandle.Value < 0) return;
 
                 var body = _simulation.Bodies.GetBodyReference(bodyHandle);
