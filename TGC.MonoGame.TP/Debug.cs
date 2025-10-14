@@ -1,4 +1,5 @@
-﻿using BepuPhysics;
+﻿using System.Collections.Generic;
+using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuUtilities.Collections;
 using Microsoft.Xna.Framework;
@@ -14,7 +15,7 @@ public class Debug
     public Effect DebugEffect { get; private set; }
     private SpriteBatch _spriteBatch;
     private SpriteFont _debugFont;
-    private Tank _tank;
+    private List<Tank> _tanks;
     private bool _showTerrainMeshDebug = false;
     private bool _showTankTelemetry = false;
     private Camera _camera;
@@ -36,10 +37,11 @@ public class Debug
     private bool _physDbgReady;
 
     public void LoadContent(ContentManager content, string contentEffectsFolder, string contentSpriteFolder,
-        GraphicsDevice graphicsDevice, Tank tank, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
+        GraphicsDevice graphicsDevice, Tank[] tanques, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
         Gizmos gizmos)
     {
-        _tank = tank;
+        
+        _tanks = new List<Tank>(tanques);
         _camera = orbitCamera;
         _simulation = simulation;
         _terrain = terrain;
@@ -59,11 +61,11 @@ public class Debug
             _showTerrainMeshDebug = !_showTerrainMeshDebug;
         }
 
-        if (keyboardState.IsKeyDown(Keys.F3) && !kbPrev.IsKeyDown(Keys.F3))
+        /*if (keyboardState.IsKeyDown(Keys.F3) && !kbPrev.IsKeyDown(Keys.F3))
         {
             _showTankTelemetry = !_showTankTelemetry;
             _tank.DebugTelemetry = _showTankTelemetry;
-        }
+        }*/
 
         _camera = camera;
     }
@@ -133,62 +135,68 @@ public class Debug
             _graphicsDevice.RasterizerState = oldRS2;
         }
 
-        if (_showTankTelemetry && _debugFont != null)
+        /*if (_showTankTelemetry && _debugFont != null)
         {
             _spriteBatch.Begin();
             _spriteBatch.DrawString(_debugFont, _tank.TelemetryText ?? "", new Vector2(14, 14), Color.LimeGreen);
             _spriteBatch.End();
-        }
+        }*/
     }
     
     public void DrawCollider()
     {
-        for (int j = 0; j < _tank.bodyHandles.Count; j++)
+        for (int i = 0; i < _tanks.Count; i++)
         {
-            BodyHandle bodyHandle = _tank.bodyHandles[j];
-            if (_simulation == null || bodyHandle.Value < 0) return;
-
-            var body = _simulation.Bodies.GetBodyReference(bodyHandle);
-            var bodyPose = body.Pose;
-
-            // Convertir a MonoGame
-            var posMg = new Vector3(bodyPose.Position.X, bodyPose.Position.Y, bodyPose.Position.Z);
-            var rotMg = new Quaternion(bodyPose.Orientation.X, bodyPose.Orientation.Y, bodyPose.Orientation.Z,
-                bodyPose.Orientation.W);
-
-            // Obtener el tipo de shape
-            var shapeIndex = body.Collidable.Shape;
-            int typeId = shapeIndex.Type;
-
-            if (typeId == default(Box).TypeId)
+            var _tank = _tanks[i];
+            for (int j = 0; j < _tank.bodyHandles.Count; j++)
             {
-                var box = _simulation.Shapes.GetShape<Box>(shapeIndex.Index);
-                var size = new Vector3(
-                    box.HalfWidth * 2f,
-                    box.HalfHeight * 2f,
-                    box.HalfLength * 2f
-                );
+                BodyHandle bodyHandle = _tank.bodyHandles[j];
+                if (_simulation == null || bodyHandle.Value < 0) return;
 
-                var worldMatrix =
-                    Matrix.CreateScale(size) *
-                    Matrix.CreateFromQuaternion(rotMg) *
-                    Matrix.CreateTranslation(posMg);
+                var body = _simulation.Bodies.GetBodyReference(bodyHandle);
+                var bodyPose = body.Pose;
 
-                Gizmos.DrawCube(worldMatrix, Color.Yellow);
-            }
-            else if (typeId == default(Cylinder).TypeId)
-            {
-                var cylinder = _simulation.Shapes.GetShape<Cylinder>(shapeIndex.Index);
-                float height = cylinder.HalfLength;
+                // Convertir a MonoGame
+                var posMg = new Vector3(bodyPose.Position.X, bodyPose.Position.Y, bodyPose.Position.Z);
+                var rotMg = new Quaternion(bodyPose.Orientation.X, bodyPose.Orientation.Y, bodyPose.Orientation.Z,
+                    bodyPose.Orientation.W);
 
-                var worldMatrix =
-                    Matrix.CreateScale(cylinder.Radius, height, cylinder.Radius) *
-                    Matrix.CreateFromQuaternion(rotMg) *
-                    Matrix.CreateTranslation(posMg);
+                // Obtener el tipo de shape
+                var shapeIndex = body.Collidable.Shape;
+                int typeId = shapeIndex.Type;
 
-                Gizmos.DrawCylinder(worldMatrix, Color.Orange);
+                if (typeId == default(Box).TypeId)
+                {
+                    var box = _simulation.Shapes.GetShape<Box>(shapeIndex.Index);
+                    var size = new Vector3(
+                        box.HalfWidth * 2f,
+                        box.HalfHeight * 2f,
+                        box.HalfLength * 2f
+                    );
+
+                    var worldMatrix =
+                        Matrix.CreateScale(size) *
+                        Matrix.CreateFromQuaternion(rotMg) *
+                        Matrix.CreateTranslation(posMg);
+
+                    Gizmos.DrawCube(worldMatrix, Color.Yellow);
+                }
+                else if (typeId == default(Cylinder).TypeId)
+                {
+                    var cylinder = _simulation.Shapes.GetShape<Cylinder>(shapeIndex.Index);
+                    float height = cylinder.HalfLength;
+
+                    var worldMatrix =
+                        Matrix.CreateScale(cylinder.Radius, height, cylinder.Radius) *
+                        Matrix.CreateFromQuaternion(rotMg) *
+                        Matrix.CreateTranslation(posMg);
+
+                    Gizmos.DrawCylinder(worldMatrix, Color.Orange);
+                }
             }
         }
+
+        
 
         Gizmos.Draw();
     }

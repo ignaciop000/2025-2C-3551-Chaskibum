@@ -99,7 +99,6 @@ namespace TGC.MonoGame.TP
 
 
         // Física
-        public BodyHandle PhysicsBody;
         private Simulation _simulation;
         private Terrain _terrain;
 
@@ -407,7 +406,7 @@ namespace TGC.MonoGame.TP
                 WheelCountPerTread = 6,
                 WheelOrientation = QuaternionEx.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ, MathF.PI * -0.5f),
             };
-            
+            //PhysicsBody = tankDescription.Body.;
             if (_simulation == null) return;
 
             // Altura del suelo en (X,Z)
@@ -584,116 +583,16 @@ namespace TGC.MonoGame.TP
 
             return lowestY;
         }
-        /*
-        public void ControlForces(float throttle, float steer, float dt)
-        {
-            if (_simulation == null || PhysicsBody.Value < 0) return;
-            var body = _simulation.Bodies.GetBodyReference(PhysicsBody);
-
-            // --- Ejes del tanque en mundo (modelo mira +Z) ---
-            var q = body.Pose.Orientation;
-
-            // up local del cuerpo
-            var up = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 1, 0), q);
-            up = up.LengthSquared() > 1e-12f
-                ? System.Numerics.Vector3.Normalize(up)
-                : new System.Numerics.Vector3(0, 1, 0);
-
-            // forward proyectado al plano perpendicular a up
-            var fwdRaw = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, 1), q);
-            var fwd = fwdRaw - System.Numerics.Vector3.Dot(fwdRaw, up) * up;
-            fwd = fwd.LengthSquared() < 1e-12f ? new System.Numerics.Vector3(0, 0, 1) : System.Numerics.Vector3.Normalize(fwd);
-
-            // right ortogonal
-            var right = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(up, fwd));
-            fwd = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(right, up));
-
-            // Velocidades
-            var v = body.Velocity.Linear;
-            var vPlanar = v - System.Numerics.Vector3.Dot(v, up) * up; // velocidad en el plano
-            float speed = vPlanar.Length();
-
-            float invMass = body.LocalInertia.InverseMass;
-            if (invMass <= 0f) return;
-            float mass = 1f / invMass;
-            
-            // 1) Empuje motor W/S -> impulso lineal sobre 'fwd'
-            float accel = (throttle >= 0f ? EngineAccel : BrakeAccel) * throttle ; // [-1..1]
-            if (speed > MaxSpeed && System.Numerics.Vector3.Dot(vPlanar, fwd) * MathF.Sign(throttle) > 0f)
-                accel = 0f;
-
-            float J_engine = mass * accel * dt;
-            if (J_engine != 0f) body.ApplyLinearImpulse(fwd * J_engine);
-
-            // 2) Grip lateral (reduce deriva sobre 'right')
-            float vSide = System.Numerics.Vector3.Dot(vPlanar, right);
-            float kill = MathF.Min(1f, LateralGrip * dt);
-            if (MathF.Abs(vSide) > 1e-4f && kill > 0f)
-            {
-                float J_side = mass * vSide * kill;
-                body.ApplyLinearImpulse(-right * J_side);
-            }
-
-            // 3) Drag lineal suave en el plano
-            if (LinearDrag > 0f && speed > 1e-3f)
-            {
-                var dir = vPlanar / speed;
-                float J_drag = mass * (LinearDrag * dt) * speed;
-                body.ApplyLinearImpulse(-dir * J_drag);
-            }
-
-            // 4) Giro A/D alrededor de 'up' (no Y global)
-            float yawTarget = SteerSign * steer * MaxYawRate;
-            var w = body.Velocity.Angular;
-
-            // componente de giro actual alrededor de 'up'
-            float yawNow = System.Numerics.Vector3.Dot(w, up);
-            float dOmega = Math.Clamp(yawTarget - yawNow, -TurnAccelYaw * dt, TurnAccelYaw * dt);
-
-            if (MathF.Abs(dOmega) > 1e-6f)
-            {
-                float J_ang = YawInertia * dOmega;
-                body.ApplyAngularImpulse(up * J_ang);
-            }
-
-            // Clamps de seguridad (solo plano)
-            v = body.Velocity.Linear;
-            vPlanar = v - System.Numerics.Vector3.Dot(v, up) * up;
-            speed = vPlanar.Length();
-            if (speed > MaxSpeed * 1.5f)
-            {
-                var newPlanar = vPlanar * (MaxSpeed * 1.5f / speed);
-                body.Velocity.Linear = newPlanar + up * System.Numerics.Vector3.Dot(v, up);
-            }
-
-            // ---- Telemetría (HUD + consola) ----
-            if (DebugTelemetry)
-            {
-                _telemetryTimer += dt;
-                if (_telemetryTimer > 0.20f) // 5 Hz
-                {
-                    _telemetryTimer = 0f;
-                    float kmh = speed * 3.6f;
-
-                    TelemetryText =
-                        $"Position X{_lastPos.X:+0.00;-0.00;0} Y{_lastPos.Y:+0.00;-0.00;0} Z{_lastPos.Z:+0.0;-0.0;0}\n" +
-                        $"thr {throttle:+0.00;-0.00;0}  steer {steer:+0.00;-0.00;0}  sign {SteerSign:+0.0;-0.0;0}\n" +
-                        $"speed {speed:0.00} m/s ({kmh:0} km/h)   vSide {vSide:+0.00;-0.00;0}\n" +
-                        $"yawNow {yawNow:+0.00;-0.00;0} rad/s   yawTgt {yawTarget:+0.00;-0.00;0}   d {dOmega:+0.00;-0.00;0}";
-
-                    System.Diagnostics.Debug.WriteLine("[TANK] " + TelemetryText);
-                }
-            }
-        }
-        */
-        public void Update(GameTime gameTime, KeyboardState keyboardState,MouseState mouseState,Vector3 cameraForward)
+       
+        public void Update(GameTime gameTime, KeyboardState keyboardState)
         {
             var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-            var body = _simulation.Bodies.GetBodyReference(PhysicsBody);
+            var body = _simulation.Bodies.GetBodyReference(Body);
             body.Awake = true;
 
             //var steer = 0f;
+            
             if (keyboardState.IsKeyDown(Keys.A)) SteerRotation += _steerSpeed * dt;
             else if(keyboardState.IsKeyDown(Keys.D))  SteerRotation -= _steerSpeed * dt;
             else{ SteerRotation = MathHelper.Lerp(SteerRotation, 0f, dt * 5f); }
@@ -707,7 +606,24 @@ namespace TGC.MonoGame.TP
             
             UpdateWorldMatrix();
         }
+        
+        public void Update(GameTime gameTime)
+        {
+            var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+            var body = _simulation.Bodies.GetBodyReference(Body);
+            body.Awake = true;
+            
+            SteerRotation = Math.Clamp(SteerRotation, minSteer, maxSteer);
+
+            // Girar ruedas según distancia recorrida
+            UpdateWheelSpinByDistance(dt);
+            
+            UpdateCanonAndTurretTowards(new Vector3(AimDirectionWorld.X, AimDirectionWorld.Y, AimDirectionWorld.Z), dt);
+            
+            UpdateWorldMatrix();
+        }
+        
         public void UpdateCanonAndTurretTowards(Vector3 worldAimDir, float dt)
         {
 
@@ -789,7 +705,7 @@ namespace TGC.MonoGame.TP
 
         public void SyncFromPhysics()
         {
-            var body = _simulation.Bodies.GetBodyReference(PhysicsBody);
+            var body = _simulation.Bodies.GetBodyReference(Body);
             var pose = body.Pose;
 
             Position = new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z);
@@ -800,7 +716,7 @@ namespace TGC.MonoGame.TP
         private void UpdateWorldMatrix()
         {
             // Sincronizar posición y rotación desde la física
-            var bodyReference = _simulation.Bodies.GetBodyReference(PhysicsBody);
+            var bodyReference = _simulation.Bodies.GetBodyReference(Body);
             ref var body = ref bodyReference;
             var pose = body.Pose;
 
@@ -958,13 +874,14 @@ namespace TGC.MonoGame.TP
 
             var amplitude = 0.001f * projectileMass * muzzleSpeed; 
             var rotational = amplitude * 0.06f;
-            _camera.StartShake(amplitude, 0.12f, rotational);
+            if(_camera != null)
+                _camera.StartShake(amplitude, 0.12f, rotational);
         }
 
         public void ApplyRecoilAndBrake(float dt, Simulation simulation)
         {
             // Referencia al cuerpo físico del tanque
-            var bodyRef = simulation.Bodies.GetBodyReference(PhysicsBody); // usa tu handle del tanque
+            var bodyRef = simulation.Bodies.GetBodyReference(Body); // usa tu handle del tanque
 
             // Retroceso: empuja en dirección opuesta por un tiempo corto
             if (_recoilTime > 0f)

@@ -84,6 +84,7 @@ public class TGCGame : Game
     public TankController PlayerController;
     
     private Tank _tank;
+    private Tank _tank2;
     // Proyectiles
     private readonly List<Projectile> _missiles = new();
     private MouseState _mousePrev;
@@ -97,6 +98,7 @@ public class TGCGame : Game
     private Rocks _rocks;
     private Trees _trees;
     private Bushes _bushes;
+    private EnemyTanks _enemyTanks;
     
     // Diccionario para mapear StaticHandle a ModelGroup
     public static readonly Dictionary<StaticHandle, ModelGroup> HandleToGroup = new();
@@ -145,45 +147,12 @@ public class TGCGame : Game
         // Seteo la cámara inicial como la orbital
         _camera = _orbitCamera;
         
-        var narrowPhase = new NarrowPhaseCallbacks();
-        narrowPhase.OnCollision = pair =>
-        {
-            CollidableReference estatico, movil;
-
-            if (pair.A.Mobility == CollidableMobility.Static && pair.B.Mobility != CollidableMobility.Static)
-            {
-                estatico = pair.A;
-                movil = pair.B;
-            }
-            else if (pair.B.Mobility == CollidableMobility.Static && pair.A.Mobility != CollidableMobility.Static)
-            {
-                estatico = pair.B;
-                movil = pair.A;
-            }
-            else
-            {
-                return; // no nos interesa este caso
-            }
-
-            var staticHandle = estatico.StaticHandle;
-            if (!HandleToGroup.TryGetValue(staticHandle, out var group))
-                return;
-
-            if (movil.BodyHandle == _tank.PhysicsBody)
-            {
-                group.OnCollisionWithTank(staticHandle);
-            }
-            else if (_missiles.Select(projectil => projectil.Body).Contains(movil.BodyHandle))
-            {
-                group.OnCollisionWithProjectile(staticHandle);
-            }
-        };
-        
         bodyProperties = new CollidableProperty<TankBodyProperties>();
         _simulation = Simulation.Create(bufferPool, new TankCallbacks() { Properties = bodyProperties},
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
         
         _tank = new Tank(new Vector3(0, 0, 0), _camera, 0f, 0.1f );
+        _tank2 = new Tank(new Vector3(500, 0, 0), null, 0f, 0.1f );
         //var bod = new BodyDescription();
         
         _debug = new Debug();
@@ -220,6 +189,7 @@ public class TGCGame : Game
             );
 
         _tank.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos, bodyProperties, terrain);
+        _tank2.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos, bodyProperties, terrain);
         PlayerController = new TankController(_tank, 20,200 , 2, 100, 200f);
 
         _trees = new Trees(terrain, _simulation);
@@ -264,7 +234,7 @@ public class TGCGame : Game
             ContentFolderEffects, 
             ContentFolderSpriteFonts, 
             GraphicsDevice, 
-            _tank, 
+        [_tank, _tank2], 
             _orbitCamera,
             _simulation, 
             terrain,
@@ -358,7 +328,7 @@ public class TGCGame : Game
             var aimXna = hit.Value - new Microsoft.Xna.Framework.Vector3(_tank.Position.X, _tank.Position.Y, _tank.Position.Z);
             if (aimXna.LengthSquared() > 1e-6f)
                 aimXna.Normalize();
-            aimDir = new System.Numerics.Vector3(aimXna.X, aimXna.Y, aimXna.Z);
+            aimDir = new Vector3(aimXna.X, aimXna.Y, aimXna.Z);
         }
         _tank.AimDirectionWorld = aimDir;
         PlayerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom, brake, brake, aimDir);
@@ -366,7 +336,8 @@ public class TGCGame : Game
         // cooldown
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
         
-        _tank?.Update(gameTime, keyboardState, mouseState, _orbitCamera.FrontDirection);
+        _tank?.Update(gameTime, keyboardState);
+        _tank2?.Update(gameTime);
         
         // click izquierdo: dispara
         if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed && _mousePrev.LeftButton == ButtonState.Released)
@@ -501,6 +472,7 @@ public class TGCGame : Game
         GraphicsDevice.RasterizerState = oldRasterizerState;
         
         _tank.Draw();
+        _tank2.Draw();
         //_panzer.Dibujar();
         //_t90.Dibujar();
 
