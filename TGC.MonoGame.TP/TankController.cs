@@ -49,36 +49,52 @@ public struct TankController
     /// <param name="brakeLeft">Whether the left tread should brake.</param>
     /// <param name="brakeRight">Whether the right tread should brake.</param>
     /// <param name="aimDirection">Direction that the tank's barrel should point.</param>
-    public void UpdateMovementAndAim(Simulation simulation, float leftTargetSpeedFraction, float rightTargetSpeedFraction, bool zoom, bool brakeLeft, bool brakeRight, Vector3 aimDirection)
+    public void UpdateMovementAndAim(Simulation simulation,
+        float leftTargetSpeedFraction, float rightTargetSpeedFraction,
+        bool zoom, bool brakeLeft, bool brakeRight, Vector3 aimDirection)
     {
         var leftTargetSpeed = brakeLeft ? 0 : leftTargetSpeedFraction * Speed;
         var rightTargetSpeed = brakeRight ? 0 : rightTargetSpeedFraction * Speed;
-        
+
         if (zoom)
         {
             leftTargetSpeed *= ZoomMultiplier;
             rightTargetSpeed *= ZoomMultiplier;
         }
-        var leftForce = brakeLeft ? BrakeForce : leftTargetSpeedFraction == 0 ? IdleForce : Force;
+        var leftForce  = brakeLeft  ? BrakeForce : leftTargetSpeedFraction  == 0 ? IdleForce : Force;
         var rightForce = brakeRight ? BrakeForce : rightTargetSpeedFraction == 0 ? IdleForce : Force;
-        
-        var (targetSwivelAngle, targetPitchAngle) = Tank.ComputeTurretAngles(simulation, aimDirection);
-        
-        if (leftTargetSpeed != previousLeftTargetSpeed || rightTargetSpeed != previousRightTargetSpeed ||
-            leftForce != previousLeftForce || rightForce != previousRightForce)
+
+        // Siempre calculá los ángulos objetivo
+        var (targetSwivelAngle, targetPitchAngle) = Tank.ComputeTurretAngles(simulation, -aimDirection);
+
+        // Detectar cambios
+        bool motorsChanged =
+            leftTargetSpeed != previousLeftTargetSpeed || rightTargetSpeed != previousRightTargetSpeed ||
+            leftForce != previousLeftForce || rightForce != previousRightForce;
+
+        const float eps = 1e-4f;
+        bool aimChanged =
+            MathF.Abs(targetSwivelAngle - previousTurretSwivel) > eps ||
+            MathF.Abs(targetPitchAngle  - previousBarrelPitch)  > eps;
+
+        // Actualizar motores si hizo falta
+        if (motorsChanged)
         {
-            //By guarding the constraint modifications behind a state test, we avoid waking up the tank every single frame.
-            //(We could have also used the ApplyDescriptionWithoutWaking function and then explicitly woke the tank up when changes occur.)
             Tank.SetSpeed(Tank.LeftMotors, leftTargetSpeed, leftForce);
             Tank.SetSpeed(Tank.RightMotors, rightTargetSpeed, rightForce);
-            previousLeftTargetSpeed = leftTargetSpeed;
+            previousLeftTargetSpeed  = leftTargetSpeed;
             previousRightTargetSpeed = rightTargetSpeed;
-            previousLeftForce = leftForce;
+            previousLeftForce  = leftForce;
             previousRightForce = rightForce;
+        }
+
+        // IMPORTANTE: aplicar siempre que cambie el OBJETIVO de torreta/cañón
+        if (aimChanged)
+        {
             Tank.SetAim(simulation, targetSwivelAngle, targetPitchAngle);
             previousTurretSwivel = targetSwivelAngle;
-            previousBarrelPitch = targetPitchAngle;
-            
+            previousBarrelPitch  = targetPitchAngle;
         }
     }
+
 }

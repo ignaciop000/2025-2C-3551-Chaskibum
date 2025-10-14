@@ -411,10 +411,10 @@ namespace TGC.MonoGame.TP
                 BarrelAnchor = new System.Numerics.Vector3(0, 0.5f + 0.35f, 0.4f - 1f),
                 TurretBasis = System.Numerics.Quaternion.CreateFromAxisAngle(
                     System.Numerics.Vector3.UnitY, MathF.PI),
-                TurretServo = new ServoSettings(1f, 0f, 40f),
-                TurretSpring = new SpringSettings(10f, 1f),
-                BarrelServo = new ServoSettings(1f, 0f, 40f),
-                BarrelSpring = new SpringSettings(10f, 1f),
+                TurretServo = new ServoSettings(1e7f, 0f, 1000),
+                TurretSpring = new SpringSettings(10f, 10.0f),
+                BarrelServo = new ServoSettings(1e7f, 0f, 4000),
+                BarrelSpring = new SpringSettings(10f, 10.0f),
 
                 LeftTreadOffset = new System.Numerics.Vector3(-15f, 0f, 0),
                 RightTreadOffset = new System.Numerics.Vector3(15f, 0f, 0),
@@ -744,36 +744,48 @@ namespace TGC.MonoGame.TP
 
         public void UpdateCanonAndTurretTowards(Vector3 worldAimDir, float dt)
         {
-            float minPitch = MathHelper.ToRadians(-45f);
-            float maxPitch = MathHelper.ToRadians(10f);
 
-            // Normalizar
-            var dir = Vector3.Normalize(worldAimDir);
+            // 1) Leer las poses actuales del cuerpo, torreta y cañón desde la simulación
+            var bodyRef   = _simulation.Bodies.GetBodyReference(Body);
+            var turretRef = _simulation.Bodies.GetBodyReference(Turret);
+            var barrelRef = _simulation.Bodies.GetBodyReference(Barrel);
 
-            // --- Yaw de la torreta ---
-            var flat = new Vector3(dir.X, 0, dir.Z);
-            if (flat.LengthSquared() > 1e-6f) flat.Normalize();
+            var qBody   = bodyRef.Pose.Orientation;
+            var qBarrel = barrelRef.Pose.Orientation;
 
-            var globalTurretYaw = MathF.Atan2(flat.X, flat.Z) + MathF.PI;
+            // 2) Dirección "forward" del cañón físico en MUNDO
+            //    (BarrelLocalDirection ya es el forward del cañón en su espacio local)
+            System.Numerics.Vector3 fwdWorldN;
+            QuaternionEx.Transform(BarrelLocalDirection, qBarrel, out fwdWorldN);
 
-            // Yaw actual del tanque a partir del quaternion de física
-            float tankYaw = GetTankYawFromQuaternion(RotationQuaternion);
+            // Normalizar por seguridad
+            var len2 = fwdWorldN.LengthSquared();
+            if (len2 < 1e-12f) return;
+            fwdWorldN /= MathF.Sqrt(len2);
 
-            float desiredTurretYaw = MathHelper.WrapAngle(globalTurretYaw - tankYaw);
+            // 3) Yaw del tanque (desde la física). Ojo: tu tanque "mira" -Z.
+            var bodyFwd = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, -1), qBody);
+            var tankYaw = MathF.Atan2(bodyFwd.X, bodyFwd.Z) + MathF.PI; 
+            // 4) Yaw de la torreta a partir del cañón físico
+            var flat = new System.Numerics.Vector3(fwdWorldN.X, 0, fwdWorldN.Z);
+            var flatLen2 = flat.LengthSquared();
+            if (flatLen2 < 1e-12f) return;
+            flat /= MathF.Sqrt(flatLen2);
 
-            float maxTurretYawSpeed = MathHelper.ToRadians(60f);
-            float maxDeltaYaw = maxTurretYawSpeed * dt;
-            TurretRotation = InterpolateAngle(TurretRotation, desiredTurretYaw, maxDeltaYaw);
+            var globalTurretYaw = MathF.Atan2(flat.X, flat.Z);
 
-            // --- Pitch del cañón ---
-            float targetPitch = -MathF.Asin(dir.Y);
-            targetPitch = Math.Clamp(targetPitch, minPitch, maxPitch);
+            // Diferencia de yaw entre el cuerpo y el cañón físico
+            var swivel = MathHelper.WrapAngle(globalTurretYaw - tankYaw);
 
-            float maxCannonPitchSpeed = MathHelper.ToRadians(45f);
-            float maxDeltaPitch = maxCannonPitchSpeed * dt;
-            CannonRotation = MathHelper.Clamp(targetPitch, CannonRotation - maxDeltaPitch, CannonRotation + maxDeltaPitch);
+            // 5) Pitch del cañón físico (misma convención que venías usando)
+            var pitch = -MathF.Asin(Math.Clamp(fwdWorldN.Y, -1f, 1f));
+
+            // 6) Asignar directo a los ángulos visuales
+            //    Nota: tu rig dibuja yaw en Z con signo invertido en Draw(): Matrix.CreateRotationZ(-TurretRotation)
+            //    Mantenemos TurretRotation = swivel y CannonRotation = -pitch para respetar ese rig.
+            TurretRotation = swivel;
+            CannonRotation = pitch;
         }
-        
         private float InterpolateAngle(float current, float target, float maxStep)
         {
             float delta = MathHelper.WrapAngle(target - current);
@@ -784,7 +796,7 @@ namespace TGC.MonoGame.TP
         private static float GetTankYawFromQuaternion(Quaternion q)
         {
             // Extrae el yaw (rotación sobre Y) del quaternion
-            Vector3 forward = Vector3.Transform(Vector3.UnitZ, q);
+            Vector3 forward = Vector3.Transform(-Vector3.UnitZ, q);
             return MathF.Atan2(forward.X, forward.Z);
         }
         
@@ -905,7 +917,7 @@ namespace TGC.MonoGame.TP
 
             var wheelRotation = Matrix.CreateRotationX(WheelRotation);
             var turretRotation = Matrix.CreateRotationZ(TurretRotation);
-            var cannonRotation = Matrix.CreateRotationX(- CannonRotation);
+            var cannonRotation = Matrix.CreateRotationX(CannonRotation);
             
             
             for (int i = 0; i < 16; i++)
@@ -935,14 +947,11 @@ namespace TGC.MonoGame.TP
         // Devuelve posición y dirección de la boca del cañón, tomando el hueso real del cañón
         public (Vector3 pos, Vector3 dir) GetMuzzle(float muzzleOffsetLocal = 300.2f)
         {
-            // 1) Aplicar rotaciones actuales a los huesos, igual que en Draw()
-            var turretRotation = Matrix.CreateRotationY(TurretRotation);
-            var cannonRotation = Matrix.CreateRotationX(-CannonRotation);
-
-            //_turretBone.Transform = turretRotation * _turretTransform;
-            //_cannonBone.Transform = cannonRotation * _cannonTransform;
-
-            // 2) Recalcular transformaciones absolutas de huesos
+            var turretRotation = Matrix.CreateRotationZ(TurretRotation);
+            var cannonRotation = Matrix.CreateRotationX(CannonRotation); // mismo eje/signo que Draw
+            _turretBone.Transform = turretRotation * _turretTransform;
+            _cannonBone.Transform = cannonRotation * _cannonTransform;
+            
             if (_boneTransforms == null || _boneTransforms.Length != _model.Bones.Count)
                 _boneTransforms = new Matrix[_model.Bones.Count];
 

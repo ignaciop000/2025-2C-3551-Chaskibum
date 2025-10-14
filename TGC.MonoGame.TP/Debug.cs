@@ -140,43 +140,7 @@ public class Debug
             _spriteBatch.End();
         }
     }
-
-    private void EnsureDebugCube(GraphicsDevice gd)
-    {
-        if (_debugBuffersReady) return;
-
-        // Un cubo unitario centrado en el origen (vértices -0.5..+0.5)
-        var v = new[]
-        {
-            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, -0.5f, -0.5f), Color.Red),
-            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, -0.5f, -0.5f), Color.Red),
-            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, 0.5f, -0.5f), Color.Red),
-            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, 0.5f, -0.5f), Color.Red),
-            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, -0.5f, 0.5f), Color.Red),
-            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, -0.5f, 0.5f), Color.Red),
-            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(0.5f, 0.5f, 0.5f), Color.Red),
-            new VertexPositionColor(new Microsoft.Xna.Framework.Vector3(-0.5f, 0.5f, 0.5f), Color.Red),
-        };
-
-        var idx = new ushort[]
-        {
-            // caras (triángulos) – sólido
-            0, 1, 2, 0, 2, 3, // z-
-            4, 6, 5, 4, 7, 6, // z+
-            0, 4, 5, 0, 5, 1, // y-
-            3, 2, 6, 3, 6, 7, // y+
-            0, 3, 7, 0, 7, 4, // x-
-            1, 5, 6, 1, 6, 2 // x+
-        };
-
-        _debugBoxVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, v.Length, BufferUsage.WriteOnly);
-        _debugBoxVB.SetData(v);
-        _debugBoxIB = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
-        _debugBoxIB.SetData(idx);
-
-        _debugBuffersReady = true;
-    }
-
+    
     public void DrawCollider()
     {
         for (int j = 0; j < _tank.bodyHandles.Count; j++)
