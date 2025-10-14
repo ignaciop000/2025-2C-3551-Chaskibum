@@ -1,24 +1,7 @@
-﻿// LISTA DE TAREAS
-// - Agregar Postes [SANTI]
-// - Incorporar otros tanques (sin IA) [SANTI]
-// - Mejorar movimiento tanque [MATEO]
-// - Poner las texturas de tanque y otros objetos [SANTI]
-// - Disparar proyectiles [NACHO] [COMPLETADO]
-// - Colisión entre tanques y objetos (con disparos se rompen todos, pero arboles y arbustos se rompen tambien con el tanque) [AGUS] [COMPLETADO]
-
-// - Opcionales:
-// - Corregir angulo arbustos, rocas y casas para que sigan el piso [COMPLETADO]
-// - Los objetos solo spawnean si el angulo es menor a X°, dependiendo del objeto. Casas muy bajo, el resto un poco mas, rocas no tienen restriccion [COMPLETADO]
-// - Suavizar el mapa [COMPLETADO]
-// - Que la camara no traspase el piso [COMPLETADO]
-// - Arreglar los arbustos, que a veces vuelan y otras estan bajo tierra
-// - Que las casas se coloquen manualmente
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using BepuPhysics;
-using BepuUtilities.Collections;
 using BepuUtilities.Memory;
 using Demos.Demos.Tanks;
 using Microsoft.Xna.Framework;
@@ -61,6 +44,7 @@ public class TGCGame : Game
     private Simulation _simulation;
     private CollidableProperty<TankBodyProperties> _bodyProperties;
     private TankCallbacks _callbacks;
+    private CollisionHandler _collisionHandler;
     public Gizmos Gizmos { get; set;}
     public BufferPool BufferPool { get; private set; }
 
@@ -77,11 +61,11 @@ public class TGCGame : Game
     
     // Los nuevos tanques deben ser agregados a la lista!
     private Tank _tank;
-    private Tank _tank2;
+    private static Tank _tank2;
     private List<Tank> _tanks;
     
     // Proyectiles
-    private readonly List<Projectile> _missiles = new();
+    private readonly List<Projectile> _projectiles = new();
     private MouseState _mousePrev;
     private float _fireCooldown;
 
@@ -137,19 +121,21 @@ public class TGCGame : Game
             );
         // Seteo la cámara inicial como la orbital
         _camera = _orbitCamera;
+
+        _collisionHandler = new CollisionHandler();
         
         _bodyProperties = new CollidableProperty<TankBodyProperties>();
-
-        _tanks = [_tank, _tank2];
         
         _callbacks = new TankCallbacks() { Properties = _bodyProperties};
+        _callbacks.SetCollisionHandler(_collisionHandler);
+        
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
-
         
         _tank = new Tank(new Vector3(0, 0, 0), _camera, 0f, 0.1f );
         _tank2 = new Tank(new Vector3(500, 0, 0), null, 0f, 0.1f );
-        //var bod = new BodyDescription();
+        
+        _tanks = [_tank, _tank2];
         
         _debug = new Debug();
         base.Initialize();
@@ -187,21 +173,19 @@ public class TGCGame : Game
         _tank.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, Terrain);
         _tank2.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, Terrain);
         
-        var allTankBodies = new List<BodyHandle>();
+        // Construyo el diccionario BodyHandle → Tank
+        var tankMap = new Dictionary<BodyHandle, Tank>();
 
         foreach (var tank in _tanks)
         {
-          
-            for (int i = 0; i < tank.BodyHandles.Count; i++)
+            foreach (var handle in tank.BodyHandles)
             {
-                allTankBodies.Add(tank.BodyHandles[i]);
+                tankMap[handle] = tank;
             }
         }
-        
-        _callbacks.Configure(
-            allTankBodies,
-            _missiles.Select(projectil => projectil.Body).ToList()
-        );
+
+        // Se lo paso al handler
+        CollisionHandler.HandleToTank = tankMap;
         
         PlayerController = new TankController(_tank, 20,200 , 2, 100, 200f);
 
@@ -361,8 +345,8 @@ public class TGCGame : Game
             float projMass = 2f;
             // Uso el mismo efecto de debug para dibujar el proyectil sin assets extra
             var (muzzle, dir) = _tank.GetMuzzle(300.2f); // offset local del cañón 
-            var proj = new Projectile(_simulation, Terrain, _debug.DebugEffect, muzzle, dir, speed);
-            _missiles.Add(proj);
+            var proj = new Projectile(_simulation, Terrain, _effect, muzzle, dir, speed);
+            _projectiles.Add(proj);
             
             // Retroceso + freno breve
             _tank.TriggerRecoil(dir, projectileMass: projMass, muzzleSpeed: speed, intensity: 1f, withBrake: true);
@@ -371,10 +355,10 @@ public class TGCGame : Game
         }
         
         // update de todos los proyectiles
-        for (int i = _missiles.Count - 1; i >= 0; --i)
+        for (int i = _projectiles.Count - 1; i >= 0; --i)
         {
-            _missiles[i].Update(deltaTime);
-            if (_missiles[i].IsDead) _missiles.RemoveAt(i);
+            _projectiles[i].Update(deltaTime);
+            if (_projectiles[i].IsDead) _projectiles.RemoveAt(i);
         }
 
         
@@ -382,6 +366,10 @@ public class TGCGame : Game
         if (_simulation != null && deltaTime > 0.0f && deltaTime < 0.1f) // Máximo 100ms por frame
         {
             _simulation.Timestep(deltaTime);
+            
+            // Procesar colisiones
+            _collisionHandler.HandleCollisions();
+            
             _tank?.SyncFromPhysics();
             _tank.ApplyRecoilAndBrake(deltaTime, _simulation);
         }
@@ -485,7 +473,7 @@ public class TGCGame : Game
         GraphicsDevice.RasterizerState = oldRasterizerState;
         
         _tank.Draw();
-        _tank2.Draw();
+        _tank2?.Draw();
         //_panzer.Dibujar();
         //_t90.Dibujar();
 
@@ -494,7 +482,7 @@ public class TGCGame : Game
         _rocks.Dibujar();
         _bushes.Dibujar();
         
-        foreach (var s in _missiles)
+        foreach (var s in _projectiles)
             s.Draw(GraphicsDevice, _camera.View, _camera.Projection);
 
         _debug.Draw();

@@ -43,7 +43,7 @@ public abstract class ModelGroup
 
             foreach (var handle in handles)
             {
-                TankCallbacks.HandleToGroup[handle] = this;
+                CollisionHandler.HandleToGroup[handle] = this;
             }
         }
     }

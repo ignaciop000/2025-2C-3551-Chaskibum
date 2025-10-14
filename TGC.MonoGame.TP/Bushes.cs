@@ -20,7 +20,7 @@ public class Bushes(Terrain terrain, Simulation simulation) : ModelGroup(Colors,
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (-20f, 1f, 2f) // Bush
+            (-15f, 1f, 2f) // Bush
         };
 
         base.CrearObjetos(parametros);

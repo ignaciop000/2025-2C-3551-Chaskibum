@@ -35,10 +35,10 @@ namespace TGC.MonoGame.TP
             Effect effect,
             XnaVector3 spawnPos,
             XnaVector3 direction,
-            float speed = 120f,
-            float radius = 0.5f,
+            float speed = 350f,
+            float radius = 1f,
             float mass = 2f,
-            float lifeSeconds = 6f)
+            float lifeSeconds = 4f)
         {
             Init(simulation, terrain, effect, spawnPos, direction, speed, radius, mass, lifeSeconds);
         }
@@ -78,6 +78,9 @@ namespace TGC.MonoGame.TP
             );
 
             Body = _simulation.Bodies.Add(bodyDesc);
+            
+            CollisionHandler.HandleToProjectile[Body] = this;
+            
             _pos = spawnPos;
 
             EnsurePrimitive(effect.GraphicsDevice);
@@ -99,21 +102,24 @@ namespace TGC.MonoGame.TP
             var p = bodyRef.Pose.Position;
             _pos = ToXna(p);
 
+            /*
             // impacto simple contra terreno
             float ground = _terrain.GetHeightAtPosition(_pos.X, _pos.Z);
             if (_pos.Y - ground <= _radius * 0.5f)
             {
                 Kill();
             }
+            */
         }
 
-        private void Kill()
+        public void Kill()
         {
             if (IsDead) return;
             IsDead = true;
 
             // Quitar el cuerpo una sola vez (sin Exists/HandleExists)
             _simulation.Bodies.Remove(Body);
+            CollisionHandler.HandleToProjectile.Remove(Body);
         }
 
         public void Draw(GraphicsDevice gd, Matrix view, Matrix proj)
@@ -127,6 +133,7 @@ namespace TGC.MonoGame.TP
             );
             _effect.Parameters["View"]?.SetValue(view);
             _effect.Parameters["Projection"]?.SetValue(proj);
+            _effect.Parameters["DiffuseColor"]?.SetValue(Color.Black.ToVector3());
 
             gd.SetVertexBuffer(_vb);
             gd.Indices = _ib;

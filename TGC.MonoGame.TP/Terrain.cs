@@ -18,6 +18,7 @@ public class Terrain
     private readonly Texture2D _colorMapTexture;
     private readonly Texture2D _terrainTexture;
     private readonly Texture2D _terrainTexture2;
+    public StaticHandle Handle;
     
     /// <summary>
     /// Datos del mapa de altura (Heightmap) utilizados para representar la topografía de un terreno.
@@ -188,7 +189,7 @@ public class Terrain
             meshHandle
         );
 
-        simulation.Statics.Add(staticDescription);
+        Handle = simulation.Statics.Add(staticDescription);
 
         // Liberar el buffer (ya fue copiado internamente)
         simulation.BufferPool.Return(ref triangles);

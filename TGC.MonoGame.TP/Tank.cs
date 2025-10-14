@@ -26,6 +26,7 @@ namespace TGC.MonoGame.TP
 {
     public class Tank 
     {
+        public bool IsDead { get; private set; }
         private Vector3 _lastPos;
         private const float WheelRadius = 2.0f; // ajustá según tu modelo/escala
 
@@ -609,6 +610,9 @@ namespace TGC.MonoGame.TP
         
         public void Update(GameTime gameTime)
         {
+            if (IsDead)
+                return;
+            
             var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             var body = _simulation.Bodies.GetBodyReference(Body);
@@ -792,7 +796,7 @@ namespace TGC.MonoGame.TP
 
         public void Draw()
         {
-            if (_model == null || _effect == null) return;
+            if (_model == null || _effect == null || IsDead) return;
 
             var wheelRotation = Matrix.CreateRotationX(WheelRotation);
             var turretRotation = Matrix.CreateRotationZ(TurretRotation);
@@ -897,6 +901,18 @@ namespace TGC.MonoGame.TP
                 var drag = -v * (_brakeK * dt); 
                 bodyRef.Velocity.Linear += drag;
                 _brakeTime -= dt;
+            }
+        }
+
+        public void Kill()
+        {
+            if (IsDead) return;
+            IsDead = true;
+            
+            foreach(var body in BodyHandles)
+            {
+                _simulation.Bodies.Remove(body);
+                CollisionHandler.HandleToTank.Remove(body);
             }
         }
     }
