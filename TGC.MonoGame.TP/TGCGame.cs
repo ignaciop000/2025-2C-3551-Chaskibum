@@ -220,7 +220,7 @@ public class TGCGame : Game
             );
 
         _tank.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, bufferPool, GraphicsDevice, Gizmos, bodyProperties, terrain);
-        PlayerController = new TankController(_tank, 20,500 , 2, 1, 3.5f);
+        PlayerController = new TankController(_tank, 20,200 , 2, 100, 200f);
 
         _trees = new Trees(terrain, _simulation);
         _houses = new Houses(terrain, _simulation);
@@ -376,7 +376,7 @@ public class TGCGame : Game
             float speed = 300f;
             float projMass = 2f;
             // Uso el mismo efecto de debug para dibujar el proyectil sin assets extra
-            var (muzzle, dir) = _tank.GetMuzzle(300.2f); // offset local del cañón (ajustá a tu modelo)
+            var (muzzle, dir) = _tank.GetMuzzle(300.2f); // offset local del cañón 
             var proj = new Projectile(_simulation, terrain, _debug.DebugEffect, muzzle, dir, speed);
             _missiles.Add(proj);
             
