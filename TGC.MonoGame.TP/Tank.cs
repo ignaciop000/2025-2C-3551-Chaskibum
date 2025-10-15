@@ -642,7 +642,8 @@ namespace TGC.MonoGame.TP
 
         public void SyncFromPhysics()
         {
-            var body = _simulation.Bodies.GetBodyReference(_body);
+            if (IsDead) return;
+            var body = _simulation.Bodies.GetBodyReference(Body);
             var pose = body.Pose;
 
             Position = new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z);
