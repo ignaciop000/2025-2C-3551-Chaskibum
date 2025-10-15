@@ -709,6 +709,7 @@ namespace TGC.MonoGame.TP
 
         public void SyncFromPhysics()
         {
+            if (IsDead) return;
             var body = _simulation.Bodies.GetBodyReference(Body);
             var pose = body.Pose;
 
