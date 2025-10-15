@@ -58,11 +58,17 @@ public class TGCGame : Game
     private SpriteBatch _spriteBatch;
     private SpriteFont _debugFont; 
     public TankController PlayerController;
+    public TankController EnemyController;
     
     // Los nuevos tanques deben ser agregados a la lista!
     private Tank _tank;
     private static Tank _tank2;
     private List<Tank> _tanks;
+    
+    // AI properties for enemy tank (_tank2)
+    private const float DetectionRange = 500f; // Distance to start chasing player
+    private const float ChaseSpeed = 0.8f; // Steering intensity when chasing
+    private const float RotationSpeed = 2f; // Radians per second rotation speed
     
     // Proyectiles
     private readonly List<Projectile> _projectiles = new();
@@ -77,7 +83,6 @@ public class TGCGame : Game
     private Rocks _rocks;
     private Trees _trees;
     private Bushes _bushes;
-    private EnemyTanks _enemyTanks;
 
     private Debug _debug;
     
@@ -188,6 +193,7 @@ public class TGCGame : Game
         CollisionHandler.HandleToTank = tankMap;
         
         PlayerController = new TankController(_tank, 20,200 , 2, 100, 200f);
+        EnemyController = new TankController(_tank2, 20, 200, 2, 100, 200f);
 
         _trees = new Trees(Terrain, _simulation);
         _houses = new Houses(Terrain, _simulation);
@@ -334,6 +340,10 @@ public class TGCGame : Game
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
         
         _tank?.Update(gameTime, keyboardState);
+        
+        // Update AI for enemy tank (_tank2)
+        UpdateEnemyTankAI(gameTime);
+        
         _tank2?.Update(gameTime);
         
         // click izquierdo: dispara
@@ -438,6 +448,88 @@ public class TGCGame : Game
         _kbPrev = keyboardState;
         _mousePrev = mouseState;
         base.Update(gameTime);
+    }
+    
+    /// <summary>
+    /// Updates the AI behavior for the enemy tank (_tank2)
+    /// </summary>
+    private void UpdateEnemyTankAI(GameTime gameTime)
+    {
+        if (_tank == null || _tank2 == null || _tank2.IsDead) return;
+        
+        var playerPosition = _tank.Position;
+        var enemyPosition = _tank2.Position;
+        
+        // Calculate distance to player
+        var direction = playerPosition - enemyPosition;
+        var distance = direction.Length();
+        
+        // Always aim at player
+        if (distance > 0.001f)
+        {
+            direction.Normalize();
+            var aimDirection = new Vector3(direction.X, 0, direction.Z);
+            _tank2.AimDirectionWorld = aimDirection;
+        }
+        
+        // Simple approach: Only move if far enough, and calculate proper turning
+        if (distance > 8f) // Reduced from 15f to 8f - much closer approach
+        {
+            // Calculate the angle we need to turn to face the player
+            var directionToPlayer = new Vector3(direction.X, 0, direction.Z);
+            directionToPlayer = Vector3.Normalize(directionToPlayer);
+            
+            var targetYaw = (float)Math.Atan2(directionToPlayer.X, directionToPlayer.Z);
+            
+            // Get current tank rotation from physics body
+            var body = _simulation.Bodies.GetBodyReference(_tank2.Body);
+            var currentRotation = body.Pose.Orientation;
+            var currentYaw = (float)Math.Atan2(
+                2 * (currentRotation.W * currentRotation.Y + currentRotation.X * currentRotation.Z),
+                1 - 2 * (currentRotation.Y * currentRotation.Y + currentRotation.Z * currentRotation.Z)
+            );
+            
+            // Calculate angle difference
+            var angleDiff = targetYaw - currentYaw;
+            while (angleDiff > Math.PI) angleDiff -= 2 * (float)Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * (float)Math.PI;
+            
+            // Tank movement logic similar to player controls
+            float leftSpeed, rightSpeed;
+            
+            if (Math.Abs(angleDiff) > 0.3f) // Need to turn significantly
+            {
+                // Turn towards the player (inverted controls)
+                if (angleDiff > 0) // Turn left
+                {
+                    leftSpeed = 0.7f;   // Forward left track
+                    rightSpeed = -0.7f; // Reverse right track
+                }
+                else // Turn right
+                {
+                    leftSpeed = -0.7f;  // Reverse left track
+                    rightSpeed = 0.7f;  // Forward right track
+                }
+            }
+            else // Go forward (roughly facing player)
+            {
+                leftSpeed = 1.0f;  // Full speed forward
+                rightSpeed = 1.0f;
+            }
+            
+            EnemyController.UpdateMovementAndAim(_simulation, leftSpeed, rightSpeed, false, false, false, 
+                directionToPlayer);
+        }
+        else
+        {
+            // Stop completely
+            var directionToPlayer = new Vector3(direction.X, 0, direction.Z);
+            if (directionToPlayer.Length() > 0.001f)
+                directionToPlayer = Vector3.Normalize(directionToPlayer);
+            
+            EnemyController.UpdateMovementAndAim(_simulation, 0f, 0f, false, true, true, 
+                directionToPlayer);
+        }
     }
 
     /// <summary>
