@@ -3,7 +3,7 @@ using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
 
-namespace Demos.Demos.Tanks;
+namespace TGC.MonoGame.TP;
 
 /// <summary>
 /// Describes a tank's construction.
@@ -52,24 +52,6 @@ public struct TankDescription
     /// Spring properties for the tank's barrel pitching constraint.
     /// </summary>
     public SpringSettings BarrelSpring;
-
-    /// <summary>
-    /// Location in the barrel body's local space where projectiles should be created.
-    /// </summary>
-    public Vector3 BarrelLocalProjectileSpawn;
-    /// <summary>
-    /// Inertia of fired projectiles.
-    /// </summary>
-    public BodyInertia ProjectileInertia;
-    /// <summary>
-    /// Shape of fired projectiles.
-    /// </summary>
-    public TypedIndex ProjectileShape;
-    /// <summary>
-    /// Speed of fired projectiles.
-    /// </summary>
-    public float ProjectileSpeed;
-
 
     /// <summary>
     /// Shape used for all wheels.

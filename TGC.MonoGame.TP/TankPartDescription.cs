@@ -1,7 +1,7 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
 
-namespace Demos.Demos.Tanks;
+namespace TGC.MonoGame.TP;
 
 /// <summary>
 /// Describes properties of a piece of a tank.

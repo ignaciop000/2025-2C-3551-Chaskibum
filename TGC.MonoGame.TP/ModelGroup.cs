@@ -1,8 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using BepuPhysics;
-using BepuPhysics.Collidables;
-using Demos.Demos.Tanks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
@@ -11,17 +9,13 @@ namespace TGC.MonoGame.TP;
 
 public abstract class ModelGroup
 {
-    protected readonly Simulation Simulation;
     protected readonly List<ModelInstances> Models = [];
-    protected Terrain Terrain;
 
     protected ModelGroup(List<Color> colors, Terrain terrain, Simulation simulation)
     {
-        Terrain = terrain;
-        Simulation = simulation;
         foreach (var color in colors)
         {
-            Models.Add(new ModelInstances(color, Terrain, Simulation));
+            Models.Add(new ModelInstances(color, terrain, simulation));
         }
     }
 
@@ -56,6 +50,25 @@ public abstract class ModelGroup
         }
     }
     
+    protected void CargarModelos(Effect efecto, ContentManager content, string[] pathsModelos, string[] pathsTexturas)
+    {
+        for (int i = 0; i < Models.Count; i++)
+        {
+            string texturaPath = i < pathsTexturas.Length ? pathsTexturas[i] : null;
+            Models[i].CargarModelo(pathsModelos[i], efecto, content, texturaPath);
+        }
+    }
+    
+    protected void CargarModelos(Effect efecto, ContentManager content, string[] pathsModelos, string[] pathsTexturas, string[] pathsTexturas2)
+    {
+        for (int i = 0; i < Models.Count; i++)
+        {
+            string texturaPath = i < pathsTexturas.Length ? pathsTexturas[i] : null;
+            string textura2Path = i < pathsTexturas2.Length ? pathsTexturas2[i] : null;
+            Models[i].CargarModelo(pathsModelos[i], efecto, content, texturaPath, textura2Path);
+        }
+    }
+    
     public void Dibujar()
     {
         foreach (var model in Models)
@@ -64,7 +77,6 @@ public abstract class ModelGroup
         }
     }
     
-    // Devuelve la lista para generar posiciones con porcentaje aplicado
     public List<(ModelInstances modelo, double porcentaje)> GetModelosConPorcentaje(double porcentajeTotal)
     {
         double porcentajePorModelo = porcentajeTotal / Models.Count;

@@ -14,7 +14,7 @@ namespace TGC.MonoGame.TP
         private float _shakeTranslation = 0f, _shakeRoll = 0f;
         private float _shakePhaseX = 0f, _shakePhaseY = 0f, _shakePhaseR = 0f;
         private float _shakeFreqX = 42f, _shakeFreqY = 33f, _shakeFreqR = 25f;
-        private readonly System.Random _rng = new System.Random();
+        private readonly System.Random _rng = new();
 
         public bool IsShaking => _shakeTimeLeft > 0f;
         // Propiedades de la órbita

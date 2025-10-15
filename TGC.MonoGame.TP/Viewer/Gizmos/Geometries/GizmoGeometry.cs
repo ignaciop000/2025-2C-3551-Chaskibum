@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework.Graphics;
 
-namespace TGC.MonoGame.Samples.Viewer.Gizmos.Geometries
+namespace TGC.MonoGame.TP.Viewer.Gizmos.Geometries
 {
     /// <summary>
     ///     Gizmo that is drawn using non-user indexed line lists.

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace TGC.MonoGame.Samples.Viewer.Gizmos.Geometries
+namespace TGC.MonoGame.TP.Viewer.Gizmos.Geometries
 {
     /// <summary>
     ///     Gizmo for drawing lines.
@@ -16,8 +16,8 @@ namespace TGC.MonoGame.Samples.Viewer.Gizmos.Geometries
         {
             var vertices = new VertexPosition[2]
             {
-                new VertexPosition(Vector3.Zero),
-                new VertexPosition(Vector3.One),
+                new(Vector3.Zero),
+                new(Vector3.One),
             };
             var indices = new ushort[2] { 0, 1 };
             InitializeVertices(vertices);

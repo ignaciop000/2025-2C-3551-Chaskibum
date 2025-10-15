@@ -9,12 +9,12 @@ namespace TGC.MonoGame.TP;
 
 public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
 {
-    private static readonly List<Color> Colors = new List<Color>
-    {
-        new Color(100, 50, 40),  // Tree
-        new Color(90, 158, 42),  // Tree 2
-        new Color(25, 60, 40)    // Tree 3
-    };
+    private static readonly List<Color> Colors =
+    [
+        Color.White, // Tree
+        Color.White, // Tree 2
+        Color.White  // Tree 3
+    ];
     
     public void CrearObjetos()
     {
@@ -43,14 +43,30 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
     
     public void CargarModelos(Effect efecto, ContentManager content)
     {
-        var paths = new string[]
+        var paths = new[]
         {
-            "/tree/Tree0",
+            "/tree/Tree",
             "/tree2/Leaf_Oak",
             "/tree3/Tree"
         };
         
-        base.CargarModelos(efecto, content, paths);
+        // Texturas de corteza (BarkTexture)
+        var barkTextures = new[]
+        {
+            "/tree/Tree.fbm/bark_0021",  // Tree 1 - corteza
+            "/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hz", // Tree 2 - corteza
+            null  // Tree 3 - por ahora sin textura específica
+        };
+        
+        // Texturas de hojas (LeavesTexture)
+        var leavesTextures = new[]
+        {
+            "/tree/Tree.fbm/DB2X2_L01", // Tree 1 - hojas
+            "/tree2/TexturesCom_Branches0018_1_alphamasked_S", // Tree 2 - hojas
+            null  // Tree 3 - por ahora sin textura específica
+        };
+        
+        base.CargarModelos(efecto, content, paths, barkTextures, leavesTextures);
     }
     
     public override void OnCollisionWithTank(StaticHandle handle)

@@ -9,10 +9,7 @@ namespace TGC.MonoGame.TP;
 
 public class Bushes(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
 {
-    private static readonly List<Color> Colors = new List<Color>
-    {
-        new Color(0, 95, 12)  // Bush
-    };
+    private static readonly List<Color> Colors = [Color.White];
     
     public void CrearObjetos()
     {
@@ -37,12 +34,17 @@ public class Bushes(Terrain terrain, Simulation simulation) : ModelGroup(Colors,
     
     public void CargarModelos(Effect efecto, ContentManager content)
     {
-        var paths = new string[]
+        var paths = new[]
         {
             "/bush/IVY_FBX" // Bush
         };
         
-        base.CargarModelos(efecto, content, paths);
+        var texturas = new[]
+        {
+            "/bush/tex/leaf01_D" // Textura de hojas para el arbusto
+        };
+        
+        base.CargarModelos(efecto, content, paths, texturas);
     }
     
     public override void OnCollisionWithTank(StaticHandle handle)

@@ -7,80 +7,72 @@
 	#define PS_SHADERMODEL ps_4_0_level_9_1
 #endif
 
-// Custom Effects - https://docs.monogame.net/articles/content/custom_effects.html
-// High-level shader language (HLSL) - https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl
-// Programming guide for HLSL - https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-pguide
-// Reference for HLSL - https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-reference
-// HLSL Semantics - https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-semantics
-
 float4x4 World;
 float4x4 View;
 float4x4 Projection;
 
 float3 DiffuseColor;
-
 float Time = 0;
+
+// Textura principal del modelo
+texture ModelTexture;
+sampler TextureSampler = sampler_state
+{
+    Texture = <ModelTexture>;
+    MinFilter = Linear;
+    MagFilter = Linear;
+    AddressU = Wrap;
+    AddressV = Wrap;
+};
+
+// Flag para indicar si usamos textura o color sólido
+bool UseTexture = false;
 
 struct VertexShaderInput
 {
 	float4 Position : POSITION0;
+    float2 TextureCoordinate : TEXCOORD0;
+    float3 Normal : NORMAL0;
 };
 
 struct VertexShaderOutput
 {
 	float4 Position : SV_POSITION;
-};
-
-texture texDiffuseMap;
-sampler2D diffuseMap = sampler_state
-{
-    Texture = (texDiffuseMap);
-    ADDRESSU = WRAP;
-    ADDRESSV = WRAP;
-    MINFILTER = LINEAR;
-    MAGFILTER = LINEAR;
-    MIPFILTER = LINEAR;
-};
-
-texture texDiffuseMap2;
-sampler2D diffuseMap2 = sampler_state
-{
-    Texture = (texDiffuseMap2);
-    ADDRESSU = MIRROR;
-    ADDRESSV = MIRROR;
-    MINFILTER = LINEAR;
-    MAGFILTER = LINEAR;
-    MIPFILTER = LINEAR;
-};
-
-texture texColorMap;
-sampler2D colorMap = sampler_state
-{
-    Texture = (texColorMap);
-    ADDRESSU = WRAP;
-    ADDRESSV = WRAP;
-    MINFILTER = LINEAR;
-    MAGFILTER = LINEAR;
-    MIPFILTER = LINEAR;
+    float2 TextureCoordinate : TEXCOORD0;
+    float3 Normal : TEXCOORD1;
+    float3 WorldPos : TEXCOORD2;
 };
 
 VertexShaderOutput MainVS(in VertexShaderInput input)
 {
-    // Clear the output
 	VertexShaderOutput output = (VertexShaderOutput)0;
-    // Model space to World space
+    
     float4 worldPosition = mul(input.Position, World);
-    // World space to View space
     float4 viewPosition = mul(worldPosition, View);	
-	// View space to Projection space
     output.Position = mul(viewPosition, Projection);
+
+    output.TextureCoordinate = input.TextureCoordinate;
+    output.Normal = mul(input.Normal, (float3x3)World);
+    output.WorldPos = worldPosition.xyz;
 
     return output;
 }
 
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
-    return float4(DiffuseColor, 1.0);
+    // Iluminación básica
+    float3 lightDir = normalize(float3(1, 1, 1));
+    float3 normal = normalize(input.Normal);
+    float diffuse = saturate(dot(normal, lightDir));
+    float ambient = 0.3;
+    float lighting = ambient + diffuse * 0.7;
+    
+    // Usar textura o color sólido basado en el flag
+    float useTexAmount = UseTexture;
+    float4 texColor = tex2D(TextureSampler, input.TextureCoordinate);
+    float3 baseColor = lerp(DiffuseColor, texColor.rgb, useTexAmount);
+    
+    return float4(baseColor * lighting, 1.0);
 }
 
 technique BasicColorDrawing
@@ -90,4 +82,5 @@ technique BasicColorDrawing
 		VertexShader = compile VS_SHADERMODEL MainVS();
 		PixelShader = compile PS_SHADERMODEL MainPS();
 	}
-};
+}
+

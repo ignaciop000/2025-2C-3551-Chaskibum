@@ -1,8 +1,5 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using BepuPhysics;
-using BepuPhysics.Collidables;
-using BepuPhysics.CollisionDetection;
 
 namespace TGC.MonoGame.TP;
 
@@ -18,7 +15,7 @@ public struct ImpactoEstatico(BodyHandle impactador, StaticHandle impactado)
     public StaticHandle Impactado = impactado;
 }
 
-public class CollisionHandler()
+public class CollisionHandler
 {
     // Diccionario para mapear StaticHandle a ModelGroup
     public static readonly Dictionary<StaticHandle, ModelGroup> HandleToGroup = new();
@@ -27,12 +24,12 @@ public class CollisionHandler()
     public static readonly List<ImpactoEstatico> ImpactosEstaticos = [];
     public static readonly List<ImpactoDinamico> ImpactosDinamicos = [];
 
-    public static void AgregarImpactoEstatico(BodyHandle impactador, StaticHandle impactado)
+    public void AgregarImpactoEstatico(BodyHandle impactador, StaticHandle impactado)
     {
         ImpactosEstaticos.Add(new ImpactoEstatico(impactador, impactado));
     }
     
-    public static void AgregarImpactoDinamico(BodyHandle impactador, BodyHandle impactado)
+    public void AgregarImpactoDinamico(BodyHandle impactador, BodyHandle impactado)
     {
         ImpactosDinamicos.Add(new ImpactoDinamico(impactador, impactado));
     }

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace TGC.MonoGame.Samples.Viewer.Gizmos.Geometries
+namespace TGC.MonoGame.TP.Viewer.Gizmos.Geometries
 {
     /// <summary>
     ///     Gizmo for drawing Wire Cubes.
@@ -18,14 +18,14 @@ namespace TGC.MonoGame.Samples.Viewer.Gizmos.Geometries
         {
             var vertices = new VertexPosition[8]
             {
-                new VertexPosition(new Vector3(0.5f, 0.5f, 0.5f)),
-                new VertexPosition(new Vector3(-0.5f, 0.5f, 0.5f)),
-                new VertexPosition(new Vector3(0.5f, -0.5f, 0.5f)),
-                new VertexPosition(new Vector3(-0.5f, -0.5f, 0.5f)),
-                new VertexPosition(new Vector3(0.5f, 0.5f, -0.5f)),
-                new VertexPosition(new Vector3(-0.5f, 0.5f, -0.5f)),
-                new VertexPosition(new Vector3(0.5f, -0.5f, -0.5f)),
-                new VertexPosition(new Vector3(-0.5f, -0.5f, -0.5f))
+                new(new Vector3(0.5f, 0.5f, 0.5f)),
+                new(new Vector3(-0.5f, 0.5f, 0.5f)),
+                new(new Vector3(0.5f, -0.5f, 0.5f)),
+                new(new Vector3(-0.5f, -0.5f, 0.5f)),
+                new(new Vector3(0.5f, 0.5f, -0.5f)),
+                new(new Vector3(-0.5f, 0.5f, -0.5f)),
+                new(new Vector3(0.5f, -0.5f, -0.5f)),
+                new(new Vector3(-0.5f, -0.5f, -0.5f))
             };
             var indices = new ushort[24] 
             { 

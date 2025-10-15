@@ -3,18 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using BepuPhysics;
 using BepuUtilities.Memory;
-using Demos.Demos.Tanks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using TGC.MonoGame.Samples.Viewer.Gizmos;
+using TGC.MonoGame.TP.Viewer.Gizmos;
 using Matrix = Microsoft.Xna.Framework.Matrix;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
 namespace TGC.MonoGame.TP;
-
-
 
 /// <summary>
 ///     Esta es la clase principal del juego.
@@ -23,8 +20,8 @@ namespace TGC.MonoGame.TP;
 /// </summary>
 public class TGCGame : Game
 {
-    private float _escalaMapa = 20;
-    
+    private const float EscalaMapa = 20;
+
     public const string ContentFolder3D = "Models/";
     public const string ContentFolderEffects = "Effects/";
     public const string ContentFolderMusic = "Music/";
@@ -33,51 +30,40 @@ public class TGCGame : Game
     public const string ContentFolderTextures = "Textures/";
 
     private readonly GraphicsDeviceManager _graphics;
-    private OrbitCamera _orbitCamera;
+    
     private Camera _camera;
-    public Vector3 DesiredLookAt;
-    public bool HayLookAt;
-    public Vector3 LookAt;
+    private OrbitCamera _orbitCamera;
+    
+    private Vector3 _desiredLookAt;
+    private bool _hayLookAt;
+    private Vector3 _lookAt;
+    
     private Effect _terrainEffect;
     private Effect _effect;
-    private Effect _debugEffect;
+    
     private Simulation _simulation;
     private CollidableProperty<TankBodyProperties> _bodyProperties;
     private TankCallbacks _callbacks;
     private CollisionHandler _collisionHandler;
-    public Gizmos Gizmos { get; set;}
-    public BufferPool BufferPool { get; private set; }
+    private Gizmos Gizmos { get; set;}
+    private BufferPool BufferPool { get; set; }
 
     private PositionGenerator _positionGenerator;
-    private float _angle;
-    public Terrain Terrain;
-
-    private bool _showTerrainMeshDebug = false;
-    private KeyboardState _kbPrev;
-    private bool _showTankTelemetry = false;
-    private SpriteBatch _spriteBatch;
-    private SpriteFont _debugFont; 
-    public TankController PlayerController;
-    public TankController EnemyController;
+    private Terrain _terrain;
     
-    // Los nuevos tanques deben ser agregados a la lista!
+    private KeyboardState _kbPrev;
+    
+    private TankController _playerController;
+    private TankController _enemyController;
+    
     private Tank _tank;
-    private static Tank _tank2;
+    private Tank _tank2;
     private List<Tank> _tanks;
     
-    // AI properties for enemy tank (_tank2)
-    private const float DetectionRange = 500f; // Distance to start chasing player
-    private const float ChaseSpeed = 0.8f; // Steering intensity when chasing
-    private const float RotationSpeed = 2f; // Radians per second rotation speed
-    
     // Proyectiles
-    private readonly List<Projectile> _projectiles = new();
+    private readonly List<Projectile> _projectiles = [];
     private MouseState _mousePrev;
     private float _fireCooldown;
-
-    //private ModelInstances _tank2 = new ModelInstances(new Color(15, 15, 15));
-    //private ModelInstances _panzer = new ModelInstances(new Color(0, 39, 77));
-    //private ModelInstances _t90 = new ModelInstances(new Color(95, 96, 98));
 
     private Houses _houses;
     private Rocks _rocks;
@@ -113,7 +99,7 @@ public class TGCGame : Game
     {
         Gizmos = new Gizmos();
         BufferPool = new BufferPool();
-        DesiredLookAt = Vector3.Zero;
+        _desiredLookAt = Vector3.Zero;
 
         // Inicialización de cámaras
         
@@ -156,6 +142,9 @@ public class TGCGame : Game
         _terrainEffect = Content.Load<Effect>(ContentFolderEffects + "Terrain");
         _effect = Content.Load<Effect>(ContentFolderEffects + "BasicShader");
         
+        // Cargar shader específico para tanques
+        var tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
+        
         // heights
         var terrainHeigthmap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/heightmap");
         // basic color
@@ -165,18 +154,18 @@ public class TGCGame : Game
         // blend texture 2
         var terrainGround = Content.Load<Texture2D>(ContentFolderTextures + "ground");
 
-        Terrain = new Terrain(GraphicsDevice, 
+        _terrain = new Terrain(GraphicsDevice, 
             terrainHeigthmap, 
             terrainColorMap, 
             terrainGrass, 
             terrainGround, 
             _terrainEffect,
             _simulation,
-            _escalaMapa
+            EscalaMapa
             );
 
-        _tank.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, Terrain);
-        _tank2.CargarModelo("t90/T90", _terrainEffect, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, Terrain);
+        _tank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
+        _tank2.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
         
         // Construyo el diccionario BodyHandle → Tank
         var tankMap = new Dictionary<BodyHandle, Tank>();
@@ -192,13 +181,13 @@ public class TGCGame : Game
         // Se lo paso al handler
         CollisionHandler.HandleToTank = tankMap;
         
-        PlayerController = new TankController(_tank, 20,200 , 2, 100, 200f);
-        EnemyController = new TankController(_tank2, 20, 200, 2, 100, 200f);
+        _playerController = new TankController(_tank, 20,200 , 2, 100, 200f);
+        _enemyController = new TankController(_tank2, 20, 200, 2, 100, 200f);
 
-        _trees = new Trees(Terrain, _simulation);
-        _houses = new Houses(Terrain, _simulation);
-        _rocks = new Rocks(Terrain, _simulation);
-        _bushes = new Bushes(Terrain, _simulation);
+        _trees = new Trees(_terrain, _simulation);
+        _houses = new Houses(_terrain, _simulation);
+        _rocks = new Rocks(_terrain, _simulation);
+        _bushes = new Bushes(_terrain, _simulation);
         
         _houses.SetPlacementRules(5f,  false); // ≤ 5°, NO se inclinan
         _trees.SetPlacementRules(20f,  true);  // ≤ 20°, se inclinan
@@ -208,8 +197,8 @@ public class TGCGame : Game
 
         // Generacion de posiciones de modelos
 
-        var anchoMapa = (Terrain.HeightmapData.GetLength(0) - 1) * _escalaMapa;
-        var largoMapa = (Terrain.HeightmapData.GetLength(1) - 1) * _escalaMapa;
+        var anchoMapa = (_terrain.HeightmapData.GetLength(0) - 1) * EscalaMapa;
+        var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa;
         
         _positionGenerator = new PositionGenerator(anchoMapa, largoMapa);
         var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
@@ -240,7 +229,7 @@ public class TGCGame : Game
         [_tank, _tank2], 
             _orbitCamera,
             _simulation, 
-            Terrain,
+            _terrain,
             Gizmos
         );
         
@@ -257,9 +246,9 @@ public class TGCGame : Game
         var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
-        
-        
-        
+
+
+
         float leftTargetSpeedFraction = 0;
         float rightTargetSpeedFraction = 0;
         var left = keyboardState.IsKeyDown(Keys.A);
@@ -280,7 +269,7 @@ public class TGCGame : Game
                 leftTargetSpeedFraction = 0.5f;
                 rightTargetSpeedFraction = 1f;
             }
-            else if (right)
+            else
             {
                 leftTargetSpeedFraction = 1f;
                 rightTargetSpeedFraction = 0.5f;
@@ -298,7 +287,7 @@ public class TGCGame : Game
                 leftTargetSpeedFraction = -0.5f;
                 rightTargetSpeedFraction = -1f;
             }
-            else if (right)
+            else
             {
                 leftTargetSpeedFraction = -1f;
                 rightTargetSpeedFraction = -0.5f;
@@ -318,7 +307,7 @@ public class TGCGame : Game
                 rightTargetSpeedFraction = -1f;
             }
         }
-        
+
         var zoom = keyboardState.IsKeyDown(Keys.LeftShift);
         var brake = keyboardState.IsKeyDown(Keys.Space);
         var frontDirection = new Vector3(_camera.FrontDirection.X, _camera.FrontDirection.Y, _camera.FrontDirection.Z);
@@ -328,52 +317,54 @@ public class TGCGame : Game
         var hit = PickOnTerrain(mouseState.Position);
         if (hit.HasValue)
         {
-            var aimXna = hit.Value - new Microsoft.Xna.Framework.Vector3(_tank.Position.X, _tank.Position.Y, _tank.Position.Z);
+            var aimXna = hit.Value -
+                         new Microsoft.Xna.Framework.Vector3(_tank.Position.X, _tank.Position.Y, _tank.Position.Z);
             if (aimXna.LengthSquared() > 1e-6f)
                 aimXna.Normalize();
             aimDir = new Vector3(aimXna.X, aimXna.Y, aimXna.Z);
         }
+
         _tank.AimDirectionWorld = aimDir;
-        PlayerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom, brake, brake, aimDir);
-        
+        _playerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom,
+            brake, brake, aimDir);
+
         // cooldown
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
-        
-        _tank?.Update(gameTime, keyboardState);
-        
-        // Update AI for enemy tank (_tank2)
-        UpdateEnemyTankAI(gameTime);
-        
-        _tank2?.Update(gameTime);
-        
-        // click izquierdo: dispara
-        if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed && _mousePrev.LeftButton == ButtonState.Released)
-        {
 
+        _tank?.Update(gameTime, keyboardState);
+
+        // Update AI for enemy tank (_tank2)
+        _tank2?.UpdateEnemyTankAI(_tank.Position, _enemyController);
+
+        _tank2?.Update(gameTime);
+
+        // click izquierdo: dispara
+        if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed &&
+            _mousePrev.LeftButton == ButtonState.Released)
+        {
             // Velocidad configurable acá:
             float speed = 300f;
             float projMass = 2f;
-            // Uso el mismo efecto de debug para dibujar el proyectil sin assets extra
-            var (muzzle, dir) = _tank.GetMuzzle(300.2f); // offset local del cañón 
-            var proj = new Projectile(_simulation, Terrain, _effect, muzzle, dir, speed);
+
+            var (muzzle, dir) = _tank.GetMuzzle(); // offset local del cañón 
+            var proj = new Projectile(_simulation, _effect, muzzle, dir, speed);
             _projectiles.Add(proj);
-            
+
             // Retroceso + freno breve
             _tank.TriggerRecoil(dir, projectileMass: projMass, muzzleSpeed: speed, intensity: 1f, withBrake: true);
 
             _fireCooldown = 1f; // 4 disparos/seg
         }
-        
+
         // update de todos los proyectiles
         for (int i = _projectiles.Count - 1; i >= 0; --i)
         {
             _projectiles[i].Update(deltaTime);
             if (_projectiles[i].IsDead) _projectiles.RemoveAt(i);
         }
-
         
         // Actualizar simulación física
-        if (_simulation != null && deltaTime > 0.0f && deltaTime < 0.1f) // Máximo 100ms por frame
+        if (_simulation != null && deltaTime is > 0.0f and < 0.1f) // Máximo 100ms por frame
         {
             _simulation.Timestep(deltaTime);
             
@@ -381,7 +372,7 @@ public class TGCGame : Game
             _collisionHandler.HandleCollisions();
             
             _tank?.SyncFromPhysics();
-            _tank.ApplyRecoilAndBrake(deltaTime, _simulation);
+            _tank?.ApplyRecoilAndBrake(deltaTime, _simulation);
         }
 
         // Capturar Input teclado
@@ -410,20 +401,20 @@ public class TGCGame : Game
         if (_tank != null)
         {
             // Usar la posición y rotación del tanque
-            var targetHeight = Terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z) + 50f; 
+            var targetHeight = _terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z) + 50f; 
             _orbitCamera.SetTarget(new Vector3(_tank.Position.X, targetHeight, _tank.Position.Z));
             var dir = new Vector2(MathF.Cos(_tank.Rotation), MathF.Sin(_tank.Rotation));
 
-            DesiredLookAt = new Vector3(_tank.Position.X, Terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z), _tank.Position.Z);
-            if (!HayLookAt)
+            _desiredLookAt = new Vector3(_tank.Position.X, _terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z), _tank.Position.Z);
+            if (!_hayLookAt)
             {
-                LookAt = DesiredLookAt;
-                HayLookAt = true;
+                _lookAt = _desiredLookAt;
+                _hayLookAt = true;
             }
             else
             {
                 var lamda = 0.05f;
-                LookAt = DesiredLookAt * lamda + LookAt * (1 - lamda);
+                _lookAt = _desiredLookAt * lamda + _lookAt * (1 - lamda);
             }
 
             var tankPos2D = new Vector2(_tank.Position.X, _tank.Position.Z);
@@ -435,13 +426,13 @@ public class TGCGame : Game
             {
                 var t = i / 10.0f;
                 var p = cameraPos2D * t + tankPos2D * (1 - t);
-                var Hi = Terrain.GetHeightAtPosition(p.X, p.Y) + 50;
+                var Hi = _terrain.GetHeightAtPosition(p.X, p.Y) + 50;
                 if (Hi > H) H = Hi;
             }
             
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime);
-            _camera.ConstrainAboveTerrain(Terrain, clearance: 50f, samples: 16);
+            _camera.ConstrainAboveTerrain(_terrain, clearance: 50f, samples: 16);
             Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
         }
         
@@ -453,84 +444,7 @@ public class TGCGame : Game
     /// <summary>
     /// Updates the AI behavior for the enemy tank (_tank2)
     /// </summary>
-    private void UpdateEnemyTankAI(GameTime gameTime)
-    {
-        if (_tank == null || _tank2 == null || _tank2.IsDead) return;
-        
-        var playerPosition = _tank.Position;
-        var enemyPosition = _tank2.Position;
-        
-        // Calculate distance to player
-        var direction = playerPosition - enemyPosition;
-        var distance = direction.Length();
-        
-        // Always aim at player
-        if (distance > 0.001f)
-        {
-            direction.Normalize();
-            var aimDirection = new Vector3(direction.X, 0, direction.Z);
-            _tank2.AimDirectionWorld = aimDirection;
-        }
-        
-        // Simple approach: Only move if far enough, and calculate proper turning
-        if (distance > 8f) // Reduced from 15f to 8f - much closer approach
-        {
-            // Calculate the angle we need to turn to face the player
-            var directionToPlayer = new Vector3(direction.X, 0, direction.Z);
-            directionToPlayer = Vector3.Normalize(directionToPlayer);
-            
-            var targetYaw = (float)Math.Atan2(directionToPlayer.X, directionToPlayer.Z);
-            
-            // Get current tank rotation from physics body
-            var body = _simulation.Bodies.GetBodyReference(_tank2.Body);
-            var currentRotation = body.Pose.Orientation;
-            var currentYaw = (float)Math.Atan2(
-                2 * (currentRotation.W * currentRotation.Y + currentRotation.X * currentRotation.Z),
-                1 - 2 * (currentRotation.Y * currentRotation.Y + currentRotation.Z * currentRotation.Z)
-            );
-            
-            // Calculate angle difference
-            var angleDiff = targetYaw - currentYaw;
-            while (angleDiff > Math.PI) angleDiff -= 2 * (float)Math.PI;
-            while (angleDiff < -Math.PI) angleDiff += 2 * (float)Math.PI;
-            
-            // Tank movement logic similar to player controls
-            float leftSpeed, rightSpeed;
-            
-            if (Math.Abs(angleDiff) > 0.3f) // Need to turn significantly
-            {
-                // Turn towards the player (inverted controls)
-                if (angleDiff > 0) // Turn left
-                {
-                    leftSpeed = 0.7f;   // Forward left track
-                    rightSpeed = -0.7f; // Reverse right track
-                }
-                else // Turn right
-                {
-                    leftSpeed = -0.7f;  // Reverse left track
-                    rightSpeed = 0.7f;  // Forward right track
-                }
-            }
-            else // Go forward (roughly facing player)
-            {
-                leftSpeed = 1.0f;  // Full speed forward
-                rightSpeed = 1.0f;
-            }
-            
-            EnemyController.UpdateMovementAndAim(_simulation, leftSpeed, rightSpeed, false, false, false, 
-                directionToPlayer);
-        }
-        else
-        {
-            // Stop completely
-            var directionToPlayer = new Vector3(direction.X, 0, direction.Z);
-            if (directionToPlayer.Length() > 0.001f)
-                directionToPlayer = Vector3.Normalize(directionToPlayer);
-            
-            EnemyController.UpdateMovementAndAim(_simulation, 0f, 0f, false, true, true, 
-                directionToPlayer);
-        }
-    }
+    
 
     /// <summary>
     ///     Se llama cada vez que hay que refrescar la pantalla.
@@ -549,7 +463,7 @@ public class TGCGame : Game
         GraphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
 
         // Verificar que el efecto y el terreno no sean nulos antes de dibujar
-        if (_terrainEffect == null || Terrain == null)
+        if (_terrainEffect == null || _terrain == null)
             return;
 
         // Para dibujar el modelo necesitamos pasarle informacion que el efecto esta esperando.
@@ -561,13 +475,11 @@ public class TGCGame : Game
 
         var oldRasterizerState = GraphicsDevice.RasterizerState;
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
-        Terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
+        _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
         GraphicsDevice.RasterizerState = oldRasterizerState;
         
         _tank.Draw();
         _tank2?.Draw();
-        //_panzer.Dibujar();
-        //_t90.Dibujar();
 
         _trees.Dibujar();
         _houses.Dibujar();
@@ -577,7 +489,7 @@ public class TGCGame : Game
         foreach (var s in _projectiles)
             s.Draw(GraphicsDevice, _camera.View, _camera.Projection);
 
-        _debug.Draw();
+        _debug.Draw(_camera);
 
     }
     
@@ -601,7 +513,7 @@ public class TGCGame : Game
         {
             float tMid = 0.5f * (tMin + tMax);
             var p = origin + dir * tMid;
-            float terrainY = Terrain.GetHeightAtPosition(p.X, p.Z); // ← tu helper
+            float terrainY = _terrain.GetHeightAtPosition(p.X, p.Z); // ← tu helper
             if (p.Y > terrainY) tMin = tMid; else tMax = tMid;
         }
 

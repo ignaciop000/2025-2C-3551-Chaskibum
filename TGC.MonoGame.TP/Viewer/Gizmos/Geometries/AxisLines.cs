@@ -1,8 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using System;
 
-namespace TGC.MonoGame.Samples.Viewer.Gizmos.Geometries
+namespace TGC.MonoGame.TP.Viewer.Gizmos.Geometries
 {
     /// <summary>
     ///     Gizmo for drawing the Axis Lines of an application.

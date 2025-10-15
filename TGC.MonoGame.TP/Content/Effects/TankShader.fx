@@ -11,7 +11,7 @@ float4x4 World;
 float4x4 View;
 float4x4 Projection;
 
-// --- CORREGIDO: Usando la sintaxis antigua para la textura y el sampler ---
+// Texturas del T90
 texture ModelTexture;
 sampler TextureSampler = sampler_state
 {
@@ -21,18 +21,20 @@ sampler TextureSampler = sampler_state
     AddressU = Wrap;
     AddressV = Wrap;
 };
-// --- FIN DE LA CORRECCIÓN ---
 
 struct VertexShaderInput
 {
 	float4 Position : POSITION0;
     float2 TextureCoordinate : TEXCOORD0;
+    float3 Normal : NORMAL0;
 };
 
 struct VertexShaderOutput
 {
 	float4 Position : SV_POSITION;
     float2 TextureCoordinate : TEXCOORD0;
+    float3 Normal : TEXCOORD1;
+    float3 WorldPos : TEXCOORD2;
 };
 
 VertexShaderOutput MainVS(in VertexShaderInput input)
@@ -44,14 +46,25 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     output.Position = mul(viewPosition, Projection);
 
     output.TextureCoordinate = input.TextureCoordinate;
+    output.Normal = mul(input.Normal, (float3x3)World);
+    output.WorldPos = worldPosition.xyz;
 
     return output;
 }
 
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
-    // --- CORREGIDO: Usando la función 'tex2D' que corresponde a la sintaxis antigua del sampler ---
-    return tex2D(TextureSampler, input.TextureCoordinate);
+    // Iluminación básica
+    float3 lightDir = normalize(float3(1, 1, 1));
+    float3 normal = normalize(input.Normal);
+    float diffuse = saturate(dot(normal, lightDir));
+    float ambient = 0.3;
+    float lighting = ambient + diffuse * 0.7;
+    
+    // Textura
+    float4 texColor = tex2D(TextureSampler, input.TextureCoordinate);
+    
+    return float4(texColor.rgb * lighting, texColor.a);
 }
 
 technique BasicDrawing

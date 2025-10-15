@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
@@ -15,17 +14,17 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     private readonly List<Matrix> _worlds = [];
     public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
-    private Terrain _terrain = terrain;
-    private Simulation _simulation = simulation;
     private Effect _effect;
     private float _altura;
+    private Texture2D _texture;
+    private Texture2D _texture2; // Segunda textura (para hojas en árboles)
     
     public List<Vector2> Positions { get; set; } = [];
 
     private const string ContentFolder3D = TGCGame.ContentFolder3D;
-    private readonly Random _random = new Random();
+    private readonly Random _random = new();
     
-    public float? MaxSlopeDegrees { get; set; } = null;
+    public float? MaxSlopeDegrees { get; set; }
     public bool AlignToTerrain { get; set; } = true;
 
     public void CrearObjetoUnico(float escala, float yawInDegrees, Vector3 position)
@@ -42,22 +41,21 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         foreach (var posicion in Positions)
         {
             //Filtro por inclinación
-            var slopeDeg = _terrain.GetSlopeDegreesAt(posicion.X, posicion.Y);
+            var slopeDeg = terrain.GetSlopeDegreesAt(posicion.X, posicion.Y);
             if (MaxSlopeDegrees.HasValue && slopeDeg > MaxSlopeDegrees.Value)
                 continue;
 
             //Altura en el mapa
-            var alturaMapa = _terrain.GetHeightAtPosition(posicion.X, posicion.Y);
+            var alturaMapa = terrain.GetHeightAtPosition(posicion.X, posicion.Y);
             var escala = NextFloat(escalaMin, escalaMax); //elegimos la escala al azar en base al min y max
-            var yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aletaria el objeto para que sean diferentes
+            var yaw = MathHelper.ToRadians(_random.Next(0, 360)); //giramos de manera aleatoria el objeto para que sean diferentes
 
             Matrix world;
             if (AlignToTerrain)
             {
                 // Alinear al plano del terreno
                 var pos3 = new Vector3(posicion.X, altura + alturaMapa, posicion.Y);
-                Matrix orient;
-                var q = _terrain.CalculateRotation(pos3, yaw, out orient);
+                var q = terrain.CalculateRotation(pos3, yaw, out _);
                 world = Matrix.CreateScale(escala) * Matrix.CreateFromQuaternion(q) * Matrix.CreateTranslation(pos3);
             }
             else
@@ -87,7 +85,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
             float profundidadEscalada = profundidad * scale.Z;
 
             var shape = new Box(anchoEscalado, altoEscalado, profundidadEscalada);
-            var shapeIndex = _simulation.Shapes.Add(shape);
+            var shapeIndex = simulation.Shapes.Add(shape);
 
             float offsetY = (altoEscalado / 2f) - _altura;
 
@@ -106,14 +104,13 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
                 shapeIndex
             );
 
-            var handle = _simulation.Statics.Add(desc);
+            var handle = simulation.Statics.Add(desc);
             Handles.Add(handle);
             handles.Add(handle);
         }
         
         return handles;
     }
-
 
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content)
     {
@@ -130,10 +127,63 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         // Me lo guardo para usar en el dibujado
         _effect = efecto;
     }
+    
+    public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath)
+    {
+        CargarModelo(rutaRelativa, efecto, content, texturaPath, null);
+    }
+    
+    public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath, string textura2Path)
+    {
+        _model = content.Load<Model>(ContentFolder3D + rutaRelativa);
+
+        // Cargar textura si se proporciona
+        if (!string.IsNullOrEmpty(texturaPath))
+        {
+            _texture = content.Load<Texture2D>(ContentFolder3D + texturaPath);
+        }
+        
+        // Cargar segunda textura si se proporciona (para hojas)
+        if (!string.IsNullOrEmpty(textura2Path))
+        {
+            _texture2 = content.Load<Texture2D>(ContentFolder3D + textura2Path);
+        }
+
+        foreach (var mesh in _model.Meshes)
+        {
+            foreach (var meshPart in mesh.MeshParts)
+            {
+                meshPart.Effect = efecto;
+            }
+        }
+
+        // Me lo guardo para usar en el dibujado
+        _effect = efecto;
+    }
 
     public void Dibujar()
     {
-        _effect.Parameters["DiffuseColor"].SetValue(_color.ToVector3());
+        _effect.Parameters["DiffuseColor"]?.SetValue(_color.ToVector3());
+        
+        // Si hay textura, activarla
+        if (_texture != null)
+        {
+            _effect.Parameters["UseTexture"]?.SetValue(true);
+            _effect.Parameters["ModelTexture"]?.SetValue(_texture);
+            
+            // Para TreeShader: textura de corteza
+            _effect.Parameters["BarkTexture"]?.SetValue(_texture);
+        }
+        else
+        {
+            _effect.Parameters["UseTexture"]?.SetValue(false);
+        }
+        
+        // Segunda textura (hojas para árboles)
+        if (_texture2 != null)
+        {
+            _effect.Parameters["LeavesTexture"]?.SetValue(_texture2);
+        }
         
         foreach (var world in _worlds)
         {
@@ -151,7 +201,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     public void DestruirInstancia(StaticHandle handle)
     {
         var index = Handles.IndexOf(handle);
-        _simulation.Statics.Remove(handle);
+        simulation.Statics.Remove(handle);
         Handles.Remove(handle);
         _worlds.RemoveAt(index);
     }
@@ -161,3 +211,4 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         return (float)(min + (max - min) * _random.NextDouble());
     }
 }
+

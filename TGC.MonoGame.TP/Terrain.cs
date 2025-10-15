@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuUtilities.Memory;
@@ -11,8 +10,8 @@ namespace TGC.MonoGame.TP;
 public class Terrain
 {
     private readonly Effect _effect;
-    public float _scaleXZ = 1;
-    public float _scaleY = 1;
+    public float ScaleXz = 1;
+    public float ScaleY = 1;
     private VertexBuffer _vbTerrain;
     private IndexBuffer _ibTerrain;
     private readonly Texture2D _colorMapTexture;
@@ -57,12 +56,12 @@ public class Terrain
     /// <param name="scaleY">La escala vertical utilizada para ajustar la altura del terreno en el eje Y.</param>
     /// <param name="center">El punto central del terreno en coordenadas tridimensionales.</param>
     /// <param name="simulation">La simulación de física donde se agregará el mesh de colisión.</param>
-    public void LoadHeightmap(GraphicsDevice graphicsDevice, Texture2D heightmap, float scaleXZ, float scaleY,
+    private void LoadHeightmap(GraphicsDevice graphicsDevice, Texture2D heightmap, float scaleXZ, float scaleY,
         Vector3 center, Simulation simulation)
     {
-        _scaleXZ = scaleXZ;
-        _scaleY = scaleY;
-        float tx_scale = 1;
+        ScaleXz = scaleXZ;
+        ScaleY = scaleY;
+        const float txScale = 1;
 
         //cargar heightmap
         HeightmapData = LoadHeightMap(heightmap);
@@ -83,7 +82,7 @@ public class Terrain
             for (int j = 0; j < length; j++)
             {
                 var pos = new Vector3(center.X + i * scaleXZ, center.Y + HeightmapData[i, j] * scaleY, center.Z + j * scaleXZ);
-                var tex = new Vector2(i / (float)(width - 1), j / (float)(length - 1)) * tx_scale;
+                var tex = new Vector2(i / (float)(width - 1), j / (float)(length - 1)) * txScale;
                 vertices[i * length + j] = new VertexPositionNormalTexture(pos, Vector3.Zero, tex);
             }
         }
@@ -156,19 +155,19 @@ public class Terrain
             for (int x = 0; x < width - 1; x++)
             {
                 // Alturas del heightmap
-                float h11 = HeightmapData[x, z] * _scaleY;
-                float h12 = HeightmapData[x, z + 1] * _scaleY;
-                float h21 = HeightmapData[x + 1, z] * _scaleY;
-                float h22 = HeightmapData[x + 1, z + 1] * _scaleY;
+                float h11 = HeightmapData[x, z] * ScaleY;
+                float h12 = HeightmapData[x, z + 1] * ScaleY;
+                float h21 = HeightmapData[x + 1, z] * ScaleY;
+                float h22 = HeightmapData[x + 1, z + 1] * ScaleY;
 
                 // Posiciones de los 4 vértices de la celda
-                var v00 = new System.Numerics.Vector3(Center.X + x * _scaleXZ, Center.Y + h11, Center.Z + z * _scaleXZ);
-                var v01 = new System.Numerics.Vector3(Center.X + x * _scaleXZ, Center.Y + h12,
-                    Center.Z + (z + 1) * _scaleXZ);
-                var v10 = new System.Numerics.Vector3(Center.X + (x + 1) * _scaleXZ, Center.Y + h21,
-                    Center.Z + z * _scaleXZ);
-                var v11 = new System.Numerics.Vector3(Center.X + (x + 1) * _scaleXZ, Center.Y + h22,
-                    Center.Z + (z + 1) * _scaleXZ);
+                var v00 = new System.Numerics.Vector3(Center.X + x * ScaleXz, Center.Y + h11, Center.Z + z * ScaleXz);
+                var v01 = new System.Numerics.Vector3(Center.X + x * ScaleXz, Center.Y + h12,
+                    Center.Z + (z + 1) * ScaleXz);
+                var v10 = new System.Numerics.Vector3(Center.X + (x + 1) * ScaleXz, Center.Y + h21,
+                    Center.Z + z * ScaleXz);
+                var v11 = new System.Numerics.Vector3(Center.X + (x + 1) * ScaleXz, Center.Y + h22,
+                    Center.Z + (z + 1) * ScaleXz);
 
                 // Crear los triángulos de la celda
                 triangles[index++] = new Triangle(v00, v10, v01);
@@ -198,7 +197,7 @@ public class Terrain
     /// Carga un mapa de alturas desde una textura para ser utilizado como datos de elevación.
     /// <param name="texture">La textura que contiene el mapa de alturas.</param>
     /// <returns>Una matriz bidimensional de enteros que representa los valores de altura extraídos de la textura.</returns>
-    protected int[,] LoadHeightMap(Texture2D texture)
+    private int[,] LoadHeightMap(Texture2D texture)
     {
         var width = texture.Width;
         var height = texture.Height;
@@ -264,8 +263,8 @@ public class Terrain
         var height = HeightmapData.GetLength(1);
 
         // Convertir coordenadas del mundo a coordenadas del heightmap
-        float mapX = (worldX - Center.X) / _scaleXZ;
-        float mapZ = (worldZ - Center.Z) / _scaleXZ;
+        float mapX = (worldX - Center.X) / ScaleXz;
+        float mapZ = (worldZ - Center.Z) / ScaleXz;
 
         // Verificar límites
         if (mapX < 0 || mapX >= width - 1 || mapZ < 0 || mapZ >= height - 1)
@@ -282,10 +281,10 @@ public class Terrain
         float fz = mapZ - z1;
 
         // Obtener alturas de las 4 esquinas
-        float h11 = HeightmapData[x1, z1] * _scaleY;
-        float h21 = HeightmapData[x2, z1] * _scaleY;
-        float h12 = HeightmapData[x1, z2] * _scaleY;
-        float h22 = HeightmapData[x2, z2] * _scaleY;
+        float h11 = HeightmapData[x1, z1] * ScaleY;
+        float h21 = HeightmapData[x2, z1] * ScaleY;
+        float h12 = HeightmapData[x1, z2] * ScaleY;
+        float h22 = HeightmapData[x2, z2] * ScaleY;
 
         // Interpolación bilineal
         float h1 = MathHelper.Lerp(h11, h21, fx);
@@ -296,29 +295,29 @@ public class Terrain
     }
 
     
-    public Quaternion CalculateRotation(Microsoft.Xna.Framework.Vector3 position, float rotation, out Matrix orientationMatrix)
+    public Quaternion CalculateRotation(Vector3 position, float rotation, out Matrix orientationMatrix)
     {
         //obtenemos la normal
         var normalHaciaArriba = GetNormalAtPosition(position.X, position.Z);
             
         // Direcciones objetivo: mantené la YAW de la física
-        var yawForward = Microsoft.Xna.Framework.Vector3.Transform(
-            -Microsoft.Xna.Framework.Vector3.UnitZ,
+        var yawForward = Vector3.Transform(
+            -Vector3.UnitZ,
             Matrix.CreateRotationY(rotation));
 
         // Proyectá el forward sobre el plano del terreno para que siga la pendiente
-        var forwardOnPlane = yawForward - Microsoft.Xna.Framework.Vector3.Dot(yawForward, normalHaciaArriba) * normalHaciaArriba;
+        var forwardOnPlane = yawForward - Vector3.Dot(yawForward, normalHaciaArriba) * normalHaciaArriba;
         if (forwardOnPlane.LengthSquared() < 1e-6f)
-            forwardOnPlane = Microsoft.Xna.Framework.Vector3.Normalize(
-                Microsoft.Xna.Framework.Vector3.Cross(
-                    new Microsoft.Xna.Framework.Vector3(1, 0, 0), normalHaciaArriba));
+            forwardOnPlane = Vector3.Normalize(
+                Vector3.Cross(
+                    new Vector3(1, 0, 0), normalHaciaArriba));
         else
             forwardOnPlane.Normalize();
 
-        var right = Microsoft.Xna.Framework.Vector3.Normalize(
-            Microsoft.Xna.Framework.Vector3.Cross(forwardOnPlane, normalHaciaArriba));
-        var forward = Microsoft.Xna.Framework.Vector3.Normalize(
-            Microsoft.Xna.Framework.Vector3.Cross(normalHaciaArriba, right));
+        var right = Vector3.Normalize(
+            Vector3.Cross(forwardOnPlane, normalHaciaArriba));
+        var forward = Vector3.Normalize(
+            Vector3.Cross(normalHaciaArriba, right));
 
         // Matriz de orientación a partir de la base R-U-F
         orientationMatrix = new Matrix(
@@ -330,10 +329,10 @@ public class Terrain
         
         return Quaternion.CreateFromRotationMatrix(orientationMatrix);
     }
-    
-    public Microsoft.Xna.Framework.Vector3 GetNormalAtPosition(float worldX, float worldZ)
+
+    private Vector3 GetNormalAtPosition(float worldX, float worldZ)
     {
-        var h = _scaleXZ * 0.5f; 
+        var h = ScaleXz * 0.5f; 
         var x = worldX;
         var z = worldZ;
 
@@ -351,7 +350,7 @@ public class Terrain
     public float GetSlopeDegreesAt(float worldX, float worldZ)
     {
         var n = GetNormalAtPosition(worldX, worldZ);
-        var dot = Microsoft.Xna.Framework.Vector3.Dot(n, Microsoft.Xna.Framework.Vector3.Up);
+        var dot = Vector3.Dot(n, Vector3.Up);
         dot = MathHelper.Clamp(dot, -1f, 1f);
         var radians = MathF.Acos(dot);
         return MathHelper.ToDegrees(radians);

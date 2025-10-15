@@ -1,4 +1,3 @@
-
 #----------------------------- Global Properties ----------------------------#
 
 /outputDir:bin/$(Platform)
@@ -17,7 +16,6 @@
 /importer:EffectImporter
 /processor:EffectProcessor
 /processorParam:DebugMode=Auto
-/processorParam:Defines=
 /build:Effects/BasicShader.fx
 
 #begin Effects/Debug.fx
@@ -32,11 +30,23 @@
 /processorParam:DebugMode=Auto
 /build:Effects/Gizmos.fx
 
+#begin Effects/TankShader.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/TankShader.fx
+
 #begin Effects/Terrain.fx
 /importer:EffectImporter
 /processor:EffectProcessor
 /processorParam:DebugMode=Auto
 /build:Effects/Terrain.fx
+
+#begin Effects/TreeShader.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/TreeShader.fx
 
 #begin Models/arrow/arrow.fbx
 /importer:FbxImporter
@@ -76,6 +86,18 @@
 /processorParam:TextureFormat=Compressed
 /build:Models/bush/IVY_FBX.fbx
 
+#begin Models/bush/tex/leaf01_D.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/bush/tex/leaf01_D.jpg
+
 #begin Models/cottage/cottage_fbx.fbx
 /importer:FbxImporter
 /processor:ModelProcessor
@@ -113,6 +135,18 @@
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
 /build:Models/house/City_House_2_BI.fbx
+
+#begin Models/house/city_house_2_Col.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/house/city_house_2_Col.jpg
 
 #begin Models/panzer/Panzer.fbx
 /importer:FbxImporter
@@ -169,7 +203,7 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/rocks/Rock1.fbx;Models/rocks/Rock1
+/build:Models/rocks/Rock1.fbx
 
 #begin Models/rocks/Rock2.fbx
 /importer:FbxImporter
@@ -188,7 +222,7 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/rocks/Rock2.fbx;Models/rocks/Rock2
+/build:Models/rocks/Rock2.fbx
 
 #begin Models/rocks/Rock3.fbx
 /importer:FbxImporter
@@ -207,7 +241,7 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/rocks/Rock3.fbx;Models/rocks/Rock3
+/build:Models/rocks/Rock3.fbx
 
 #begin Models/rocks/Rock4.fbx
 /importer:FbxImporter
@@ -226,7 +260,7 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/rocks/Rock4.fbx;Models/rocks/Rock4
+/build:Models/rocks/Rock4.fbx
 
 #begin Models/rocks/Rock5.fbx
 /importer:FbxImporter
@@ -245,7 +279,7 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/rocks/Rock5.fbx;Models/rocks/Rock5
+/build:Models/rocks/Rock5.fbx
 
 #begin Models/rocks/Rock6.fbx
 /importer:FbxImporter
@@ -264,7 +298,7 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/rocks/Rock6.fbx;Models/rocks/Rock6
+/build:Models/rocks/Rock6.fbx
 
 #begin Models/rocks/Rock7.fbx
 /importer:FbxImporter
@@ -283,7 +317,7 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/rocks/Rock7.fbx;Models/rocks/Rock7
+/build:Models/rocks/Rock7.fbx
 
 #begin Models/rocks/Rock8.fbx
 /importer:FbxImporter
@@ -321,7 +355,115 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/rocks/Rock9.fbx;Models/rocks/Rock9
+/build:Models/rocks/Rock9.fbx
+
+#begin Models/rocks/Textures/Rock1_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock1_Diffuse.png
+
+#begin Models/rocks/Textures/Rock2_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock2_Diffuse.png
+
+#begin Models/rocks/Textures/Rock3_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock3_Diffuse.png
+
+#begin Models/rocks/Textures/Rock4_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock4_Diffuse.png
+
+#begin Models/rocks/Textures/Rock5_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock5_Diffuse.png
+
+#begin Models/rocks/Textures/Rock6_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock6_Diffuse.png
+
+#begin Models/rocks/Textures/Rock7_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock7_Diffuse.png
+
+#begin Models/rocks/Textures/Rock8_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock8_Diffuse.png
+
+#begin Models/rocks/Textures/Rock9_Diffuse.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock9_Diffuse.png
 
 #begin Models/t90/T90.fbx
 /importer:FbxImporter
@@ -341,6 +483,54 @@
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
 /build:Models/t90/T90.fbx
+
+#begin Models/t90/textures_mod/hullA.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/t90/textures_mod/hullA.jpg
+
+#begin Models/t90/textures_mod/hullB.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/t90/textures_mod/hullB.jpg
+
+#begin Models/t90/textures_mod/hullC.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/t90/textures_mod/hullC.jpg
+
+#begin Models/t90/textures_mod/treadmills.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/t90/textures_mod/treadmills.png
 
 #begin Models/tank/tank.fbx
 /importer:FbxImporter
@@ -378,7 +568,43 @@
 /processorParam:Scale=1
 /processorParam:SwapWindingOrder=False
 /processorParam:TextureFormat=Compressed
-/build:Models/tree/Tree.fbx;Models/tree/Tree0.fbx
+/build:Models/tree/Tree.fbx
+
+#begin Models/tree/bark_0021.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/tree/bark_0021.jpg
+
+#begin Models/tree/Tree.fbm/bark_0021.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/tree/Tree.fbm/bark_0021.jpg
+
+#begin Models/tree/Tree.fbm/DB2X2_L01.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/tree/Tree.fbm/DB2X2_L01.png
 
 #begin Models/tree2/Leaf_Oak.fbx
 /importer:FbxImporter
@@ -411,18 +637,6 @@
 /processorParam:TextureFormat=Color
 /build:Models/tree2/TexturesCom_Branches0018_1_alphamasked_S.png
 
-#begin Models/tree2/TexturesCom_Branches0018_1_alphamasked_Snor.png
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:Models/tree2/TexturesCom_Branches0018_1_alphamasked_Snor.png
-
 #begin Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hz.jpg
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -434,18 +648,6 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hz.jpg
-
-#begin Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor.jpg
-/importer:TextureImporter
-/processor:TextureProcessor
-/processorParam:ColorKeyColor=255,0,255,255
-/processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
-/processorParam:PremultiplyAlpha=True
-/processorParam:ResizeToPowerOfTwo=False
-/processorParam:MakeSquare=False
-/processorParam:TextureFormat=Color
-/build:Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor.jpg
 
 #begin Models/tree3/Tree.fbx
 /importer:FbxImporter
@@ -471,14 +673,7 @@
 /processor:FontDescriptionProcessor
 /processorParam:PremultiplyAlpha=True
 /processorParam:TextureFormat=Compressed
-/build:SpriteFonts/CascadiaCode/CascadiaCodePL.spritefont;SpriteFonts/CascadiaCode/CascadiaCodePL
-
-#begin SpriteFonts/CascadiaCode/CascadiaMonoPL.spritefont
-/importer:FontDescriptionImporter
-/processor:FontDescriptionProcessor
-/processorParam:PremultiplyAlpha=True
-/processorParam:TextureFormat=Compressed
-/build:SpriteFonts/CascadiaCode/CascadiaMonoPL.spritefont;SpriteFonts/CascadiaCode/CascadiaMonoPL
+/build:SpriteFonts/CascadiaCode/CascadiaCodePL.spritefont
 
 #begin Textures/grass.png
 /importer:TextureImporter
@@ -514,7 +709,7 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Textures/heightmaps/colormap.jpg;Textures/heightmaps/colormap
+/build:Textures/heightmaps/colormap.jpg
 
 #begin Textures/heightmaps/heightmap.jpg
 /importer:TextureImporter
@@ -526,5 +721,4 @@
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Textures/heightmaps/heightmap.jpg;Textures/heightmaps/heightmap
-
+/build:Textures/heightmaps/heightmap.jpg

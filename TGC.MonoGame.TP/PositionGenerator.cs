@@ -7,9 +7,7 @@ namespace TGC.MonoGame.TP;
 
 public class PositionGenerator(float anchoMapa, float largoMapa)
 {
-    private float _anchoMapa = anchoMapa;
-    private float _largoMapa = largoMapa;
-    private Random _random = new Random();
+    private readonly Random _random = new();
     
     public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, float distanciaMinima = 550)
     {
@@ -63,11 +61,11 @@ public class PositionGenerator(float anchoMapa, float largoMapa)
     // Generar posiciones aleatorias que no se pisen
     private List<Vector2> GenerarPuntos(float minDist, int attempts = 100)
     {
-        List<Vector2> points = new List<Vector2>();
-        List<Vector2> active = new List<Vector2>();
+        List<Vector2> points = [];
+        List<Vector2> active = [];
 
-        double width = _anchoMapa / 2;
-        double height = _largoMapa / 2;
+        double width = anchoMapa / 2;
+        double height = largoMapa / 2;
 
         // Primer punto
         Vector2 first = new Vector2(0, 0);

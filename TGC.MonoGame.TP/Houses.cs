@@ -9,11 +9,11 @@ namespace TGC.MonoGame.TP;
 
 public class Houses(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
 {
-    private static readonly List<Color> Colors = new List<Color>
-    {
-        new Color(255, 94, 45),    // house
-        new Color(252, 209, 86)    // cottage
-    };
+    private static readonly List<Color> Colors =
+    [
+        Color.White, // house
+        Color.SaddleBrown // cottage
+    ];
     
     public void CrearObjetos()
     {
@@ -40,12 +40,18 @@ public class Houses(Terrain terrain, Simulation simulation) : ModelGroup(Colors,
 
     public void CargarModelos(Effect efecto, ContentManager content)
     {
-        var paths = new string[]
+        var paths = new[]
         {
             "/house/City_House_2_BI",
             "cottage/cottage_fbx",
         };
         
-        base.CargarModelos(efecto, content, paths);
+        var texturas = new[]
+        {
+            "/house/city_house_2_Col", // Textura de color para la casa
+            null // Cottage no tiene textura específica por ahora
+        };
+        
+        base.CargarModelos(efecto, content, paths, texturas);
     }
 }

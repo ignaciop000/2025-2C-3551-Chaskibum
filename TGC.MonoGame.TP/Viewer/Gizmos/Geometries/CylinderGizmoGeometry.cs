@@ -3,7 +3,7 @@ using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace TGC.MonoGame.Samples.Viewer.Gizmos.Geometries
+namespace TGC.MonoGame.TP.Viewer.Gizmos.Geometries
 {
     /// <summary>
     ///     Gizmo for drawing Wire Cylinders.

@@ -1,43 +1,31 @@
 ﻿using System;
 using System.Numerics;
 using BepuPhysics;
-using TGC.MonoGame.TP;
+using Vector3 = Microsoft.Xna.Framework.Vector3;
 
-namespace Demos.Demos.Tanks;
+namespace TGC.MonoGame.TP;
 
 /// <summary>
 /// Applies control inputs to a tank instance.
 /// </summary>
-public struct TankController
+public struct TankController(
+    Tank tank,
+    float speed,
+    float force,
+    float zoomMultiplier,
+    float idleForce,
+    float brakeForce)
 {
-    public Tank Tank;
-
     //While the Tank instance contains references to all the simulation-contained stuff, none of it actually defines how fast or strong the tank is.
     //We store that here in the controller so it can be modified on the fly.
-    public float Speed;
-    public float Force;
-    public float ZoomMultiplier;
-    public float IdleForce;
-    public float BrakeForce;
-    
-    //Track the previous state to force wakeups if the constraint targets have changed.
-    private float previousLeftTargetSpeed;
-    private float previousLeftForce;
-    private float previousRightTargetSpeed;
-    private float previousRightForce;
-    private float previousTurretSwivel;
-    private float previousBarrelPitch;
 
-    public TankController(Tank tank,
-        float speed, float force, float zoomMultiplier, float idleForce, float brakeForce) : this()
-    {
-        Tank = tank;
-        Speed = speed;
-        Force = force;
-        ZoomMultiplier = zoomMultiplier;
-        IdleForce = idleForce;
-        BrakeForce = brakeForce;
-    }
+    //Track the previous state to force wakeups if the constraint targets have changed.
+    private float _previousLeftTargetSpeed;
+    private float _previousLeftForce;
+    private float _previousRightTargetSpeed;
+    private float _previousRightForce;
+    private float _previousTurretSwivel;
+    private float _previousBarrelPitch;
 
     /// <summary>
     /// Updates constraint targets for an input state.
@@ -53,47 +41,49 @@ public struct TankController
         float leftTargetSpeedFraction, float rightTargetSpeedFraction,
         bool zoom, bool brakeLeft, bool brakeRight, Vector3 aimDirection)
     {
-        var leftTargetSpeed = brakeLeft ? 0 : leftTargetSpeedFraction * Speed;
-        var rightTargetSpeed = brakeRight ? 0 : rightTargetSpeedFraction * Speed;
+        if (tank.IsDead) return;
+
+        var leftTargetSpeed = brakeLeft ? 0 : leftTargetSpeedFraction * speed;
+        var rightTargetSpeed = brakeRight ? 0 : rightTargetSpeedFraction * speed;
 
         if (zoom)
         {
-            leftTargetSpeed *= ZoomMultiplier;
-            rightTargetSpeed *= ZoomMultiplier;
+            leftTargetSpeed *= zoomMultiplier;
+            rightTargetSpeed *= zoomMultiplier;
         }
-        var leftForce  = brakeLeft  ? BrakeForce : leftTargetSpeedFraction  == 0 ? IdleForce : Force;
-        var rightForce = brakeRight ? BrakeForce : rightTargetSpeedFraction == 0 ? IdleForce : Force;
+        var leftForce  = brakeLeft  ? brakeForce : leftTargetSpeedFraction  == 0 ? idleForce : force;
+        var rightForce = brakeRight ? brakeForce : rightTargetSpeedFraction == 0 ? idleForce : force;
 
         // Siempre calculá los ángulos objetivo
-        var (targetSwivelAngle, targetPitchAngle) = Tank.ComputeTurretAngles(simulation, -aimDirection);
+        var (targetSwivelAngle, targetPitchAngle) = tank.ComputeTurretAngles(simulation, -aimDirection);
 
         // Detectar cambios
         bool motorsChanged =
-            leftTargetSpeed != previousLeftTargetSpeed || rightTargetSpeed != previousRightTargetSpeed ||
-            leftForce != previousLeftForce || rightForce != previousRightForce;
+            leftTargetSpeed != _previousLeftTargetSpeed || rightTargetSpeed != _previousRightTargetSpeed ||
+            leftForce != _previousLeftForce || rightForce != _previousRightForce;
 
         const float eps = 1e-4f;
         bool aimChanged =
-            MathF.Abs(targetSwivelAngle - previousTurretSwivel) > eps ||
-            MathF.Abs(targetPitchAngle  - previousBarrelPitch)  > eps;
+            MathF.Abs(targetSwivelAngle - _previousTurretSwivel) > eps ||
+            MathF.Abs(targetPitchAngle  - _previousBarrelPitch)  > eps;
 
         // Actualizar motores si hizo falta
         if (motorsChanged)
         {
-            Tank.SetSpeed(Tank.LeftMotors, leftTargetSpeed, leftForce);
-            Tank.SetSpeed(Tank.RightMotors, rightTargetSpeed, rightForce);
-            previousLeftTargetSpeed  = leftTargetSpeed;
-            previousRightTargetSpeed = rightTargetSpeed;
-            previousLeftForce  = leftForce;
-            previousRightForce = rightForce;
+            tank.SetSpeed(tank.LeftMotors, leftTargetSpeed, leftForce);
+            tank.SetSpeed(tank.RightMotors, rightTargetSpeed, rightForce);
+            _previousLeftTargetSpeed  = leftTargetSpeed;
+            _previousRightTargetSpeed = rightTargetSpeed;
+            _previousLeftForce  = leftForce;
+            _previousRightForce = rightForce;
         }
 
         // IMPORTANTE: aplicar siempre que cambie el OBJETIVO de torreta/cañón
         if (aimChanged)
         {
-            Tank.SetAim(simulation, targetSwivelAngle, targetPitchAngle);
-            previousTurretSwivel = targetSwivelAngle;
-            previousBarrelPitch  = targetPitchAngle;
+            tank.SetAim(simulation, targetSwivelAngle, targetPitchAngle);
+            _previousTurretSwivel = targetSwivelAngle;
+            _previousBarrelPitch  = targetPitchAngle;
         }
     }
 

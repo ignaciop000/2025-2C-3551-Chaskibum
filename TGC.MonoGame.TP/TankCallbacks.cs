@@ -1,11 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Threading;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.CollisionDetection;
 using BepuPhysics.Constraints;
-using BepuUtilities.Collections;
 
 namespace TGC.MonoGame.TP;
 
@@ -105,7 +103,7 @@ struct TankCallbacks : INarrowPhaseCallbacks
             }
 
             // Guardamos el BodyHandle del proyectil
-            CollisionHandler.AgregarImpactoEstatico(impactadorHandle, impactadoHandle);
+            _collisionHandler.AgregarImpactoEstatico(impactadorHandle, impactadoHandle);
         }
         finally
         {
@@ -130,7 +128,7 @@ struct TankCallbacks : INarrowPhaseCallbacks
             }
 
             // Guardamos el BodyHandle del proyectil
-            CollisionHandler.AgregarImpactoDinamico(impactadorHandle, impactadoHandle);
+            _collisionHandler.AgregarImpactoDinamico(impactadorHandle, impactadoHandle);
         }
         finally
         {

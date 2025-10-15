@@ -12,16 +12,15 @@ namespace TGC.MonoGame.TP
     public class Projectile
     {
         private Simulation _simulation;
-        private Terrain _terrain;
         private Effect _effect;
 
         private float _radius;
         private float _lifeMax;
         private float _life;
 
-        public BodyHandle Body;
+        private BodyHandle _body;
         private XnaVector3 _pos;
-        private XnaQuaternion _rot = XnaQuaternion.Identity;
+        private readonly XnaQuaternion _rot = XnaQuaternion.Identity;
 
         // Debug-geom: cubito rápido
         private static VertexBuffer _vb;
@@ -31,7 +30,6 @@ namespace TGC.MonoGame.TP
         public bool IsDead { get; private set; }
         public Projectile(
             Simulation simulation,
-            Terrain terrain,
             Effect effect,
             XnaVector3 spawnPos,
             XnaVector3 direction,
@@ -40,12 +38,11 @@ namespace TGC.MonoGame.TP
             float mass = 2f,
             float lifeSeconds = 4f)
         {
-            Init(simulation, terrain, effect, spawnPos, direction, speed, radius, mass, lifeSeconds);
+            Init(simulation, effect, spawnPos, direction, speed, radius, mass, lifeSeconds);
         }
         
         private void Init(
             Simulation simulation,
-            Terrain terrain,
             Effect effect,
             XnaVector3 spawnPos,
             XnaVector3 direction,
@@ -55,7 +52,6 @@ namespace TGC.MonoGame.TP
             float lifeSeconds)
         {
             _simulation = simulation;
-            _terrain = terrain;
             _effect = effect;
             _radius = radius;
             _lifeMax = lifeSeconds;
@@ -77,9 +73,9 @@ namespace TGC.MonoGame.TP
                 new BodyActivityDescription(0.01f)
             );
 
-            Body = _simulation.Bodies.Add(bodyDesc);
+            _body = _simulation.Bodies.Add(bodyDesc);
             
-            CollisionHandler.HandleToProjectile[Body] = this;
+            CollisionHandler.HandleToProjectile[_body] = this;
             
             _pos = spawnPos;
 
@@ -98,7 +94,7 @@ namespace TGC.MonoGame.TP
             }
 
             // sync pose desde física
-            var bodyRef = _simulation.Bodies.GetBodyReference(Body);
+            var bodyRef = _simulation.Bodies.GetBodyReference(_body);
             var p = bodyRef.Pose.Position;
             _pos = ToXna(p);
 
@@ -118,8 +114,8 @@ namespace TGC.MonoGame.TP
             IsDead = true;
 
             // Quitar el cuerpo una sola vez (sin Exists/HandleExists)
-            _simulation.Bodies.Remove(Body);
-            CollisionHandler.HandleToProjectile.Remove(Body);
+            _simulation.Bodies.Remove(_body);
+            CollisionHandler.HandleToProjectile.Remove(_body);
         }
 
         public void Draw(GraphicsDevice gd, Matrix view, Matrix proj)
@@ -176,7 +172,7 @@ namespace TGC.MonoGame.TP
         }
 
         // ===== Helpers de conversión =====
-        private static SysVector3 ToSys(XnaVector3 v) => new SysVector3(v.X, v.Y, v.Z);
-        private static XnaVector3 ToXna(SysVector3 v) => new XnaVector3(v.X, v.Y, v.Z);
+        private static SysVector3 ToSys(XnaVector3 v) => new(v.X, v.Y, v.Z);
+        private static XnaVector3 ToXna(SysVector3 v) => new(v.X, v.Y, v.Z);
     }
 }

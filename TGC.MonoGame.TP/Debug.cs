@@ -1,38 +1,36 @@
 ﻿using System.Collections.Generic;
 using BepuPhysics;
 using BepuPhysics.Collidables;
-using BepuUtilities.Collections;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using TGC.MonoGame.Samples.Viewer.Gizmos;
+using TGC.MonoGame.TP.Viewer.Gizmos;
 
 namespace TGC.MonoGame.TP;
 
 public class Debug
 {
-    public Effect DebugEffect { get; private set; }
-    private SpriteBatch _spriteBatch;
-    private SpriteFont _debugFont;
+    private Effect DebugEffect { get; set; }
+    //private SpriteBatch _spriteBatch;
+    //private SpriteFont _debugFont;
     private List<Tank> _tanks;
-    private bool _showTerrainMeshDebug = false;
-    private bool _showTankTelemetry = false;
-    private Camera _camera;
+    private bool _showTerrainMeshDebug;
+    //private bool _showTankTelemetry = false;
     private GraphicsDevice _graphicsDevice;
     private Terrain _terrain;
     private Simulation _simulation;
 
-    public Gizmos Gizmos { get; set; }
+    private Gizmos Gizmos { get; set; }
 
-    private Vector3 _debugBoxSize;
-    private VertexBuffer _debugBoxVB;
-    private IndexBuffer _debugBoxIB;
-    private bool _debugBuffersReady;
+    //private Vector3 _debugBoxSize;
+    //private VertexBuffer _debugBoxVB;
+    //private IndexBuffer _debugBoxIB;
+    //private bool _debugBuffersReady;
 
     // Debug mesh (físico) del terreno
-    private VertexBuffer _physDbgVB;
-    private IndexBuffer _physDbgIB;
+    private VertexBuffer _physDbgVb;
+    private IndexBuffer _physDbgIb;
     private int _physDbgIndexCount;
     private bool _physDbgReady;
 
@@ -42,7 +40,6 @@ public class Debug
     {
         
         _tanks = new List<Tank>(tanques);
-        _camera = orbitCamera;
         _simulation = simulation;
         _terrain = terrain;
         _graphicsDevice = graphicsDevice;
@@ -50,8 +47,8 @@ public class Debug
         DebugEffect = content.Load<Effect>(contentEffectsFolder + "Debug");
         DebugEffect.Parameters["DebugColor"]?.SetValue(Color.Red.ToVector4());
 
-        _spriteBatch = new SpriteBatch(graphicsDevice);
-        _debugFont = content.Load<SpriteFont>(contentSpriteFolder + "CascadiaCode/CascadiaCodePL");
+        //_spriteBatch = new SpriteBatch(graphicsDevice);
+        //_debugFont = content.Load<SpriteFont>(contentSpriteFolder + "CascadiaCode/CascadiaCodePL");
     }
 
     public void Update(KeyboardState keyboardState, KeyboardState kbPrev, float dt, Camera camera)
@@ -66,16 +63,14 @@ public class Debug
             _showTankTelemetry = !_showTankTelemetry;
             _tank.DebugTelemetry = _showTankTelemetry;
         }*/
-
-        _camera = camera;
     }
 
-    public void Draw()
+    public void Draw(Camera camera)
     {
         if (_showTerrainMeshDebug)
         {
-            DebugEffect.Parameters["View"].SetValue(_camera.View);
-            DebugEffect.Parameters["Projection"].SetValue(_camera.Projection);
+            DebugEffect.Parameters["View"].SetValue(camera.View);
+            DebugEffect.Parameters["Projection"].SetValue(camera.Projection);
             DebugEffect.Parameters["World"].SetValue(Matrix.Identity);
 
             var oldRS = _graphicsDevice.RasterizerState;
@@ -88,11 +83,11 @@ public class Debug
 
             // --- DEBUG: ver el mesh físico del terreno ---
             //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); // si tu .fx lo usa
-            DrawPhysicsMeshDebug(DebugEffect, _camera.View, _camera.Projection);
+            DrawPhysicsMeshDebug(DebugEffect, camera.View, camera.Projection);
 
             // Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
-            DebugEffect.Parameters["View"].SetValue(_camera.View);
-            DebugEffect.Parameters["Projection"].SetValue(_camera.Projection);
+            DebugEffect.Parameters["View"].SetValue(camera.View);
+            DebugEffect.Parameters["Projection"].SetValue(camera.Projection);
 
             var oldRS2 = _graphicsDevice.RasterizerState;
             _graphicsDevice.RasterizerState = new RasterizerState
@@ -104,18 +99,17 @@ public class Debug
             // -------- ESTÁTICOS (terreno) --------
             for (int i = 0; i < _simulation.Statics.Count; i++)
             {
-                var handle = new BepuPhysics.StaticHandle(i);
+                var handle = new StaticHandle(i);
 
-                BepuPhysics.StaticDescription desc;
-                _simulation.Statics.GetDescription(handle, out desc);
+                _simulation.Statics.GetDescription(handle, out var desc);
 
-                if (desc.Shape.Type == BepuPhysics.Collidables.Box.Id)
+                if (desc.Shape.Type == Box.Id)
                 {
-                    var shape = _simulation.Shapes.GetShape<BepuPhysics.Collidables.Box>(desc.Shape.Index);
+                    var shape = _simulation.Shapes.GetShape<Box>(desc.Shape.Index);
 
                     var worldMatrix =
                         Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
-                        Matrix.CreateFromQuaternion(new Microsoft.Xna.Framework.Quaternion(
+                        Matrix.CreateFromQuaternion(new Quaternion(
                             desc.Pose.Orientation.X,
                             desc.Pose.Orientation.Y,
                             desc.Pose.Orientation.Z,
@@ -142,16 +136,15 @@ public class Debug
             _spriteBatch.End();
         }*/
     }
-    
-    public void DrawCollider()
+
+    private void DrawCollider()
     {
-        for (int i = 0; i < _tanks.Count; i++)
+        foreach (var tank in _tanks)
         {
-            var _tank = _tanks[i];
-            if (_tank.IsDead) return;
-            for (int j = 0; j < _tank.BodyHandles.Count; j++)
+            if (tank.IsDead) return;
+            
+            foreach (var bodyHandle in tank.BodyHandles)
             {
-                BodyHandle bodyHandle = _tank.BodyHandles[j];
                 if (_simulation == null || bodyHandle.Value < 0) return;
 
                 var body = _simulation.Bodies.GetBodyReference(bodyHandle);
@@ -197,7 +190,6 @@ public class Debug
             }
         }
 
-        
 
         Gizmos.Draw();
     }
@@ -216,11 +208,11 @@ public class Debug
         {
             for (int x = 0; x < width; x++)
             {
-                float h = _terrain.HeightmapData[x, z] * _terrain._scaleY;
-                var p = new Microsoft.Xna.Framework.Vector3(
-                    _terrain.Center.X + x * _terrain._scaleXZ,
+                float h = _terrain.HeightmapData[x, z] * _terrain.ScaleY;
+                var p = new Vector3(
+                    _terrain.Center.X + x * _terrain.ScaleXz,
                     _terrain.Center.Y + h,
-                    _terrain.Center.Z + z * _terrain._scaleXZ
+                    _terrain.Center.Z + z * _terrain.ScaleXz
                 );
                 verts[vi++] = new VertexPositionColor(p, Color.Yellow);
             }
@@ -258,12 +250,12 @@ public class Debug
             }
 
             var gd = DebugEffect.GraphicsDevice;
-            _physDbgVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length,
+            _physDbgVb = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length,
                 BufferUsage.WriteOnly);
-            _physDbgVB.SetData(verts);
+            _physDbgVb.SetData(verts);
 
-            _physDbgIB = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
-            _physDbgIB.SetData(idx);
+            _physDbgIb = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
+            _physDbgIb.SetData(idx);
 
             _physDbgIndexCount = idx.Length;
         }
@@ -292,12 +284,12 @@ public class Debug
             }
 
             var gd = DebugEffect.GraphicsDevice;
-            _physDbgVB = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length,
+            _physDbgVb = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, verts.Length,
                 BufferUsage.WriteOnly);
-            _physDbgVB.SetData(verts);
+            _physDbgVb.SetData(verts);
 
-            _physDbgIB = new IndexBuffer(gd, IndexElementSize.ThirtyTwoBits, idx.Length, BufferUsage.WriteOnly);
-            _physDbgIB.SetData(idx);
+            _physDbgIb = new IndexBuffer(gd, IndexElementSize.ThirtyTwoBits, idx.Length, BufferUsage.WriteOnly);
+            _physDbgIb.SetData(idx);
 
             _physDbgIndexCount = idx.Length;
         }
@@ -305,7 +297,7 @@ public class Debug
         _physDbgReady = true;
     }
 
-    public void DrawPhysicsMeshDebug(Effect debugEffect, Matrix view, Matrix projection)
+    private void DrawPhysicsMeshDebug(Effect debugEffect, Matrix view, Matrix projection)
     {
         EnsurePhysicsDebugBuffers();
 
@@ -318,8 +310,8 @@ public class Debug
         var old = gd.RasterizerState;
         gd.RasterizerState = new RasterizerState { CullMode = CullMode.None, FillMode = FillMode.WireFrame };
 
-        gd.SetVertexBuffer(_physDbgVB);
-        gd.Indices = _physDbgIB;
+        gd.SetVertexBuffer(_physDbgVb);
+        gd.Indices = _physDbgIb;
 
         foreach (var pass in debugEffect.CurrentTechnique.Passes)
         {

@@ -2,10 +2,9 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
-using TGC.MonoGame.Samples.Viewer.Gizmos.Geometries;
-using TGC.MonoGame.TP;
+using TGC.MonoGame.TP.Viewer.Gizmos.Geometries;
 
-namespace TGC.MonoGame.Samples.Viewer.Gizmos
+namespace TGC.MonoGame.TP.Viewer.Gizmos
 {
     /// <summary>
     ///     Renders Gizmos
@@ -96,7 +95,7 @@ namespace TGC.MonoGame.Samples.Viewer.Gizmos
         private void AddDrawInstance(GizmoGeometry type, Color color, Matrix world)
         {
             var instancesByType = _drawInstances[type];
-            instancesByType.TryAdd(color, new List<Matrix>());
+            instancesByType.TryAdd(color, []);
             instancesByType[color].Add(world * _viewProjection);
         }
 
@@ -201,7 +200,7 @@ namespace TGC.MonoGame.Samples.Viewer.Gizmos
         /// <param name="color">The color of the poly-line.</param>
         public void DrawPolyLine(Vector3[] points, Color color)
         {
-            _polyLinesToDraw.TryAdd(color, new List<Vector3[]>());
+            _polyLinesToDraw.TryAdd(color, []);
             _polyLinesToDraw[color].Add(points);
         }
 
