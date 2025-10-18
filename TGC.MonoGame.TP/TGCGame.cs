@@ -1,4 +1,25 @@
-﻿using System;
+﻿// LISTA DE TAREAS:
+// - Solucionar Bug Camara Free [AGUS]
+// - Mejorar torreta (que siga mejor al mouse y que no se desincronice el collider) [MATEO]
+// - Arreglar collider Roca 9 [SANTI Y AGUS]
+// - Solucionar y Completar Texturas [SANTI]
+// - No quedarte atascado ni dado vuelta / Solucion atascamientos [MATEO]
+
+// - Incluir Panzer, distintas caracteristicas que T90: vida, daño base, velocidad [NACHO]
+// - Agregar mas Tanques IA (T90 o Panzer), aparecen de a poco hasta llegar al límite [MATEO]
+// - Contador, enemigos restantes, victoria/derrota [MATEO]
+// - Postes de luz [AGUS]
+// - Vida, Cooldown, tipos proyectiles [AGUS]
+// - HUD (Vida, Cooldown de disparo, Tipo proyectil: + velocidad => - daño, Ganaste/Perdiste/Juga de nuevo) [NACHO]
+// - Menú (Iniciar -> Elegir tanque, los 2 tienen distintas caracteristicas;
+//          Configurar tiempo y cant. enemigos;
+//          Configurar volumenes;
+//          Integrantes) [NACHO]
+// - Música (menu y juego) y Sonidos (acciones de hud, daño, choque, disparo y motor) [SANTI]
+// - Imagen tutorial [SANTI]
+
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using BepuPhysics;
@@ -123,7 +144,7 @@ public class TGCGame : Game
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
         
-        _tank = new Tank(new Vector3(0, 0, 0), _camera, 0f, 0.1f );
+        _tank = new Tank(new Vector3(0, 0, 0), _orbitCamera, 0f, 0.1f );
         _tank2 = new Tank(new Vector3(500, 0, 0), null, 0f, 0.1f );
         
         _tanks = [_tank, _tank2];
