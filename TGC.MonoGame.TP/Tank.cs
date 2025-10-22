@@ -204,7 +204,7 @@ namespace TGC.MonoGame.TP
                 // Sumamos un pequeño offset para que no nazca interpenetrado.
                 Position = new Vector3(Position.X, h + Scale * 0.05f, Position.Z);
             }
-
+            
             // Cargar modelo
             _model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
             
@@ -578,6 +578,7 @@ namespace TGC.MonoGame.TP
 
         private void UpdateCanonAndTurretTowards(Vector3 worldAimDir, float dt)
         {
+            if (IsDead) return;
             // Leer las poses actuales del cuerpo, torreta y cañón desde la simulación
             var bodyRef   = _simulation.Bodies.GetBodyReference(_body);
             var turretRef = _simulation.Bodies.GetBodyReference(_turret);
@@ -653,6 +654,7 @@ namespace TGC.MonoGame.TP
 
         private void UpdateWorldMatrix()
         {
+            if (IsDead) return;
             // Sincronizar posición y rotación desde la física
             var bodyReference = _simulation.Bodies.GetBodyReference(_body);
             ref var body = ref bodyReference;
@@ -826,6 +828,7 @@ namespace TGC.MonoGame.TP
 
         public void ApplyRecoilAndBrake(float dt, Simulation simulation)
         {
+            if (IsDead) return;
             // Referencia al cuerpo físico del tanque
             var bodyRef = simulation.Bodies.GetBodyReference(_body); // usa tu handle del tanque
 

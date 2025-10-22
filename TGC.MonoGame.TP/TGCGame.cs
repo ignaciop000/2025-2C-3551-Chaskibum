@@ -41,6 +41,9 @@ namespace TGC.MonoGame.TP;
 /// </summary>
 public class TGCGame : Game
 {
+    public enum GameState { MainMenu, Playing }
+
+    private GameState _state = GameState.MainMenu;
     private const float EscalaMapa = 20;
 
     public const string ContentFolder3D = "Models/";
@@ -90,22 +93,35 @@ public class TGCGame : Game
     private Rocks _rocks;
     private Trees _trees;
     private Bushes _bushes;
+    
+    // HUD / Gameplay
+    private float _matchTimeSeconds = 0f;
 
+    private const float FireCooldownMax = 1f; // estaba harcodeado en 1f al disparar
+    private float _playerHealth = 100f;
+    private float _playerMaxHealth = 100f;
+
+    public enum ProjectileType { Standard, Heavy }
+    private ProjectileType _currentProjectile = ProjectileType.Standard;
+
+    private List<TankEntry> _tankEntries = new();   
     private Debug _debug;
+    private HUD _hud;
+    private Menu _menu;
     
     /// <summary>
     ///     Constructor del juego.
     /// </summary>
     public TGCGame()
     {
-        // Maneja la configuracion y la administracion del dispositivo grafico.
+        // Maneja la configuración y la administración del dispositivo gráfico.
         _graphics = new GraphicsDeviceManager(this);
 
         _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
         _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
         // Para que el juego sea pantalla completa se puede usar Graphics IsFullScreen.
         
-        // Carpeta raiz donde va a estar toda la Media.
+        // Carpeta raíz donde va a estar toda la Media.
         Content.RootDirectory = "Content";
         
         // Hace que el mouse sea visible.
@@ -114,7 +130,7 @@ public class TGCGame : Game
 
     /// <summary>
     ///     Se llama una sola vez, al principio cuando se ejecuta el ejemplo.
-    ///     Escribir aqui el codigo de inicializacion: el procesamiento que podemos pre calcular para nuestro juego.
+    ///     Escribir aquí el código de inicialización: el procesamiento que podemos pre calcular para nuestro juego.
     /// </summary>
     protected override void Initialize()
     {
@@ -123,33 +139,32 @@ public class TGCGame : Game
         _desiredLookAt = Vector3.Zero;
 
         // Inicialización de cámaras
-        
         _orbitCamera = new OrbitCamera(
-            GraphicsDevice.Viewport.AspectRatio, 
-            Vector3.Zero, 
-            800f, 
-            5, 
+            GraphicsDevice.Viewport.AspectRatio,
+            Vector3.Zero,
+            800f,
+            5,
             50000
-            );
+        );
         // Seteo la cámara inicial como la orbital
         _camera = _orbitCamera;
 
         _collisionHandler = new CollisionHandler();
-        
         _bodyProperties = new CollidableProperty<TankBodyProperties>();
-        
-        _callbacks = new TankCallbacks() { Properties = _bodyProperties};
+        _callbacks = new TankCallbacks() { Properties = _bodyProperties };
         _callbacks.SetCollisionHandler(_collisionHandler);
-        
+
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
-        
-        _tank = new Tank(new Vector3(0, 0, 0), _orbitCamera, 0f, 0.1f );
-        _tank2 = new Tank(new Vector3(500, 0, 0), null, 0f, 0.1f );
-        
+
+        _tank = new Tank(new Vector3(0, 0, 0), _orbitCamera, 0f, 0.1f);
+        _tank2 = new Tank(new Vector3(500, 0, 0), null, 0f, 0.1f);
+
         _tanks = [_tank, _tank2];
-        
+
         _debug = new Debug();
+        _menu = new Menu();
+        _hud = new HUD(GraphicsDevice);
         base.Initialize();
     }
 
@@ -184,7 +199,21 @@ public class TGCGame : Game
             _simulation,
             EscalaMapa
             );
-
+        
+        var tankT90 = Content.Load<Model>(ContentFolder3D + "t90/T90");
+        var hullATexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
+        _tankEntries.Add(new TankEntry("T-90-A", tankT90, hullATexture, Matrix.CreateRotationX(-MathHelper.PiOver2), 0.2f, 0.5f));
+        
+        var hullBTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
+        _tankEntries.Add(new TankEntry("T-90-B", tankT90, hullBTexture, Matrix.CreateRotationX(-MathHelper.PiOver2), 0.2f, 0.5f));
+        
+        var hullCTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
+        _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, Matrix.CreateRotationX(-MathHelper.PiOver2), 0.2f, 0.5f));
+        
+        var tankPanzer = Content.Load<Model>(ContentFolder3D + "panzer/Panzer");
+        var panzerTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "panzer/PzVl_Tiger_I");
+        _tankEntries.Add(new TankEntry("Panzer", tankPanzer, panzerTexture, Matrix.Identity, 0.2f,0.2f));
+        
         _tank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
         _tank2.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
         
@@ -254,6 +283,8 @@ public class TGCGame : Game
             Gizmos
         );
         
+        _menu.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);
+        _hud.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);  
         base.LoadContent();
     }
 
@@ -267,6 +298,22 @@ public class TGCGame : Game
         var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
+
+        // ------------------------------
+        //  MODO MENU
+        // ------------------------------
+
+        if (_state == GameState.MainMenu)
+        {
+            _menu.Update(keyboardState,_kbPrev, gameTime, this, _tankEntries);
+            _kbPrev = keyboardState;
+            _mousePrev = mouseState;
+            return; // >>> NO actualizar lógica de juego mientras estás en el menú
+        }
+        
+        // ------------------------------
+        //  MODO JUEGO
+        // ------------------------------
 
 
 
@@ -349,6 +396,8 @@ public class TGCGame : Game
         _playerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom,
             brake, brake, aimDir);
 
+        _matchTimeSeconds += deltaTime;
+        
         // cooldown
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
 
@@ -476,6 +525,12 @@ public class TGCGame : Game
         GraphicsDevice.Clear(Color.Black);
         // Limpia también el depth buffer
         GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.Black, 1f, 0);
+        
+        if (_state == GameState.MainMenu)
+        {
+            _menu.Draw(_tankEntries);
+            return; // no dibujamos el mundo 3D
+        }
 
         // Estados por defecto para 3D
         GraphicsDevice.BlendState = BlendState.Opaque;
@@ -511,7 +566,7 @@ public class TGCGame : Game
             s.Draw(GraphicsDevice, _camera.View, _camera.Projection);
 
         _debug.Draw(_camera);
-
+        _hud.Draw(_matchTimeSeconds, _fireCooldown, FireCooldownMax, _currentProjectile, _playerHealth, _playerMaxHealth);
     }
     
     private Microsoft.Xna.Framework.Vector3? PickOnTerrain(Point mouse)
@@ -543,6 +598,25 @@ public class TGCGame : Game
         // Si estamos muy lejos o fuera del mapa, descartamos
         if (float.IsNaN(hit.X)) return null;
         return hit;
+    }
+
+
+    public void StartGame()
+    {
+        _state = GameState.Playing;
+        // Si quisieras reiniciar cosas, podés hacerlo acá.
+        // Por ejemplo: resetear posiciones, limpiar proyectiles, etc.
+        // _projectiles.Clear();
+       // string[] tankPaths = { "t90/T90", "panzer/Panzer" };
+       // string chosenPath = tankPaths[Math.Clamp(_playerTankIndex, 0, tankPaths.Length - 1)];
+
+        // (Re)crear el tanque del jugador con el modelo elegido
+        //var tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader"); // o cachealo en un field
+
+        // Si ya tenías un Tank con cuerpos en la simulación, es más limpio crear uno nuevo:
+        //_tank = new Tank(new Vector3(0, 0, 0), _orbitCamera, 0f, 0.1f);
+        //_tank.CargarModelo(chosenPath, tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
+
     }
 
     /// <summary>
