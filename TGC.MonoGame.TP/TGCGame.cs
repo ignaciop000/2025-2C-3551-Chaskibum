@@ -270,8 +270,6 @@ public class TGCGame : Game
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
-
-
         float leftTargetSpeedFraction = 0;
         float rightTargetSpeedFraction = 0;
         var left = keyboardState.IsKeyDown(Keys.A);
@@ -365,16 +363,14 @@ public class TGCGame : Game
         if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed &&
             _mousePrev.LeftButton == ButtonState.Released)
         {
-            // Velocidad configurable acá:
-            float speed = 300f;
-            float projMass = 2f;
+            var tipoProyectilActual = _tank.TipoProyectilActual;
 
             var (muzzle, dir) = _tank.GetMuzzle(); // offset local del cañón 
-            var proj = new Projectile(_simulation, _effect, muzzle, dir, speed);
+            var proj = new Projectile(_simulation, _effect, muzzle, dir, tipoProyectilActual);
             _projectiles.Add(proj);
 
             // Retroceso + freno breve
-            _tank.TriggerRecoil(dir, projectileMass: projMass, muzzleSpeed: speed, intensity: 1f, withBrake: true);
+            _tank.TriggerRecoil(dir, projectileMass: tipoProyectilActual.Mass, muzzleSpeed: tipoProyectilActual.Speed, intensity: 1f, withBrake: true);
 
             _fireCooldown = 1f; // 4 disparos/seg
         }
@@ -509,8 +505,8 @@ public class TGCGame : Game
         _rocks.Dibujar();
         _bushes.Dibujar();
         
-        foreach (var s in _projectiles)
-            s.Draw(GraphicsDevice, _camera.View, _camera.Projection);
+        foreach (var projectile in _projectiles)
+            projectile.Draw(_effect, _camera.View, _camera.Projection);
 
         _debug.Draw(_camera);
 

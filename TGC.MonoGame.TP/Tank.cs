@@ -117,6 +117,8 @@ namespace TGC.MonoGame.TP
 
         public System.Numerics.Vector3 AimDirectionWorld { get; set; } = new(0, 0, 1);
 
+        public float Vida = 100f;
+        public ProjectileConfig TipoProyectilActual = ProjectilePresets.Light;
 
         public Tank(Vector3 initialPosition, Camera camera, float initialRotation = 0f, float scale = 1f)
         {
@@ -532,7 +534,7 @@ namespace TGC.MonoGame.TP
 
         }
        
-     
+        // Actualizar tanque jugador
         public void Update(GameTime gameTime, KeyboardState keyboardState)
         {
             var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -540,7 +542,7 @@ namespace TGC.MonoGame.TP
             var body = _simulation.Bodies.GetBodyReference(_body);
             body.Awake = true;
 
-            //var steer = 0f;
+            UpdateProjectileConfig(keyboardState);
             
             if (keyboardState.IsKeyDown(Keys.A)) SteerRotation += SteerSpeed * dt;
             else if(keyboardState.IsKeyDown(Keys.D))  SteerRotation -= SteerSpeed * dt;
@@ -556,6 +558,7 @@ namespace TGC.MonoGame.TP
             UpdateWorldMatrix();
         }
         
+        // Actualizar tanque enemigo
         public void Update(GameTime gameTime)
         {
             if (IsDead)
@@ -932,6 +935,26 @@ namespace TGC.MonoGame.TP
                 tankController.UpdateMovementAndAim(_simulation, 0f, 0f, false, true, true,
                     directionToPlayer);
             }
+        }
+
+        private void UpdateProjectileConfig(KeyboardState keyboardState)
+        {
+            if (keyboardState.IsKeyDown(Keys.D1))
+            {
+                TipoProyectilActual = ProjectilePresets.Light;
+            } else if (keyboardState.IsKeyDown(Keys.D2))
+            {
+                TipoProyectilActual = ProjectilePresets.Heavy;
+            }
+        }
+        
+        // Ojo, esta es la versión del método para enemigos, no jugador!
+        public void RecibirAtaque(float danio)
+        {
+            Vida -= danio;
+            
+            if (Vida <= 0f)
+                Kill();
         }
     }
 }
