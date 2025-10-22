@@ -17,6 +17,8 @@
 //          Integrantes) [NACHO]
 // - Música (menu y juego) y Sonidos (acciones de hud, daño, choque, disparo y motor) [SANTI]
 // - Imagen tutorial [SANTI]
+// - Agregar World Border [AGUS]
+// - Emprolijar código físicas [OPCIONAL, POR AHORA]
 
 
 using System;
