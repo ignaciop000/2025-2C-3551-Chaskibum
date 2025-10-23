@@ -142,7 +142,7 @@ public class Debug
         foreach (var tank in _tanks)
         {
             if (tank.IsDead) return;
-            
+            tank.DrawDebug();
             foreach (var bodyHandle in tank.BodyHandles)
             {
                 if (_simulation == null || bodyHandle.Value < 0) return;

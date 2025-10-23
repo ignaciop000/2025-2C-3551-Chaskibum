@@ -69,6 +69,8 @@ namespace TGC.MonoGame.TP
         private const float SteerSpeed = 90f;
         private const float MaxSteer = 45f;
         private const float MinSteer = -45f;
+        private const float MaxPitch = MathF.PI / 6f;
+        private const float MinPitch = -MathF.PI / 40f;
 
         // Física
         private Simulation _simulation;
@@ -76,6 +78,7 @@ namespace TGC.MonoGame.TP
 
         public QuickList<BodyHandle> BodyHandles;
 
+        private TankDescription tankDescription;
         // Recoil
         private float _recoilTime;
         private const float RecoilDuration = 0.12f; // seg: cuánto dura el empujón
@@ -88,8 +91,10 @@ namespace TGC.MonoGame.TP
 
         private readonly Camera _camera;
 
-        private const float VisualYOffset = 85.0f;
-        private const float VisualZOffset = 25f;
+        private float VisualYOffset = 60f;
+        private float VisualZOffset = 27f;
+
+        private float _previousSwivel;
 
         // --- Helpers para extraer pos/axes de una Matrix ---
         private static Vector3 GetTranslation(in Matrix m) => new(m.M41, m.M42, m.M43);
@@ -160,6 +165,8 @@ namespace TGC.MonoGame.TP
         /// <param name="targetPitchAngle">Target pitch angle of the barrel.</param>
         public void SetAim(Simulation simulation, float targetSwivelAngle, float targetPitchAngle)
         {
+            
+            targetPitchAngle = Math.Clamp(targetPitchAngle, MinPitch, MaxPitch);
             var turretDescription = _turretServoDescription;
             turretDescription.TargetAngle = targetSwivelAngle;
             simulation.Solver.ApplyDescription(_turretServo, turretDescription);
@@ -356,13 +363,13 @@ namespace TGC.MonoGame.TP
             var wheelInertia = wheelShape.ComputeInertia(0.25f);
             var wheelShapeIndex = _simulation.Shapes.Add(wheelShape);
             
-            var tankDescription = new TankDescription
+            tankDescription = new TankDescription
             {
-                Body = TankPartDescription.Create(1, new Box(36f, 9, 60), new RigidPose(new System.Numerics.Vector3(0, 0, 0), System.Numerics.Quaternion.Identity), 0.5f, _simulation.Shapes),
-                Turret = TankPartDescription.Create(1, new Cylinder(15f, 7f), new System.Numerics.Vector3(0, 8.5f, 4f), 0.5f, _simulation.Shapes),
-                Barrel = TankPartDescription.Create(0.5f, new Box(2f, 2f, 40f), new System.Numerics.Vector3(0, 8.5f, 4f - 10f - 15f), 0.5f, _simulation.Shapes),
-                TurretAnchor = new System.Numerics.Vector3(0f, 0.5f, 0.4f),
-                BarrelAnchor = new System.Numerics.Vector3(0, 0.5f + 0.35f, 0.4f - 1f),
+                Body = TankPartDescription.Create(1, new Box(36f, 10, 60), new RigidPose(new System.Numerics.Vector3(0, 0, 0), System.Numerics.Quaternion.Identity), 0.5f, _simulation.Shapes),
+                Turret = TankPartDescription.Create(1, new Cylinder(15f, 7f), new System.Numerics.Vector3(0f, 8.5f, 2.5f), 0.5f, _simulation.Shapes),
+                Barrel = TankPartDescription.Create(0.5f, new Box(2f, 2f, 46f), new System.Numerics.Vector3(0, 8.5f, -34), 0.5f, _simulation.Shapes),
+                TurretAnchor = new System.Numerics.Vector3(1f, 5f, 2.5f),
+                BarrelAnchor = new System.Numerics.Vector3(0, 8.5f, -11),
                 TurretBasis = System.Numerics.Quaternion.CreateFromAxisAngle(
                     System.Numerics.Vector3.UnitY, MathF.PI),
                 TurretServo = new ServoSettings(1e7f, 0f, 1000),
@@ -587,7 +594,6 @@ namespace TGC.MonoGame.TP
             var qBarrel = barrelRef.Pose.Orientation;
 
             // Dirección "forward" del cañón físico en MUNDO
-            //    (BarrelLocalDirection ya es el forward del cañón en su espacio local)
             QuaternionEx.Transform(_barrelLocalDirection, qBarrel, out var fwdWorldN);
 
             // Normalizar por seguridad
@@ -595,9 +601,10 @@ namespace TGC.MonoGame.TP
             if (len2 < 1e-12f) return;
             fwdWorldN /= MathF.Sqrt(len2);
 
-            // Yaw del tanque (desde la física). Ojo: tu tanque "mira" -Z.
+            // Yaw del tanque 
             var bodyFwd = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, -1), qBody);
             var tankYaw = MathF.Atan2(bodyFwd.X, bodyFwd.Z) + MathF.PI; 
+            
             // Yaw de la torreta a partir del cañón físico
             var flat = new System.Numerics.Vector3(fwdWorldN.X, 0, fwdWorldN.Z);
             var flatLen2 = flat.LengthSquared();
@@ -610,12 +617,18 @@ namespace TGC.MonoGame.TP
             var swivel = MathHelper.WrapAngle(globalTurretYaw - tankYaw);
 
             // Pitch del cañón físico 
-            var pitch = -MathF.Asin(Math.Clamp(fwdWorldN.Y, -1f, 1f));
+            var qTurret = turretRef.Pose.Orientation;
+            QuaternionEx.Conjugate(qTurret, out var qInvTurret);
+            QuaternionEx.Transform(fwdWorldN, qInvTurret, out var fwdLocalToTurret);
+            var pitch = -MathF.Atan2(fwdLocalToTurret.Y, fwdLocalToTurret.Z);
+
 
             // Asignar directo a los ángulos visuales
             
-            TurretRotation = swivel;
-            CannonRotation = pitch;
+            TurretRotation = swivel + (1 * (swivel - _previousSwivel));
+            
+            _previousSwivel = swivel;
+            CannonRotation = pitch - MathHelper.ToRadians(0f);
         }
         
         private void UpdateWheelSpinByDistance()
@@ -653,6 +666,33 @@ namespace TGC.MonoGame.TP
 
         private void UpdateWorldMatrix()
         {
+            if (Keyboard.GetState().IsKeyDown(Keys.P))
+            {
+                VisualYOffset += 1;
+                Console.WriteLine("YOffset: " + VisualYOffset);
+                Console.WriteLine("ZOffset: " + VisualZOffset);
+            }
+
+            if (Keyboard.GetState().IsKeyDown(Keys.O))
+            {
+                VisualYOffset -= 1;
+                Console.WriteLine("YOffset: " + VisualYOffset);
+                Console.WriteLine("ZOffset: " + VisualZOffset);
+            }
+            
+            if (Keyboard.GetState().IsKeyDown(Keys.L))
+            {
+                VisualZOffset += 1;
+                Console.WriteLine("YOffset: " + VisualYOffset);
+                Console.WriteLine("ZOffset: " + VisualZOffset);
+            }
+            
+            if (Keyboard.GetState().IsKeyDown(Keys.K))
+            {
+                VisualZOffset -= 1;
+                Console.WriteLine("YOffset: " + VisualYOffset);
+                Console.WriteLine("ZOffset: " + VisualZOffset);
+            }
             // Sincronizar posición y rotación desde la física
             var bodyReference = _simulation.Bodies.GetBodyReference(_body);
             ref var body = ref bodyReference;
@@ -727,7 +767,34 @@ namespace TGC.MonoGame.TP
             RollRotation = MathF.Asin(right.Y);
         }
 
+        public void DrawDebug()
+        {
+            RigidPose pose = _simulation.Bodies.GetBodyReference(_body).Pose;
+            var scale = Matrix.CreateScale(1f, 1f, 1f); // tamaño del cuerpo (Box)
+            var rotation = Matrix.CreateFromQuaternion(pose.Orientation);
+            var translation = Matrix.CreateTranslation(pose.Position);
+    
+            var matriz = scale * rotation * translation;
+            Gizmos.DrawCube(matriz, Color.Blue);
 
+
+            var turretAnchor = Matrix.CreateTranslation(tankDescription.TurretAnchor);
+            var barrelAnchor = Matrix.CreateTranslation(tankDescription.BarrelAnchor);
+            Gizmos.DrawCube(turretAnchor * matriz  , Color.Green);
+            Gizmos.DrawCube(barrelAnchor * matriz, Color.Red);
+            
+            Matrix[] boneTransforms = new Matrix[_model.Bones.Count];
+            _model.CopyAbsoluteBoneTransformsTo(boneTransforms);
+            
+            var boneWorldTransform = boneTransforms[_turretBone.Index] * _world;
+            var boneWorldPosition = boneWorldTransform.Translation;
+            
+            var boneMatrix = Matrix.CreateScale(1f) * Matrix.CreateTranslation(boneWorldPosition);
+            Gizmos.DrawCube(boneMatrix, Color.Orange);
+                
+            Gizmos.Draw();
+        }
+        
         public void Draw()
         {
             if (_model == null || _effect == null || IsDead) return;
@@ -764,7 +831,6 @@ namespace TGC.MonoGame.TP
                         effect.Parameters["Projection"]?.SetValue(_camera.Projection);
                     }
                 }
-
                 mesh.Draw();
             }
         }
