@@ -59,9 +59,7 @@ namespace TGC.MonoGame.TP
         
         public Buffer<ConstraintHandle> LeftMotors;
         public Buffer<ConstraintHandle> RightMotors;
-
-        private const float YawInertia = 350f; // kg·m^2 (fallback si no querés usar tensor)
-
+        
         // Parámetros de movimiento
         private const float SteerSpeed = 90f;
         private const float MaxSteer = 45f;
@@ -126,36 +124,21 @@ namespace TGC.MonoGame.TP
         }
         
         /// <summary>
-        /// Computes the swivel and pitch angles required to aim in a given direction based on the tank's current pose.
+        /// Obtiene el angulo de yaw y pitch apartir de la direccion de mira
         /// </summary>
-        /// <param name="simulation">Simulation containing the tank.</param>
-        /// <param name="aimDirection">Direction to aim in.</param>
-        /// <returns>Swivel and pitch angles to point in the given direction.</returns>
-        public (float targetSwivelAngle, float targetPitchAngle) ComputeTurretAngles(Simulation simulation, Vector3 aimDirection)
+        public (float targetYaw, float targetPitch) ComputeTurretAngles(Simulation simulation, Vector3 aimDirection)
         {
-            //Decompose the aim direction into target angles for the turret and barrel servos.
-            //First, we need to compute the frame of reference and transform the aim direction into the tank's local space.
-            //aimDirection * inverse(body.Pose.Orientation) * Tank.LocalBodyPose.Orientation * inverse(Tank.TurretBasis)
+            // Descomponemos el vector de puntería en dos ángulos: yaw de torreta y pitch de cañón.
+            // Primero llevamos 'aimDirection' al sistema de referencia de la torreta (su "turret basis").
             QuaternionEx.ConcatenateWithoutOverlap(QuaternionEx.Conjugate(simulation.Bodies[_body].Pose.Orientation), _fromBodyLocalToTurretBasisLocal, out var toTurretBasis);
-            //-Z in the turret basis points along the 0 angle direction for both swivel and pitch.
-            //+Y is 90 degrees for pitch.
-            //+X is 90 degres for swivel.
-            //We'll compute the swivel angle first.
             var aimdirection = new System.Numerics.Vector3(aimDirection.X, aimDirection.Y, aimDirection.Z);
             QuaternionEx.TransformWithoutOverlap(aimdirection, toTurretBasis, out var aimDirectionInTurretBasis);
-            var targetSwivelAngle = MathF.Atan2(aimDirectionInTurretBasis.X, -aimDirectionInTurretBasis.Z);
-
-            //Barrel pitching is measured against the +Y axis and an axis created from the target swivel angle.
-            var targetPitchAngle = MathF.Asin(MathF.Max(-1f, MathF.Min(1f, -aimDirectionInTurretBasis.Y)));
-            return (targetSwivelAngle, targetPitchAngle);
+            
+            var yaw = MathF.Atan2(aimDirectionInTurretBasis.X, -aimDirectionInTurretBasis.Z);
+            var pitch = MathF.Asin(MathF.Max(-1f, MathF.Min(1f, -aimDirectionInTurretBasis.Y)));
+            return (yaw, pitch);
         }
         
-        /// <summary>
-        /// Applies a target swivel and pitch angle to the turret's servos.
-        /// </summary>
-        /// <param name="simulation">Simulation containing the tank.</param>
-        /// <param name="targetSwivelAngle">Target swivel angle of the turret.</param>
-        /// <param name="targetPitchAngle">Target pitch angle of the barrel.</param>
         public void SetAim(Simulation simulation, float targetSwivelAngle, float targetPitchAngle)
         {
             var turretDescription = _turretServoDescription;
@@ -185,22 +168,15 @@ namespace TGC.MonoGame.TP
         public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, Simulation simulation, BufferPool bufferPool,
             GraphicsDevice graphicsDevice,Gizmos gizmos, CollidableProperty<TankBodyProperties> properties, Terrain terrain = null)
         {
+            //debug
             Gizmos = gizmos;
             Gizmos.LoadContent(graphicsDevice, new ContentManager(content.ServiceProvider, "Content"));
+            
             _effect = efecto;
             _simulation = simulation;
-            _terrain = terrain; // Guardar referencia al terreno
-            BodyHandles = new QuickList<BodyHandle>(11, bufferPool);
-
-            // Ajustar Y inicial del tanque al terreno para no arrancar “flotando”
-            if (_terrain != null)
-            {
-                var h = _terrain.GetHeightAtPosition(Position.X, Position.Z);
-                // ¡OJO! Esto es la POSICIÓN FÍSICA del centro de masa, no la matriz de mundo.
-                // Sumamos un pequeño offset para que no nazca interpenetrado.
-                Position = new Vector3(Position.X, h + Scale * 0.05f, Position.Z);
-            }
+            _terrain = terrain; 
             
+            BodyHandles = new QuickList<BodyHandle>(11, bufferPool);
             // Cargar modelo
             _model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
             
@@ -224,7 +200,6 @@ namespace TGC.MonoGame.TP
             _cannonBone.Parent = _turretBone;
             
             // Store the original transform matrix for each animating bone.
-            
             _wheelTransforms = new Matrix[16];
 
             for (int i = 0; i < 16; i++)
@@ -244,7 +219,6 @@ namespace TGC.MonoGame.TP
                 foreach (var meshPart in mesh.MeshParts)
                 {
                     meshPart.Effect = efecto;
-                    
                     // Asignar textura según el mesh
                     // Las ruedas usan treadmills, el cuerpo usa hullA/B/C
                     if (mesh.Name.Contains("Wheel") || mesh.Name.Contains("wheel"))
@@ -703,10 +677,9 @@ namespace TGC.MonoGame.TP
         private void UpdateWorldMatrix()
         {
             if (IsDead) return;
+            
             // Sincronizar posición y rotación desde la física
-            var bodyReference = _simulation.Bodies.GetBodyReference(_body);
-            ref var body = ref bodyReference;
-            var pose = body.Pose;
+            var pose = _simulation.Bodies.GetBodyReference(_body).Pose;
 
             Position = new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z);
             RotationQuaternion = new Quaternion(pose.Orientation.X, pose.Orientation.Y, pose.Orientation.Z,
@@ -714,7 +687,7 @@ namespace TGC.MonoGame.TP
             
             // Construir offset visual en espacio local del modelo
             // Lo rotamos por la orientación del cuerpo para llevarlo al espacio mundo
-            Vector3 localOffsetScaled = new Vector3(0f, VisualYOffset * Scale, VisualZOffset * Scale);
+            var localOffsetScaled = new Vector3(0f, VisualYOffset * Scale, VisualZOffset * Scale);
             // Transformar por la rotación del body
             var offsetWorld = Vector3.Transform(localOffsetScaled, Matrix.CreateFromQuaternion(RotationQuaternion));
 
@@ -727,55 +700,7 @@ namespace TGC.MonoGame.TP
                 Matrix.CreateFromQuaternion(RotationQuaternion) *
                 Matrix.CreateTranslation(visualPosition);
         }
-
-        private void CalculateTerrainRotation(out Matrix orientation)
-        {
-            // Normal del terreno por diferencias centrales 
-            float h = 50f;
-            float x = Position.X, z = Position.Z;
-
-            float hL = _terrain.GetHeightAtPosition(x - h, z);
-            float hR = _terrain.GetHeightAtPosition(x + h, z);
-            float hD = _terrain.GetHeightAtPosition(x, z - h);
-            float hU = _terrain.GetHeightAtPosition(x, z + h);
-
-            // Gradientes 
-            var tangentX = new Vector3(2f * h, hR - hL, 0f); // (Δx, Δy, 0)
-            var tangentZ = new Vector3(0f, hU - hD, 2f * h); // (0, Δy, Δz)
-
-            // Normal “up” del terreno
-            var up = Vector3.Normalize(
-                Vector3.Cross(tangentZ, tangentX));
-            
-            var yawForward = Vector3.Transform(
-                -Vector3.UnitZ,
-                Matrix.CreateRotationY(Rotation));
-
-            // Proyecta el forward sobre el plano del terreno para que siga la pendiente
-            var forwardOnPlane = yawForward - Vector3.Dot(yawForward, up) * up;
-            if (forwardOnPlane.LengthSquared() < 1e-6f)
-                forwardOnPlane = Vector3.Normalize(
-                    Vector3.Cross(
-                        new Vector3(1, 0, 0), up));
-            else
-                forwardOnPlane.Normalize();
-
-            var right = Vector3.Normalize(
-                Vector3.Cross(forwardOnPlane, up));
-            var forward = Vector3.Normalize(
-                Vector3.Cross(up, right));
-
-            // Matriz de orientación a partir de la base R-U-F
-            orientation = new Matrix(
-                right.X, right.Y, right.Z, 0f,
-                up.X, up.Y, up.Z, 0f,
-                forward.X, forward.Y, forward.Z, 0f,
-                0f, 0f, 0f, 1f
-            );
-            
-        }
-
-
+        
         public void Draw()
         {
             if (_model == null || _effect == null || IsDead) return;
