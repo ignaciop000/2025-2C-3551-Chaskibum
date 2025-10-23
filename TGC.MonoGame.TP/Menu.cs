@@ -9,29 +9,20 @@ namespace TGC.MonoGame.TP;
 
 public class Menu
 {
-    private readonly string[] _menuItems = { "Iniciar", "Opciones", "Salir" };
+    private readonly string[] _menuItems = ["Iniciar", "Opciones", "Salir"];
     private Texture2D _menuBg;
     private Texture2D _titleImage;
-    private SpriteFont _menuFont;  
-    private int _menuIndex = 0;    
-    
-    private int
-        _selectedTankIndex = 0; // se mueve con ←/→ cuando el cursor está en "Seleccionar tanque"                   
-
-    private int
-        _playerTankIndex = 0; // el tanque confirmado (Enter)                                                     
-
+    private SpriteFont _menuFont;
+    private int _menuIndex = 0;
+    private int _selectedTankIndex = 0;
+    private int _playerTankIndex = 0;
     private float _previewAngle = 0f;
     private Matrix _previewView, _previewProj;
     private Vector3 _previewCamTarget = Vector3.Zero;
     private Vector3 _previewCamPos = new Vector3(0f, 1.6f, 4.2f);
     private GraphicsDevice _graphicsDevice;
     private SpriteBatch _spriteBatch;
-
-
-    // Opcional: fondo liso 1x1 para dibujar rectángulos     
     private Texture2D _pixel;
-
 
     public void Draw(List<TankEntry> tankEntries)
     {
@@ -46,45 +37,35 @@ public class Menu
         _graphicsDevice.DepthStencilState = DepthStencilState.Default;
         _graphicsDevice.RasterizerState = RasterizerState.CullNone;
         _graphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
-
+        
         if (tankEntries.Count == 0) return;
         var entry = tankEntries[Math.Clamp(_selectedTankIndex, 0, tankEntries.Count - 1)];
         if (entry?.Model == null) return;
 
-        // Centrado en origen, escala opcional
         var world =
-            entry.initialTransformation *
             Matrix.CreateRotationY(_previewAngle) *
             Matrix.CreateScale(entry.scale) *
             Matrix.CreateTranslation(0f, entry.posY, 0f);
 
-        // Desactiva el SpriteBatch si estuviera activo (nosotros dibujamos 3D antes del Begin)
-        DrawModel(entry.Model, world, _previewView, _previewProj, entry.Texture);
+        DrawModel(entry.Model, world, _previewView, _previewProj, entry.Texture, entry.effect);
     }
 
-    private void DrawModel(Model model, Matrix world, Matrix view, Matrix proj, Texture2D texture)
+    private void DrawModel(Model model, Matrix world, Matrix view, Matrix proj, Texture2D texture, Effect effect)
     {
+        var boneTransforms = new Matrix[model.Bones.Count];
+        model.CopyAbsoluteBoneTransformsTo(boneTransforms);
+
         foreach (var mesh in model.Meshes)
         {
+            var meshWorld = boneTransforms[mesh.ParentBone.Index] * world;
             foreach (var part in mesh.MeshParts)
             {
-                if (part.Effect is BasicEffect be)
-                {
-                    be.World = world;
-                    be.View = view;
-                    be.Projection = proj;
-                    be.EnableDefaultLighting();
-                    be.PreferPerPixelLighting = true;
-                    be.TextureEnabled = be.Texture != null;
-                }
-                else
-                {
-                    var fx = part.Effect;
-                    fx.Parameters["World"]?.SetValue(world);
-                    fx.Parameters["View"]?.SetValue(view);
-                    fx.Parameters["Projection"]?.SetValue(proj);
-                    fx.Parameters["ModelTexture"]?.SetValue(texture);
-                }
+                var fx = effect.Clone();
+                fx.Parameters["World"]?.SetValue(meshWorld);
+                fx.Parameters["View"]?.SetValue(view);
+                fx.Parameters["Projection"]?.SetValue(proj);
+                fx.Parameters["ModelTexture"]?.SetValue(texture);
+                part.Effect = fx;
             }
 
             mesh.Draw();
@@ -93,7 +74,6 @@ public class Menu
 
     private void DrawMenuBackground()
     {
-        // Limpiamos color+depth una sola vez por cuadro (ya lo hacés antes de entrar acá)
         var vp = _graphicsDevice.Viewport;
         var dst = GetCoverRect(vp.Width, vp.Height, _menuBg.Width, _menuBg.Height);
 
@@ -101,15 +81,9 @@ public class Menu
         _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         _spriteBatch.Draw(_menuBg, destinationRectangle: dst, color: Color.White);
         _spriteBatch.End();
-
-        // Preparar estados de 3D para el preview que viene después
-        _graphicsDevice.BlendState = BlendState.Opaque;
-        _graphicsDevice.DepthStencilState = DepthStencilState.Default;
-        _graphicsDevice.RasterizerState = RasterizerState.CullNone;
-        _graphicsDevice.SamplerStates[0] = SamplerState.LinearWrap;
     }
 
-// Calcula un rectángulo "cover" (llena pantalla manteniendo aspecto, con leve recorte)
+    // Calcula un rectángulo "cover" (llena pantalla manteniendo aspecto, con leve recorte)
     private Rectangle GetCoverRect(int viewW, int viewH, int texW, int texH)
     {
         var viewRatio = (float)viewW / viewH;
@@ -138,26 +112,19 @@ public class Menu
 
     private void DrawMenu()
     {
-        // Fondo con leve transparencia
-        var vp = _graphicsDevice.Viewport;
+        var pantalla = _graphicsDevice.Viewport;
         _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, vp.Width, vp.Height), new Color(0, 0, 0, 160));
-
-        // 1) Ancho objetivo = 1/3 del ancho de pantalla
-        int targetW = vp.Width / 3;
-
-        // 2) Escala manteniendo aspecto
-        float scale = (float)targetW / _titleImage.Width;
-        int drawW = (int)(_titleImage.Width * scale);
-        int drawH = (int)(_titleImage.Height * scale);
-
-        // 3) Coordenadas: centrado en X, a 300 px del tope
-        int x = (vp.Width - drawW) / 2;
-        float y2 = vp.Height * 0.05f;
-        ; // px desde arriba
-
-        //if (y2 + drawH > vp.Height) { y2 = Math.Max(0, vp.Height - drawH - 20); }
-
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, pantalla.Width, pantalla.Height), new Color(0, 0, 0, 160));
+        
+        var targetW = pantalla.Width / 3;
+        
+        var scale = (float)targetW / _titleImage.Width;
+        var drawW = (int)(_titleImage.Width * scale);
+        var drawH = (int)(_titleImage.Height * scale);
+        
+        var x = (pantalla.Width - drawW) / 2;
+        var y2 = pantalla.Height * 0.05f;
+        
         _spriteBatch.Draw(
             _titleImage,
             destinationRectangle: new Rectangle(x, (int)y2, drawW, drawH),
@@ -165,12 +132,12 @@ public class Menu
         );
 
         // Items
-        float y = vp.Height * 0.6f;
-        for (int i = 0; i < _menuItems.Length; i++)
+        var y = pantalla.Height * 0.6f;
+        for (var i = 0; i < _menuItems.Length; i++)
         {
             var text = _menuItems[i];
             var size = _menuFont.MeasureString(text);
-            var pos = new Vector2(vp.Width / 2f - size.X / 2f, y);
+            var pos = new Vector2(pantalla.Width / 2f - size.X / 2f, y);
 
             if (i == _menuIndex)
             {
@@ -188,26 +155,21 @@ public class Menu
         // Hint
         var hint = "Usa  y Enter"; //↑/↓
         var hintSize = _menuFont.MeasureString(hint);
-        _spriteBatch.DrawString(_menuFont, hint, new Vector2(vp.Width - hintSize.X - 20, vp.Height - hintSize.Y - 20),
+        _spriteBatch.DrawString(_menuFont, hint, new Vector2(pantalla.Width - hintSize.X - 20, pantalla.Height - hintSize.Y - 20),
             Color.DimGray);
 
         _spriteBatch.End();
     }
 
-    public void LoadContent(ContentManager content, string contentFolderTextures, GraphicsDevice graphicsDevice, string contentFolderSpriteFonts)
+    public void LoadContent(ContentManager content, string contentFolderTextures, GraphicsDevice graphicsDevice,
+        string contentFolderSpriteFonts)
     {
         _graphicsDevice = graphicsDevice;
-        // Usa una SpriteFont que tengas en Content/SpriteFonts/ (por ejemplo "Default.spritefont")
-        _menuFont = content.Load<SpriteFont>(contentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");                  
-        _spriteBatch = new SpriteBatch(graphicsDevice);                                                                                                  
-        // Pixel 1x1 para poder dibujar backgrounds/selecciones                                                          
-        _pixel = new Texture2D(graphicsDevice, 1, 1);                                                                    
-        _pixel.SetData(new[] { Color.White });                                                                           
-        var camPosXNA = new Microsoft.Xna.Framework.Vector3(_previewCamPos.X, _previewCamPos.Y, _previewCamPos.Z);
-        var camTargetXNA =
-            new Microsoft.Xna.Framework.Vector3(_previewCamTarget.X, _previewCamTarget.Y, _previewCamTarget.Z);
-
-        _previewView = Matrix.CreateLookAt(camPosXNA, camTargetXNA, Microsoft.Xna.Framework.Vector3.Up);
+        _menuFont = content.Load<SpriteFont>(contentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
+        _spriteBatch = new SpriteBatch(graphicsDevice);
+        _pixel = new Texture2D(graphicsDevice, 1, 1);
+        _pixel.SetData(new[] { Color.White });
+        _previewView = Matrix.CreateLookAt(new Vector3(0f, 1.6f, 4.2f), Vector3.Zero, Vector3.Up);
         _previewProj = Matrix.CreatePerspectiveFieldOfView(
             MathHelper.PiOver4, graphicsDevice.Viewport.AspectRatio, 0.1f, 1000f);
 
@@ -219,7 +181,7 @@ public class Menu
         List<TankEntry> tankEntries)
     {
         _previewAngle += (float)gameTime.ElapsedGameTime.TotalSeconds * 0.6f;
-        // Navegación simple con flechas                                                                               
+        
         if (keyboardState.IsKeyDown(Keys.Up) && !kbPrev.IsKeyDown(Keys.Up))
             _menuIndex = (_menuIndex - 1 + _menuItems.Length) % _menuItems.Length;
 
@@ -254,5 +216,4 @@ public class Menu
         if (keyboardState.IsKeyDown(Keys.Escape) && !kbPrev.IsKeyDown(Keys.Escape))
             tgcGame.Exit();
     }
-    
 }

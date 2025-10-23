@@ -204,17 +204,17 @@ public class TGCGame : Game
         
         var tankT90 = Content.Load<Model>(ContentFolder3D + "t90/T90");
         var hullATexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
-        _tankEntries.Add(new TankEntry("T-90-A", tankT90, hullATexture, Matrix.CreateRotationX(-MathHelper.PiOver2), 0.2f, 0.5f));
+        _tankEntries.Add(new TankEntry("T-90-A", tankT90, hullATexture, 0.002f, 0.5f, tankShader));
         
         var hullBTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
-        _tankEntries.Add(new TankEntry("T-90-B", tankT90, hullBTexture, Matrix.CreateRotationX(-MathHelper.PiOver2), 0.2f, 0.5f));
+        _tankEntries.Add(new TankEntry("T-90-B", tankT90, hullBTexture, 0.002f, 0.5f, tankShader));
         
         var hullCTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
-        _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, Matrix.CreateRotationX(-MathHelper.PiOver2), 0.2f, 0.5f));
+        _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, 0.002f, 0.5f, tankShader));
         
         var tankPanzer = Content.Load<Model>(ContentFolder3D + "panzer/Panzer");
         var panzerTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "panzer/PzVl_Tiger_I");
-        _tankEntries.Add(new TankEntry("Panzer", tankPanzer, panzerTexture, Matrix.Identity, 0.2f,0.2f));
+        _tankEntries.Add(new TankEntry("Panzer", tankPanzer, panzerTexture, 0.002f, 0.2f, tankShader));
         
         _tank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
         _tank2.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
