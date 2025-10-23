@@ -58,7 +58,7 @@ public class CollisionHandler
         {
             if (HandleToTank.ContainsKey(b)) // Y b es tanque
             {
-                HandleToTank[b].Kill();
+                HandleToTank[b].RecibirAtaque(projA.Damage);
                 projA.Kill();
                 return;
             }
@@ -68,7 +68,7 @@ public class CollisionHandler
         {
             if (HandleToTank.ContainsKey(a)) // Y a es tanque
             {
-                HandleToTank[a].Kill();
+                HandleToTank[a].RecibirAtaque(projB.Damage);
                 projB.Kill();
             }
         }

@@ -17,6 +17,8 @@
 //          Integrantes) [NACHO]
 // - Música (menu y juego) y Sonidos (acciones de hud, daño, choque, disparo y motor) [SANTI]
 // - Imagen tutorial [SANTI]
+// - Agregar World Border [AGUS]
+// - Emprolijar código físicas [OPCIONAL, POR AHORA]
 
 
 using System;
@@ -412,16 +414,14 @@ public class TGCGame : Game
         if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed &&
             _mousePrev.LeftButton == ButtonState.Released)
         {
-            // Velocidad configurable acá:
-            float speed = 300f;
-            float projMass = 2f;
+            var tipoProyectilActual = _tank.TipoProyectilActual;
 
             var (muzzle, dir) = _tank.GetMuzzle(); // offset local del cañón 
-            var proj = new Projectile(_simulation, _effect, muzzle, dir, speed);
+            var proj = new Projectile(_simulation, _effect, muzzle, dir, tipoProyectilActual);
             _projectiles.Add(proj);
 
             // Retroceso + freno breve
-            _tank.TriggerRecoil(dir, projectileMass: projMass, muzzleSpeed: speed, intensity: 1f, withBrake: true);
+            _tank.TriggerRecoil(dir, projectileMass: tipoProyectilActual.Mass, muzzleSpeed: tipoProyectilActual.Speed, intensity: 1f, withBrake: true);
 
             _fireCooldown = 1f; // 4 disparos/seg
         }
@@ -562,8 +562,8 @@ public class TGCGame : Game
         _rocks.Dibujar();
         _bushes.Dibujar();
         
-        foreach (var s in _projectiles)
-            s.Draw(GraphicsDevice, _camera.View, _camera.Projection);
+        foreach (var projectile in _projectiles)
+            projectile.Draw(_effect, _camera.View, _camera.Projection);
 
         _debug.Draw(_camera);
         _hud.Draw(_matchTimeSeconds, _fireCooldown, FireCooldownMax, _currentProjectile, _playerHealth, _playerMaxHealth);
