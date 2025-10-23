@@ -295,7 +295,7 @@ public class Terrain
     }
 
     
-    public Quaternion CalculateRotation(Vector3 position, float rotation, out Matrix orientationMatrix)
+    public Quaternion CalculateRotation(Vector3 position, float rotation)
     {
         //obtenemos la normal
         var normalHaciaArriba = GetNormalAtPosition(position.X, position.Z);
@@ -320,7 +320,7 @@ public class Terrain
             Vector3.Cross(normalHaciaArriba, right));
 
         // Matriz de orientación a partir de la base R-U-F
-        orientationMatrix = new Matrix(
+        var orientationMatrix = new Matrix(
             right.X, right.Y, right.Z, 0f,
             normalHaciaArriba.X, normalHaciaArriba.Y, normalHaciaArriba.Z, 0f,
             forward.X, forward.Y, forward.Z, 0f,

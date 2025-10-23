@@ -13,7 +13,7 @@ public struct TankController(
     Tank tank,
     float speed,
     float force,
-    float zoomMultiplier,
+    float turboMultiplier,
     float idleForce,
     float brakeForce)
 {
@@ -28,9 +28,9 @@ public struct TankController(
     private float _previousTurretSwivel;
     private float _previousBarrelPitch;
 
-    public float leftTargetSpeedFraction;
-    public float rightTargetSpeedFraction;
-    public bool zoom;
+    public float factorVelocidadIzquierda;
+    public float factorVelocidadDerecha;
+    public bool turbo;
     public bool brakeLeft;
     public bool brakeRight;
 
@@ -48,113 +48,109 @@ public struct TankController(
     {
         if (tank.IsDead) return;
 
-        var leftTargetSpeed = brakeLeft ? 0 : leftTargetSpeedFraction * speed;
-        var rightTargetSpeed = brakeRight ? 0 : rightTargetSpeedFraction * speed;
+        var leftTargetSpeed = brakeLeft ? 0 : factorVelocidadIzquierda * speed;
+        var rightTargetSpeed = brakeRight ? 0 : factorVelocidadDerecha * speed;
 
-        if (zoom)
+        if (turbo)
         {
-            leftTargetSpeed *= zoomMultiplier;
-            rightTargetSpeed *= zoomMultiplier;
+            leftTargetSpeed *= turboMultiplier;
+            rightTargetSpeed *= turboMultiplier;
         }
-        var leftForce  = brakeLeft  ? brakeForce : leftTargetSpeedFraction  == 0 ? idleForce : force;
-        var rightForce = brakeRight ? brakeForce : rightTargetSpeedFraction == 0 ? idleForce : force;
 
-        // Siempre calculá los ángulos objetivo
-        var (targetSwivelAngle, targetPitchAngle) = tank.ComputeTurretAngles(simulation, -aimDirection);
-
-        // Detectar cambios
-        bool motorsChanged =
-            leftTargetSpeed != _previousLeftTargetSpeed || rightTargetSpeed != _previousRightTargetSpeed ||
-            leftForce != _previousLeftForce || rightForce != _previousRightForce;
-
-        const float eps = 1e-4f;
-        bool aimChanged =
-            MathF.Abs(targetSwivelAngle - _previousTurretSwivel) > eps ||
-            MathF.Abs(targetPitchAngle  - _previousBarrelPitch)  > eps;
-
-        // Actualizar motores si hizo falta
-        if (motorsChanged)
+        var leftForce = brakeLeft ? brakeForce : factorVelocidadIzquierda == 0 ? idleForce : force;
+        var rightForce = brakeRight ? brakeForce : factorVelocidadDerecha == 0 ? idleForce : force;
+        
+        //validamos si hubo cambios en la velocidadesFinales o fuerzas
+        if (leftTargetSpeed != _previousLeftTargetSpeed 
+            || rightTargetSpeed != _previousRightTargetSpeed 
+            || leftForce != _previousLeftForce 
+            || rightForce != _previousRightForce)
         {
             tank.SetSpeed(tank.LeftMotors, leftTargetSpeed, leftForce);
             tank.SetSpeed(tank.RightMotors, rightTargetSpeed, rightForce);
-            _previousLeftTargetSpeed  = leftTargetSpeed;
+            _previousLeftTargetSpeed = leftTargetSpeed;
             _previousRightTargetSpeed = rightTargetSpeed;
-            _previousLeftForce  = leftForce;
+            _previousLeftForce = leftForce;
             _previousRightForce = rightForce;
         }
+
+        // Siempre calculá los ángulos objetivo
+        var (targetSwivelAngle, targetPitchAngle) = tank.ComputeTurretAngles(simulation, -aimDirection);
+        
+        const float eps = 1e-4f;
+        bool aimChanged =
+            MathF.Abs(targetSwivelAngle - _previousTurretSwivel) > eps ||
+            MathF.Abs(targetPitchAngle - _previousBarrelPitch) > eps;
 
         // IMPORTANTE: aplicar siempre que cambie el OBJETIVO de torreta/cañón
         if (aimChanged)
         {
             tank.SetAim(simulation, targetSwivelAngle, targetPitchAngle);
             _previousTurretSwivel = targetSwivelAngle;
-            _previousBarrelPitch  = targetPitchAngle;
+            _previousBarrelPitch = targetPitchAngle;
         }
     }
-    
-            public void UpdateControls(KeyboardState keyboardState)
-        {
-            leftTargetSpeedFraction = 0;
-            rightTargetSpeedFraction = 0;
-            var left = keyboardState.IsKeyDown(Keys.A);
-            var right = keyboardState.IsKeyDown(Keys.D);
-            var forward = keyboardState.IsKeyDown(Keys.W);
-            var backward = keyboardState.IsKeyDown(Keys.S);
 
-            if (forward)
+    public void UpdateControls(KeyboardState keyboardState)
+    {
+        factorVelocidadIzquierda = 0; //-1..0..1
+        factorVelocidadDerecha = 0; //-1..0..1
+        var izquierda = keyboardState.IsKeyDown(Keys.A);
+        var derecha = keyboardState.IsKeyDown(Keys.D);
+        var adelante = keyboardState.IsKeyDown(Keys.W);
+        var atras = keyboardState.IsKeyDown(Keys.S);
+
+        if (adelante)
+        {
+            if ((izquierda && derecha) || (!izquierda && !derecha))
             {
-                if ((left && right) || (!left && !right))
-                {
-                    leftTargetSpeedFraction = 1f;
-                    rightTargetSpeedFraction = 1f;
-                }
-                //Note turns require a bit of help from the opposing track to overcome friction.
-                else if (left)
-                {
-                    leftTargetSpeedFraction = 0.5f;
-                    rightTargetSpeedFraction = 1f;
-                }
-                else
-                {
-                    leftTargetSpeedFraction = 1f;
-                    rightTargetSpeedFraction = 0.5f;
-                }
+                factorVelocidadIzquierda = 1f;
+                factorVelocidadDerecha = 1f;
             }
-            else if (backward)
+            else if (izquierda)
             {
-                if ((left && right) || (!left && !right))
-                {
-                    leftTargetSpeedFraction = -1f;
-                    rightTargetSpeedFraction = -1f;
-                }
-                else if (left)
-                {
-                    leftTargetSpeedFraction = -0.5f;
-                    rightTargetSpeedFraction = -1f;
-                }
-                else
-                {
-                    leftTargetSpeedFraction = -1f;
-                    rightTargetSpeedFraction = -0.5f;
-                }
+                factorVelocidadIzquierda = 0.5f;
+                factorVelocidadDerecha = 1f;
             }
             else
             {
-                //Not trying to move. Turn?
-                if (left && !right)
-                {
-                    leftTargetSpeedFraction = -1f;
-                    rightTargetSpeedFraction = 1f;
-                }
-                else if (right && !left)
-                {
-                    leftTargetSpeedFraction = 1f;
-                    rightTargetSpeedFraction = -1f;
-                }
+                factorVelocidadIzquierda = 1f;
+                factorVelocidadDerecha = 0.5f;
             }
-
-            zoom = keyboardState.IsKeyDown(Keys.LeftShift);
-            brakeRight = brakeLeft = keyboardState.IsKeyDown(Keys.Space);
+        }
+        else if (atras)
+        {
+            if ((izquierda && derecha) || (!izquierda && !derecha))
+            {
+                factorVelocidadIzquierda = -1f;
+                factorVelocidadDerecha = -1f;
+            }
+            else if (izquierda)
+            {
+                factorVelocidadIzquierda = -0.5f;
+                factorVelocidadDerecha = -1f;
+            }
+            else
+            {
+                factorVelocidadIzquierda = -1f;
+                factorVelocidadDerecha = -0.5f;
+            }
+        }
+        else
+        {
+            if (izquierda && !derecha)
+            {
+                factorVelocidadIzquierda = -1f;
+                factorVelocidadDerecha = 1f;
+            }
+            else if (derecha && !izquierda)
+            {
+                factorVelocidadIzquierda = 1f;
+                factorVelocidadDerecha = -1f;
+            }
         }
 
+        turbo = keyboardState.IsKeyDown(Keys.LeftShift);
+        brakeRight = brakeLeft = keyboardState.IsKeyDown(Keys.Space);
+    }
 }

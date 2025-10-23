@@ -56,9 +56,6 @@ namespace TGC.MonoGame.TP
         public Vector3 Position { get; private set; }
         public float Rotation { get; }
         private float Scale { get; }
-
-        public float PitchRotation; // Inclinación hacia adelante/atrás
-        public float RollRotation; // Inclinación lateral
         
         public Buffer<ConstraintHandle> LeftMotors;
         public Buffer<ConstraintHandle> RightMotors;
@@ -122,10 +119,9 @@ namespace TGC.MonoGame.TP
 
         public Tank(Vector3 initialPosition, Camera camera, float initialRotation = 0f, float scale = 1f)
         {
-            Position = initialPosition;
+            _lastPos = Position = initialPosition;
             Rotation = initialRotation;
             Scale = scale;
-            _lastPos = Position;
             _camera = camera;
         }
         
@@ -173,16 +169,14 @@ namespace TGC.MonoGame.TP
         
         public void SetSpeed(Buffer<ConstraintHandle> motors, float speed, float maximumForce)
         {
-            //This sets all properties of a motor at once; it's possible to create a custom description that only assigns a subset of properties if you find this to be somehow expensive.
-            var motorDescription = new AngularAxisMotor
+            var motorDescription = new AngularAxisMotor //BEPU
             {
-                //Assuming the wheels are cylinders oriented in the obvious way.
                 LocalAxisA = new System.Numerics.Vector3(0, -1, 0),
                 Settings = new MotorSettings(maximumForce, 1e-6f),
                 TargetVelocity = speed
             };
             
-            for (int i = 0; i < motors.Length; ++i)
+            for (var i = 0; i < motors.Length; ++i)
             {
                 _simulation.Solver.ApplyDescription(motors[i], motorDescription);
             }
@@ -354,79 +348,110 @@ namespace TGC.MonoGame.TP
         
         private void CreatePhysicsBody(BufferPool bufferPool, CollidableProperty<TankBodyProperties> properties)
         {
+            if (_simulation == null || _terrain == null) return;
+            
+            // Geometría de una rueda
             var wheelShape = new Cylinder(3.4f, 1f);
-            var wheelInertia = wheelShape.ComputeInertia(0.25f);
-            var wheelShapeIndex = _simulation.Shapes.Add(wheelShape);
+            
+            // Calcula el tensor de inercia para masa
+            var wheelInertia = wheelShape.ComputeInertia(0.25f); 
+            
+            // Registra la forma en el repositorio de Shapes de la simulación
+            var wheelShapeIndex = _simulation.Shapes.Add(wheelShape); 
             
             var tankDescription = new TankDescription
             {
-                Body = TankPartDescription.Create(1, new Box(36f, 9, 60), new RigidPose(new System.Numerics.Vector3(0, 0, 0), System.Numerics.Quaternion.Identity), 0.5f, _simulation.Shapes),
-                Turret = TankPartDescription.Create(1, new Cylinder(15f, 7f), new System.Numerics.Vector3(0, 8.5f, 4f), 0.5f, _simulation.Shapes),
-                Barrel = TankPartDescription.Create(0.5f, new Box(2f, 2f, 40f), new System.Numerics.Vector3(0, 8.5f, 4f - 10f - 15f), 0.5f, _simulation.Shapes),
+                //Cuerpo del tanque
+                Body = TankPartDescription.Create(
+                    1, 
+                    new Box(36f, 9, 60), 
+                    new System.Numerics.Vector3(0, 0, 0),
+                    0.5f,
+                    _simulation.Shapes),
+                // Torreta, desplazado hacia arriba y adelante
+                Turret = TankPartDescription.Create(
+                    1, 
+                    new Cylinder(15f, 7f), 
+                    new System.Numerics.Vector3(0, 8.5f, 4f), 
+                    0.5f, 
+                    _simulation.Shapes),
+                // Cañón
+                Barrel = TankPartDescription.Create(
+                    0.5f, 
+                    new Box(2f, 2f, 40f), 
+                    new System.Numerics.Vector3(0, 8.5f, -21f), 
+                    0.5f, 
+                    _simulation.Shapes),
+                // Punto de anclaje de la torreta respecto al cuerpo.
                 TurretAnchor = new System.Numerics.Vector3(0f, 0.5f, 0.4f),
+                // Punto de anclaje del cañón respecto a la torreta.
                 BarrelAnchor = new System.Numerics.Vector3(0, 0.5f + 0.35f, 0.4f - 1f),
+                // Base/orientación de referencia de la torreta (rotada 180° sobre Y)
                 TurretBasis = System.Numerics.Quaternion.CreateFromAxisAngle(
                     System.Numerics.Vector3.UnitY, MathF.PI),
+                // Control de servo y resorte para la torreta
                 TurretServo = new ServoSettings(1e7f, 0f, 1000),
                 TurretSpring = new SpringSettings(10f, 10.0f),
+                // Control de servo y resorte para el cañón
                 BarrelServo = new ServoSettings(1e7f, 0f, 4000),
                 BarrelSpring = new SpringSettings(10f, 10.0f),
-
+                // Offset lateral de las orugas izquierda y derecha.
                 LeftTreadOffset = new System.Numerics.Vector3(-15f, 0f, 0),
                 RightTreadOffset = new System.Numerics.Vector3(15f, 0f, 0),
+                // Longitud de suspensión y parámetros de resorte/amortiguación de las ruedas.
                 SuspensionLength = 4f,
                 SuspensionSettings = new SpringSettings(5f, 3f),
+                // Forma, inercia y fricción de las ruedas.
                 WheelShape = wheelShapeIndex,
                 WheelInertia = wheelInertia,
                 WheelFriction = 2f,
+                // Espaciado entre ruedas y cantidad de ruedas por oruga.
                 TreadSpacing = 8f,
                 WheelCountPerTread = 6,
+                // Orientación local de la rueda (ejes del cilindro alineados con el mundo de rueda).
                 WheelOrientation = QuaternionEx.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ, MathF.PI * -0.5f),
             };
-            //PhysicsBody = tankDescription.Body.;
-            if (_simulation == null) return;
-
-            // Altura del suelo en (X,Z)
-            float terrainY = _terrain?.GetHeightAtPosition(Position.X, Position.Z) ?? Position.Y;
             
-            // Calcular orientación inicial según el terreno
-            CalculateTerrainRotation(out var orientationMatrix);
-            var orientationQuat = Quaternion.CreateFromRotationMatrix(orientationMatrix);
-
-            System.Diagnostics.Debug.WriteLine($"[TANK] YawInertia computed = {YawInertia:0.##}");
+            var alturaTerreno = _terrain.GetHeightAtPosition(Position.X, Position.Z);
             
-            //float lowestY = GetLowestYFromCompound(bodyShapeCompound);
-            //float spawnY = terrainY - lowestY + SpawnClearance + 100;
+            // Orienta el tanque para que “asiente” sobre la normal del terreno.
+            var orientationQuat = _terrain.CalculateRotation(Position, Rotation );
             
             // Pose inicial
             var pose = new RigidPose(
-                new System.Numerics.Vector3(Position.X + 1300, terrainY + 200 , Position.Z),
+                new System.Numerics.Vector3(Position.X + 1300, alturaTerreno + 200 , Position.Z),
                 new System.Numerics.Quaternion(orientationQuat.X, orientationQuat.Y, orientationQuat.Z,
                     orientationQuat.W)
             );
+            // Posición inicial elevada (X+1300, Y=altura+200) y orientación alineada al terreno.
             
             var wheelHandles = new QuickList<BodyHandle>(tankDescription.WheelCountPerTread * 2, bufferPool);
             var constraints = new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread * 2 * 6 + 4, bufferPool);
             var leftMotors = new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread, bufferPool);
             var rightMotors = new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread, bufferPool);
+            // Estructuras temporales para guardar handles de ruedas, constraints y motores. Se usan pools para evitar GC.
             
             ref var bodyFilter = ref CreatePart(_simulation, tankDescription.Body, pose, properties, ref BodyHandles, out _body);
             ref var turretFilter = ref CreatePart(_simulation, tankDescription.Turret, pose, properties, ref BodyHandles, out _turret);
             ref var barrelFilter = ref CreatePart(_simulation, tankDescription.Barrel, pose, properties, ref BodyHandles, out _barrel);
+            // Crea los cuerpos rígidos (body/torreta/cañón) en la simulación y obtiene sus filtros de colisión y handles.
             
             bodyFilter = new SubgroupCollisionFilter(_body.Value, 0);
             turretFilter = new SubgroupCollisionFilter(_body.Value, 1);
             barrelFilter = new SubgroupCollisionFilter(_body.Value, 2);
             SubgroupCollisionFilter.DisableCollision(ref bodyFilter, ref turretFilter);
             SubgroupCollisionFilter.DisableCollision(ref turretFilter, ref barrelFilter);
+            // Define subgrupos de colisión para evitar colisiones internas entre cuerpo-torreta y torreta-cañón.
             
             Matrix3x3.CreateFromQuaternion(tankDescription.TurretBasis, out var turretBasis);
-
-            //Attach the turret to the body.
+            // Convierte la base de la torreta (quaternion) a una matriz 3x3.
+            
             QuaternionEx.Transform(turretBasis.Y, QuaternionEx.Conjugate(tankDescription.Body.Pose.Orientation), out var bodyLocalSwivelAxis);
             QuaternionEx.Transform(turretBasis.Y, QuaternionEx.Conjugate(tankDescription.Turret.Pose.Orientation), out var turretLocalSwivelAxis);
             RigidPose.TransformByInverse(tankDescription.TurretAnchor, tankDescription.Body.Pose, out var bodyLocalTurretAnchor);
             RigidPose.TransformByInverse(tankDescription.TurretAnchor, tankDescription.Turret.Pose, out var turretLocalTurretAnchor);
+            // Calcula ejes locales de giro (swivel) y puntos de anclaje en los espacios locales de cuerpo y torreta.
+
             constraints.AllocateUnsafely() = _simulation.Solver.Add(_body, _turret,
                 new Hinge
                 {
@@ -436,15 +461,19 @@ namespace TGC.MonoGame.TP
                     LocalOffsetB = turretLocalTurretAnchor,
                     SpringSettings = new SpringSettings(30, 1)
                 });
+            // Agrega una bisagra (hinge) entre cuerpo y torreta, con ejes/offsets ya calculados.
             
             Matrix3x3 turretSwivelBasis;
             turretSwivelBasis.Z = -turretBasis.Y;
             turretSwivelBasis.X = -turretBasis.Z;
             turretSwivelBasis.Y = turretBasis.X;
-            //Debug.Assert(turretSwivelBasis.Determinant() > 0.999f && turretSwivelBasis.Determinant() < 1.0001f, "The turret swivel axis and forward axis should be perpendicular and unit length.");
+            // Construye una base ortonormal para medir el ángulo de la torreta (ejes perpendiculares a hinge).
+            
             QuaternionEx.CreateFromRotationMatrix(turretSwivelBasis, out var turretSwivelBasisQuaternion);
             QuaternionEx.ConcatenateWithoutOverlap(turretSwivelBasisQuaternion, QuaternionEx.Conjugate(tankDescription.Body.Pose.Orientation), out var bodyLocalTurretBasis);
             QuaternionEx.ConcatenateWithoutOverlap(turretSwivelBasisQuaternion, QuaternionEx.Conjugate(tankDescription.Turret.Pose.Orientation), out var turretLocalTurretBasis);
+            // Convierte esa base a los espacios locales de cuerpo y torreta.
+            
             _turretServoDescription = new TwistServo
             {
                 LocalBasisA = bodyLocalTurretBasis,
@@ -454,13 +483,14 @@ namespace TGC.MonoGame.TP
             };
             _turretServo = _simulation.Solver.Add(_body, _turret, _turretServoDescription);
             constraints.AllocateUnsafely() = _turretServo;
+            // Crea y agrega un TwistServo para controlar el ángulo de la torreta (yaw), usando esa base de medida.
             
-            
-            //Attach the barrel to the turret.
             QuaternionEx.Transform(turretBasis.X, QuaternionEx.Conjugate(tankDescription.Turret.Pose.Orientation), out var turretLocalPitchAxis);
             QuaternionEx.Transform(turretBasis.X, QuaternionEx.Conjugate(tankDescription.Barrel.Pose.Orientation), out var barrelLocalPitchAxis);
             RigidPose.TransformByInverse(tankDescription.BarrelAnchor, tankDescription.Turret.Pose, out var turretLocalBarrelAnchor);
             RigidPose.TransformByInverse(tankDescription.BarrelAnchor, tankDescription.Barrel.Pose, out var barrelLocalBarrelAnchor);
+            // Prepara ejes locales de pitch y puntos de anclaje para el cañón respecto a la torreta.
+            
             constraints.AllocateUnsafely() = _simulation.Solver.Add(_turret, _barrel,
                 new Hinge
                 {
@@ -470,16 +500,19 @@ namespace TGC.MonoGame.TP
                     LocalOffsetB = barrelLocalBarrelAnchor,
                     SpringSettings = new SpringSettings(30, 1)
                 });
-            //The twist servo might seem like an odd choice to control 1 angular degree of freedom, but servo-like control over 1DOF requires a measurement basis to interpret the target angle.
-            //Hence the apparent complexity.
+            // Agrega una bisagra entre torreta y cañón (pitch).
+
             Matrix3x3 barrelPitchBasis;
             barrelPitchBasis.Z = -turretBasis.X;
             barrelPitchBasis.X = -turretBasis.Z;
             barrelPitchBasis.Y = -turretBasis.Y;
-            //Debug.Assert(barrelPitchBasis.Determinant() > 0.999f && barrelPitchBasis.Determinant() < 1.0001f, "The barrel axis and forward axis should be perpendicular and unit length.");
+            // Base ortonormal para medir el pitch del cañón.
+            
             QuaternionEx.CreateFromRotationMatrix(barrelPitchBasis, out var barrelPitchBasisQuaternion);
             QuaternionEx.ConcatenateWithoutOverlap(barrelPitchBasisQuaternion, QuaternionEx.Conjugate(tankDescription.Turret.Pose.Orientation), out var turretLocalBarrelBasis);
             QuaternionEx.ConcatenateWithoutOverlap(barrelPitchBasisQuaternion, QuaternionEx.Conjugate(tankDescription.Barrel.Pose.Orientation), out var barrelLocalBarrelBasis);
+            // Bases convertidas a espacios locales.
+            
             _barrelServoDescription = new TwistServo
             {
                 LocalBasisA = turretLocalBarrelBasis,
@@ -487,32 +520,40 @@ namespace TGC.MonoGame.TP
                 SpringSettings = tankDescription.BarrelSpring,
                 ServoSettings = tankDescription.BarrelServo
             };
+            // Agrega el TwistServo que controla el pitch del cañón.
             _barrelServo = _simulation.Solver.Add(_turret, _barrel, _barrelServoDescription);
             constraints.AllocateUnsafely() = _barrelServo;
+            // Agrega el TwistServo que controla el pitch del cañón.
             
             QuaternionEx.TransformUnitY(tankDescription.WheelOrientation, out var wheelAxis);
             QuaternionEx.TransformUnitZ(tankDescription.WheelOrientation, out var treadDirection);
+            // Obtiene los ejes “rueda” (giro) y “oruga” (dirección de avance) en mundo local de rueda.
+
             var treadStart = tankDescription.TreadSpacing * (tankDescription.WheelCountPerTread - 1) * -0.5f;
+            // Punto inicial para distribuir ruedas centradas a lo largo de la oruga.
             BodyHandle previousLeftWheelHandle = default, previousRightWheelHandle = default;
-            for (int i = 0; i < tankDescription.WheelCountPerTread; ++i)
+            for (var i = 0; i < tankDescription.WheelCountPerTread; ++i)
             {
                 var wheelOffsetFromTread = treadDirection * (treadStart + i * tankDescription.TreadSpacing);
+                // Offset longitudinal de cada rueda a lo largo de la oruga.
                 var rightWheelHandle = CreateWheel(_simulation, properties, pose, tankDescription.Body.Pose,
                     tankDescription.WheelShape, tankDescription.WheelInertia, tankDescription.WheelFriction, _body, ref properties[_body].Filter,
                     tankDescription.RightTreadOffset + wheelOffsetFromTread - tankDescription.Body.Pose.Position,
                     tankDescription.SuspensionLength, tankDescription.SuspensionSettings, tankDescription.WheelOrientation,
                     ref wheelHandles, ref constraints, ref rightMotors, ref BodyHandles);
+                // Crea una rueda derecha con suspensión, fricción y orientación definidos; guarda handles y constraints.
+
                 var leftWheelHandle = CreateWheel(_simulation, properties, pose, tankDescription.Body.Pose,
                     tankDescription.WheelShape, tankDescription.WheelInertia, tankDescription.WheelFriction, _body, ref properties[_body].Filter,
                     tankDescription.LeftTreadOffset + wheelOffsetFromTread - tankDescription.Body.Pose.Position,
                     tankDescription.SuspensionLength, tankDescription.SuspensionSettings, tankDescription.WheelOrientation,
                     ref wheelHandles, ref constraints, ref leftMotors, ref BodyHandles);
+                // Crea la rueda izquierda correspondiente.
 
                 if (i >= 1)
                 {
-                    //Connect wheels in a tread to each other to distribute the drive forces.
-                    //The motor will always just target 0 velocity. The wheel orientations will be allowed to drift from each other.
-                    //(If you didn't want to allow drift, you could use an AngularServo or TwistServo. AngularServo constrains all 3 degrees of freedom, but for these purposes, that'd be fine.)
+                    // Conecta ruedas consecutivas de una misma oruga para compartir esfuerzo de tracción.
+                    // Motor angular que busca velocidad relativa 0 (igualar giro, permitiendo algo de deriva).
                     var motorDescription = new AngularAxisMotor { LocalAxisA = new System.Numerics.Vector3(0, 1, 0), Settings = new MotorSettings(float.MaxValue, 1e-4f) };
                     constraints.AllocateUnsafely() = _simulation.Solver.Add(previousLeftWheelHandle, leftWheelHandle, motorDescription);
                     constraints.AllocateUnsafely() = _simulation.Solver.Add(previousRightWheelHandle, rightWheelHandle, motorDescription);
@@ -526,12 +567,16 @@ namespace TGC.MonoGame.TP
             constraints.Span.Slice(constraints.Count);
             LeftMotors = leftMotors.Span.Slice(leftMotors.Count);
             RightMotors = rightMotors.Span.Slice(rightMotors.Count);
-            
-            QuaternionEx.ConcatenateWithoutOverlap(tankDescription.Body.Pose.Orientation, QuaternionEx.Conjugate(tankDescription.TurretBasis), out _fromBodyLocalToTurretBasisLocal);
-            QuaternionEx.Transform(-turretBasis.Z, QuaternionEx.Conjugate(tankDescription.Barrel.Pose.Orientation), out _barrelLocalDirection);
-            
-            RotationQuaternion = orientationQuat;
+            // “Cierra” las QuickList exposando los spans finales (ajusta las vistas a su tamaño real).
 
+            QuaternionEx.ConcatenateWithoutOverlap(tankDescription.Body.Pose.Orientation, QuaternionEx.Conjugate(tankDescription.TurretBasis), out _fromBodyLocalToTurretBasisLocal);
+            // Guarda conversión de base local del cuerpo a la base de la torreta (útil para apuntado).
+
+            QuaternionEx.Transform(-turretBasis.Z, QuaternionEx.Conjugate(tankDescription.Barrel.Pose.Orientation), out _barrelLocalDirection);
+            // Direccion “hacia adelante” del cañón en su espacio local (para raycasts/disparo).
+
+            RotationQuaternion = orientationQuat;
+            // Guarda la orientación inicial del tanque (alineada al terreno).
         }
        
         // Actualizar tanque jugador
@@ -728,8 +773,6 @@ namespace TGC.MonoGame.TP
                 0f, 0f, 0f, 1f
             );
             
-            PitchRotation = MathF.Asin(-forward.Y);
-            RollRotation = MathF.Asin(right.Y);
         }
 
 
@@ -925,9 +968,9 @@ namespace TGC.MonoGame.TP
                     rightSpeed = 1.0f;
                 }
 
-                tankController.leftTargetSpeedFraction = leftSpeed;
-                tankController.rightTargetSpeedFraction = rightSpeed;
-                tankController.zoom = false;
+                tankController.factorVelocidadIzquierda = leftSpeed;
+                tankController.factorVelocidadDerecha = rightSpeed;
+                tankController.turbo = false;
                 tankController.brakeLeft = false;
                 tankController.brakeRight = false;
                 tankController.UpdateMovementAndAim(_simulation, directionToPlayer);
@@ -939,9 +982,9 @@ namespace TGC.MonoGame.TP
                 if (directionToPlayer.Length() > 0.001f)
                     directionToPlayer = Vector3.Normalize(directionToPlayer);
 
-                tankController.leftTargetSpeedFraction = 0f;
-                tankController.rightTargetSpeedFraction = 0f;
-                tankController.zoom = false;
+                tankController.factorVelocidadIzquierda = 0f;
+                tankController.factorVelocidadDerecha = 0f;
+                tankController.turbo = false;
                 tankController.brakeLeft = true;
                 tankController.brakeRight = true;
                 tankController.UpdateMovementAndAim(_simulation, directionToPlayer);
@@ -968,17 +1011,18 @@ namespace TGC.MonoGame.TP
                 Kill();
         }
 
+        /// <summary>
+        /// Indica hacia donde hay que apuntar, en base a la posicion del mouse
+        /// </summary>
         public void UpdateAim(MouseState mouseState, Camera camera, Viewport vp)
         {
             var aimDir = camera.FrontDirection; 
             var hit = PickOnTerrain(mouseState.Position, vp); //Rayo para ver donde impacta en el terreno
             if (hit.HasValue)
             {
-                var aimXna = hit.Value - this.Position;
-                aimXna.Normalize();
-                aimDir = aimXna;
+                aimDir = Vector3.Normalize(hit.Value - Position);
             }
-            this.AimDirectionWorld = aimDir;
+            AimDirectionWorld = aimDir;
         }
         
         private Vector3? PickOnTerrain(Point mouse, Viewport viewport)
@@ -988,20 +1032,28 @@ namespace TGC.MonoGame.TP
             var proj = _camera.Projection;
 
             // Dos puntos en NDC (near/far) -> espacio mundo
-            var nearPoint = viewport.Unproject(new Microsoft.Xna.Framework.Vector3(mouse.X, mouse.Y, 0f), proj, view, Matrix.Identity);
-            var farPoint  = viewport.Unproject(new Microsoft.Xna.Framework.Vector3(mouse.X, mouse.Y, 1f), proj, view, Matrix.Identity);
+            var nearPoint = viewport.Unproject(new Vector3(mouse.X, mouse.Y, 0f), proj, view, Matrix.Identity);
+            var farPoint  = viewport.Unproject(new Vector3(mouse.X, mouse.Y, 1f), proj, view, Matrix.Identity);
 
-            var dir = Microsoft.Xna.Framework.Vector3.Normalize(farPoint - nearPoint);
+            var dir = Vector3.Normalize(farPoint - nearPoint);
             var origin = nearPoint;
 
             // Busco intersección por búsqueda binaria contra la altura del terreno
-            float tMin = 0f, tMax = 5000f; // alcance del rayo
-            for (int i = 0; i < 48; i++) // precisión suficiente
+            var tMin = 0f;
+            var tMax = 5000f; // alcance del rayo
+            for (var i = 0; i < 48; i++) // precisión suficiente
             {
-                float tMid = 0.5f * (tMin + tMax);
-                var p = origin + dir * tMid;
-                float terrainY = _terrain.GetHeightAtPosition(p.X, p.Z); // ← tu helper
-                if (p.Y > terrainY) tMin = tMid; else tMax = tMid;
+                var tMid = 0.5f * (tMin + tMax);
+                var rayoPrueba = origin + dir * tMid;
+                var alturaTerreno = _terrain.GetHeightAtPosition(rayoPrueba.X, rayoPrueba.Z);
+                if (rayoPrueba.Y > alturaTerreno)
+                {
+                    tMin = tMid;
+                }
+                else
+                {
+                    tMax = tMid;
+                }
             }
 
             var hit = origin + dir * tMax;
