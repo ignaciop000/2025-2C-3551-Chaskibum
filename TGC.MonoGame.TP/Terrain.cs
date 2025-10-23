@@ -227,7 +227,7 @@ public class Terrain
     public void Draw(Matrix world, Matrix view, Matrix projection)
     {
         var graphicsDevice = _effect.GraphicsDevice;
-
+        
         _effect.Parameters["World"].SetValue(world);
         _effect.Parameters["View"].SetValue(view);
         _effect.Parameters["Projection"].SetValue(projection);

@@ -115,7 +115,7 @@ namespace TGC.MonoGame.TP
         /// </summary>
         private float CannonRotation { get; set; }
 
-        public System.Numerics.Vector3 AimDirectionWorld { get; set; } = new(0, 0, 1);
+        public Vector3 AimDirectionWorld { get; set; } = new(0, 0, 1);
 
         public float Vida = 100f;
         public ProjectileConfig TipoProyectilActual = ProjectilePresets.Light;
@@ -925,8 +925,12 @@ namespace TGC.MonoGame.TP
                     rightSpeed = 1.0f;
                 }
 
-                tankController.UpdateMovementAndAim(_simulation, leftSpeed, rightSpeed, false, false, false,
-                    directionToPlayer);
+                tankController.leftTargetSpeedFraction = leftSpeed;
+                tankController.rightTargetSpeedFraction = rightSpeed;
+                tankController.zoom = false;
+                tankController.brakeLeft = false;
+                tankController.brakeRight = false;
+                tankController.UpdateMovementAndAim(_simulation, directionToPlayer);
             }
             else
             {
@@ -935,8 +939,12 @@ namespace TGC.MonoGame.TP
                 if (directionToPlayer.Length() > 0.001f)
                     directionToPlayer = Vector3.Normalize(directionToPlayer);
 
-                tankController.UpdateMovementAndAim(_simulation, 0f, 0f, false, true, true,
-                    directionToPlayer);
+                tankController.leftTargetSpeedFraction = 0f;
+                tankController.rightTargetSpeedFraction = 0f;
+                tankController.zoom = false;
+                tankController.brakeLeft = true;
+                tankController.brakeRight = true;
+                tankController.UpdateMovementAndAim(_simulation, directionToPlayer);
             }
         }
 
@@ -958,6 +966,49 @@ namespace TGC.MonoGame.TP
             
             if (Vida <= 0f)
                 Kill();
+        }
+
+        public void UpdateAim(MouseState mouseState, Camera camera, Viewport vp)
+        {
+            var aimDir = camera.FrontDirection; 
+            var hit = PickOnTerrain(mouseState.Position, vp); //Rayo para ver donde impacta en el terreno
+            if (hit.HasValue)
+            {
+                var aimXna = hit.Value - this.Position;
+                aimXna.Normalize();
+                aimDir = aimXna;
+            }
+            this.AimDirectionWorld = aimDir;
+        }
+        
+        private Vector3? PickOnTerrain(Point mouse, Viewport viewport)
+        {
+            // Desarma matrices
+            var view = _camera.View;
+            var proj = _camera.Projection;
+
+            // Dos puntos en NDC (near/far) -> espacio mundo
+            var nearPoint = viewport.Unproject(new Microsoft.Xna.Framework.Vector3(mouse.X, mouse.Y, 0f), proj, view, Matrix.Identity);
+            var farPoint  = viewport.Unproject(new Microsoft.Xna.Framework.Vector3(mouse.X, mouse.Y, 1f), proj, view, Matrix.Identity);
+
+            var dir = Microsoft.Xna.Framework.Vector3.Normalize(farPoint - nearPoint);
+            var origin = nearPoint;
+
+            // Busco intersección por búsqueda binaria contra la altura del terreno
+            float tMin = 0f, tMax = 5000f; // alcance del rayo
+            for (int i = 0; i < 48; i++) // precisión suficiente
+            {
+                float tMid = 0.5f * (tMin + tMax);
+                var p = origin + dir * tMid;
+                float terrainY = _terrain.GetHeightAtPosition(p.X, p.Z); // ← tu helper
+                if (p.Y > terrainY) tMin = tMid; else tMax = tMid;
+            }
+
+            var hit = origin + dir * tMax;
+
+            // Si estamos muy lejos o fuera del mapa, descartamos
+            if (float.IsNaN(hit.X)) return null;
+            return hit;
         }
     }
 }

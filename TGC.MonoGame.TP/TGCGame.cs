@@ -43,36 +43,35 @@ namespace TGC.MonoGame.TP;
 /// </summary>
 public class TGCGame : Game
 {
-    public enum GameState { MainMenu, Playing }
-
-    private GameState _state = GameState.MainMenu;
-    private const float EscalaMapa = 20;
-
+    //Debug
+    private Gizmos Gizmos { get; set;}
+    
+    
     public const string ContentFolder3D = "Models/";
     public const string ContentFolderEffects = "Effects/";
     public const string ContentFolderMusic = "Music/";
     public const string ContentFolderSounds = "Sounds/";
     public const string ContentFolderSpriteFonts = "SpriteFonts/";
     public const string ContentFolderTextures = "Textures/";
-
+    
+    private enum GameState { MainMenu, Playing }
+    private GameState _state = GameState.MainMenu;
+    
+    private const float EscalaMapa = 20;
     private readonly GraphicsDeviceManager _graphics;
     
-    private Camera _camera;
-    private OrbitCamera _orbitCamera;
+    private Camera _camera;                 // Cámara activa
+    private OrbitCamera _orbitCamera;       // Cámara que sigue al tanque
     
-    private Vector3 _desiredLookAt;
-    private bool _hayLookAt;
-    private Vector3 _lookAt;
-    
-    private Effect _terrainEffect;
-    private Effect _effect;
+    private Effect _terrainEffect;          //Shader Terreno
+    private Effect _effect;                 //Shader Basico
     
     private Simulation _simulation;
-    private CollidableProperty<TankBodyProperties> _bodyProperties;
-    private TankCallbacks _callbacks;
-    private CollisionHandler _collisionHandler;
-    private Gizmos Gizmos { get; set;}
-    private BufferPool BufferPool { get; set; }
+    private CollidableProperty<TankBodyProperties> _bodyProperties;     // Propiedades por colisionable (tanques)
+    private TankCallbacks _callbacks;                                   // Callbacks de BEPU para fuerzas/colisiones
+    private CollisionHandler _collisionHandler;                         // Maneja eventos de colisión de juego
+    
+    private BufferPool BufferPool { get; set; }                         // Pool de buffers BEPU para performance
 
     private PositionGenerator _positionGenerator;
     private Terrain _terrain;
@@ -89,15 +88,14 @@ public class TGCGame : Game
     // Proyectiles
     private readonly List<Projectile> _projectiles = [];
     private MouseState _mousePrev;
-    private float _fireCooldown;
+    private float _fireCooldown;                                        // Tiempo restante hasta poder disparar de nuevo
 
     private Houses _houses;
     private Rocks _rocks;
     private Trees _trees;
     private Bushes _bushes;
     
-    // HUD / Gameplay
-    private float _matchTimeSeconds = 0f;
+    private float _matchTimeSeconds = 0f;                              // Tiempo de partida transcurrido
 
     private const float FireCooldownMax = 1f; // estaba harcodeado en 1f al disparar
     private float _playerHealth = 100f;
@@ -119,7 +117,8 @@ public class TGCGame : Game
         // Maneja la configuración y la administración del dispositivo gráfico.
         _graphics = new GraphicsDeviceManager(this);
 
-        _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
+        //Le restamos un valor arbitrario para descartar para de titulo y barra de tareas
+        _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100; 
         _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
         // Para que el juego sea pantalla completa se puede usar Graphics IsFullScreen.
         
@@ -136,9 +135,10 @@ public class TGCGame : Game
     /// </summary>
     protected override void Initialize()
     {
+        //DEBUG
         Gizmos = new Gizmos();
+        
         BufferPool = new BufferPool();
-        _desiredLookAt = Vector3.Zero;
 
         // Inicialización de cámaras
         _orbitCamera = new OrbitCamera(
@@ -152,12 +152,12 @@ public class TGCGame : Game
         _camera = _orbitCamera;
 
         _collisionHandler = new CollisionHandler();
-        _bodyProperties = new CollidableProperty<TankBodyProperties>();
+        _bodyProperties = new CollidableProperty<TankBodyProperties>(); //BEPU
         _callbacks = new TankCallbacks() { Properties = _bodyProperties };
         _callbacks.SetCollisionHandler(_collisionHandler);
 
         _simulation = Simulation.Create(BufferPool, _callbacks,
-            new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
+            new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1)); //TODO
 
         _tank = new Tank(new Vector3(0, 0, 0), _orbitCamera, 0f, 0.1f);
         _tank2 = new Tank(new Vector3(500, 0, 0), null, 0f, 0.1f);
@@ -249,8 +249,8 @@ public class TGCGame : Game
 
         // Generacion de posiciones de modelos
 
-        var anchoMapa = (_terrain.HeightmapData.GetLength(0) - 1) * EscalaMapa;
-        var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa;
+        var anchoMapa = (_terrain.HeightmapData.GetLength(0) - 1) * EscalaMapa; // Ancho terreno en mundo
+        var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa; // Largo terreno en mundo
         
         _positionGenerator = new PositionGenerator(anchoMapa, largoMapa);
         var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
@@ -316,103 +316,29 @@ public class TGCGame : Game
         // ------------------------------
         //  MODO JUEGO
         // ------------------------------
-
-
-
-        float leftTargetSpeedFraction = 0;
-        float rightTargetSpeedFraction = 0;
-        var left = keyboardState.IsKeyDown(Keys.A);
-        var right = keyboardState.IsKeyDown(Keys.D);
-        var forward = keyboardState.IsKeyDown(Keys.W);
-        var backward = keyboardState.IsKeyDown(Keys.S);
-
-        if (forward)
-        {
-            if ((left && right) || (!left && !right))
-            {
-                leftTargetSpeedFraction = 1f;
-                rightTargetSpeedFraction = 1f;
-            }
-            //Note turns require a bit of help from the opposing track to overcome friction.
-            else if (left)
-            {
-                leftTargetSpeedFraction = 0.5f;
-                rightTargetSpeedFraction = 1f;
-            }
-            else
-            {
-                leftTargetSpeedFraction = 1f;
-                rightTargetSpeedFraction = 0.5f;
-            }
-        }
-        else if (backward)
-        {
-            if ((left && right) || (!left && !right))
-            {
-                leftTargetSpeedFraction = -1f;
-                rightTargetSpeedFraction = -1f;
-            }
-            else if (left)
-            {
-                leftTargetSpeedFraction = -0.5f;
-                rightTargetSpeedFraction = -1f;
-            }
-            else
-            {
-                leftTargetSpeedFraction = -1f;
-                rightTargetSpeedFraction = -0.5f;
-            }
-        }
-        else
-        {
-            //Not trying to move. Turn?
-            if (left && !right)
-            {
-                leftTargetSpeedFraction = -1f;
-                rightTargetSpeedFraction = 1f;
-            }
-            else if (right && !left)
-            {
-                leftTargetSpeedFraction = 1f;
-                rightTargetSpeedFraction = -1f;
-            }
-        }
-
-        var zoom = keyboardState.IsKeyDown(Keys.LeftShift);
-        var brake = keyboardState.IsKeyDown(Keys.Space);
-        var frontDirection = new Vector3(_camera.FrontDirection.X, _camera.FrontDirection.Y, _camera.FrontDirection.Z);
-
-        // Dirección de mira a partir del mouse (si hay hit en el terreno)
-        var aimDir = frontDirection; // fallback
-        var hit = PickOnTerrain(mouseState.Position);
-        if (hit.HasValue)
-        {
-            var aimXna = hit.Value -
-                         new Microsoft.Xna.Framework.Vector3(_tank.Position.X, _tank.Position.Y, _tank.Position.Z);
-            if (aimXna.LengthSquared() > 1e-6f)
-                aimXna.Normalize();
-            aimDir = new Vector3(aimXna.X, aimXna.Y, aimXna.Z);
-        }
-
-        _tank.AimDirectionWorld = aimDir;
-        _playerController.UpdateMovementAndAim(_simulation, leftTargetSpeedFraction, rightTargetSpeedFraction, zoom,
-            brake, brake, aimDir);
-
-        _matchTimeSeconds += deltaTime;
         
-        // cooldown
-        _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
-
+        // Capturar Input teclado
+        if (keyboardState.IsKeyDown(Keys.Escape))
+        {
+            //Salgo del juego.
+            Exit();
+        }
+        
+        _matchTimeSeconds += deltaTime;
+        _playerController.UpdateControls(keyboardState);
+        _tank.UpdateAim(mouseState, _camera, GraphicsDevice.Viewport);
+        _playerController.UpdateMovementAndAim(_simulation, _tank.AimDirectionWorld);
+        
         _tank?.Update(gameTime, keyboardState);
-
-        // Update AI for enemy tank (_tank2)
+        
         _tank2?.UpdateEnemyTankAI(_tank.Position, _enemyController);
-
         _tank2?.Update(gameTime);
 
         // click izquierdo: dispara
-        if (_fireCooldown <= 0f && mouseState.LeftButton == ButtonState.Pressed &&
-            _mousePrev.LeftButton == ButtonState.Released)
+        _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
+        if (_fireCooldown <= 0f 
+            && mouseState.LeftButton == ButtonState.Pressed 
+            && _mousePrev.LeftButton == ButtonState.Released)
         {
             var tipoProyectilActual = _tank.TipoProyectilActual;
 
@@ -421,13 +347,18 @@ public class TGCGame : Game
             _projectiles.Add(proj);
 
             // Retroceso + freno breve
-            _tank.TriggerRecoil(dir, projectileMass: tipoProyectilActual.Mass, muzzleSpeed: tipoProyectilActual.Speed, intensity: 1f, withBrake: true);
+            _tank.TriggerRecoil(
+                dir, 
+                projectileMass: tipoProyectilActual.Mass, 
+                muzzleSpeed: tipoProyectilActual.Speed, 
+                intensity: 1f, 
+                withBrake: true);
 
             _fireCooldown = 1f; // 4 disparos/seg
         }
 
         // update de todos los proyectiles
-        for (int i = _projectiles.Count - 1; i >= 0; --i)
+        for (var i = _projectiles.Count - 1; i >= 0; --i)
         {
             _projectiles[i].Update(deltaTime);
             if (_projectiles[i].IsDead) _projectiles.RemoveAt(i);
@@ -437,21 +368,14 @@ public class TGCGame : Game
         if (_simulation != null && deltaTime is > 0.0f and < 0.1f) // Máximo 100ms por frame
         {
             _simulation.Timestep(deltaTime);
-            
-            // Procesar colisiones
             _collisionHandler.HandleCollisions();
             
             _tank?.SyncFromPhysics();
             _tank?.ApplyRecoilAndBrake(deltaTime, _simulation);
         }
 
-        // Capturar Input teclado
-        if (keyboardState.IsKeyDown(Keys.Escape))
-        {
-            //Salgo del juego.
-            Exit();
-        }
 
+        //DEBUG
         if (keyboardState.IsKeyDown(Keys.F4) && !_kbPrev.IsKeyDown(Keys.F4))
         {
             if (_camera == _orbitCamera)
@@ -464,45 +388,20 @@ public class TGCGame : Game
                 _camera = _orbitCamera;
             }
         }
-        
         _debug.Update(keyboardState, _kbPrev, deltaTime, _camera);
 
         // Actualizar cámara para seguir al tanque
         if (_tank != null)
         {
             // Usar la posición y rotación del tanque
-            var targetHeight = _terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z) + 50f; 
-            _orbitCamera.SetTarget(new Vector3(_tank.Position.X, targetHeight, _tank.Position.Z));
-            var dir = new Vector2(MathF.Cos(_tank.Rotation), MathF.Sin(_tank.Rotation));
+            var alturaTerreno = _terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z); 
+            _orbitCamera.SetTarget(new Vector3(_tank.Position.X, alturaTerreno + 50f, _tank.Position.Z));
 
-            _desiredLookAt = new Vector3(_tank.Position.X, _terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z), _tank.Position.Z);
-            if (!_hayLookAt)
-            {
-                _lookAt = _desiredLookAt;
-                _hayLookAt = true;
-            }
-            else
-            {
-                var lamda = 0.05f;
-                _lookAt = _desiredLookAt * lamda + _lookAt * (1 - lamda);
-            }
-
-            var tankPos2D = new Vector2(_tank.Position.X, _tank.Position.Z);
-            var cameraPos2D = tankPos2D - dir * 800; // Distancia de 800 unidades detrás del tanque
-
-            // Calcular la altura máxima entre la cámara y el tanque
-            float H = 0;
-            for (var i = 0; i < 10; ++i)
-            {
-                var t = i / 10.0f;
-                var p = cameraPos2D * t + tankPos2D * (1 - t);
-                var Hi = _terrain.GetHeightAtPosition(p.X, p.Y) + 50;
-                if (Hi > H) H = Hi;
-            }
-            
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime);
             _camera.ConstrainAboveTerrain(_terrain, clearance: 50f, samples: 16);
+            
+            //debug
             Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
         }
         
@@ -511,11 +410,6 @@ public class TGCGame : Game
         base.Update(gameTime);
     }
     
-    /// <summary>
-    /// Updates the AI behavior for the enemy tank (_tank2)
-    /// </summary>
-    
-
     /// <summary>
     ///     Se llama cada vez que hay que refrescar la pantalla.
     ///     Escribir aqui el codigo referido al renderizado.
@@ -529,7 +423,7 @@ public class TGCGame : Game
         if (_state == GameState.MainMenu)
         {
             _menu.Draw(_tankEntries);
-            return; // no dibujamos el mundo 3D
+            return; // no dibujamos el juego
         }
 
         // Estados por defecto para 3D
@@ -541,10 +435,6 @@ public class TGCGame : Game
         // Verificar que el efecto y el terreno no sean nulos antes de dibujar
         if (_terrainEffect == null || _terrain == null)
             return;
-
-        // Para dibujar el modelo necesitamos pasarle informacion que el efecto esta esperando.
-        _terrainEffect.Parameters["View"].SetValue(_camera.View);
-        _terrainEffect.Parameters["Projection"].SetValue(_camera.Projection);
         
         _effect.Parameters["View"].SetValue(_camera.View);
         _effect.Parameters["Projection"].SetValue(_camera.Projection);
@@ -569,54 +459,9 @@ public class TGCGame : Game
         _hud.Draw(_matchTimeSeconds, _fireCooldown, FireCooldownMax, _currentProjectile, _playerHealth, _playerMaxHealth);
     }
     
-    private Microsoft.Xna.Framework.Vector3? PickOnTerrain(Point mouse)
-    {
-        // Desarma matrices
-        var view = _camera.View;
-        var proj = _camera.Projection;
-        var vp = GraphicsDevice.Viewport;
-
-        // Dos puntos en NDC (near/far) -> espacio mundo
-        var nearPoint = vp.Unproject(new Microsoft.Xna.Framework.Vector3(mouse.X, mouse.Y, 0f), proj, view, Matrix.Identity);
-        var farPoint  = vp.Unproject(new Microsoft.Xna.Framework.Vector3(mouse.X, mouse.Y, 1f), proj, view, Matrix.Identity);
-
-        var dir = Microsoft.Xna.Framework.Vector3.Normalize(farPoint - nearPoint);
-        var origin = nearPoint;
-
-        // Busco intersección por búsqueda binaria contra la altura del terreno
-        float tMin = 0f, tMax = 5000f; // alcance del rayo
-        for (int i = 0; i < 48; i++) // precisión suficiente
-        {
-            float tMid = 0.5f * (tMin + tMax);
-            var p = origin + dir * tMid;
-            float terrainY = _terrain.GetHeightAtPosition(p.X, p.Z); // ← tu helper
-            if (p.Y > terrainY) tMin = tMid; else tMax = tMid;
-        }
-
-        var hit = origin + dir * tMax;
-
-        // Si estamos muy lejos o fuera del mapa, descartamos
-        if (float.IsNaN(hit.X)) return null;
-        return hit;
-    }
-
-
     public void StartGame()
     {
         _state = GameState.Playing;
-        // Si quisieras reiniciar cosas, podés hacerlo acá.
-        // Por ejemplo: resetear posiciones, limpiar proyectiles, etc.
-        // _projectiles.Clear();
-       // string[] tankPaths = { "t90/T90", "panzer/Panzer" };
-       // string chosenPath = tankPaths[Math.Clamp(_playerTankIndex, 0, tankPaths.Length - 1)];
-
-        // (Re)crear el tanque del jugador con el modelo elegido
-        //var tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader"); // o cachealo en un field
-
-        // Si ya tenías un Tank con cuerpos en la simulación, es más limpio crear uno nuevo:
-        //_tank = new Tank(new Vector3(0, 0, 0), _orbitCamera, 0f, 0.1f);
-        //_tank.CargarModelo(chosenPath, tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
-
     }
 
     /// <summary>

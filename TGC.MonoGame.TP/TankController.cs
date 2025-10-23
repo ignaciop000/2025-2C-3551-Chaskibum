@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Numerics;
 using BepuPhysics;
+using Microsoft.Xna.Framework.Input;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 
 namespace TGC.MonoGame.TP;
@@ -27,6 +28,12 @@ public struct TankController(
     private float _previousTurretSwivel;
     private float _previousBarrelPitch;
 
+    public float leftTargetSpeedFraction;
+    public float rightTargetSpeedFraction;
+    public bool zoom;
+    public bool brakeLeft;
+    public bool brakeRight;
+
     /// <summary>
     /// Updates constraint targets for an input state.
     /// </summary>
@@ -37,9 +44,7 @@ public struct TankController(
     /// <param name="brakeLeft">Whether the left tread should brake.</param>
     /// <param name="brakeRight">Whether the right tread should brake.</param>
     /// <param name="aimDirection">Direction that the tank's barrel should point.</param>
-    public void UpdateMovementAndAim(Simulation simulation,
-        float leftTargetSpeedFraction, float rightTargetSpeedFraction,
-        bool zoom, bool brakeLeft, bool brakeRight, Vector3 aimDirection)
+    public void UpdateMovementAndAim(Simulation simulation, Vector3 aimDirection)
     {
         if (tank.IsDead) return;
 
@@ -86,5 +91,70 @@ public struct TankController(
             _previousBarrelPitch  = targetPitchAngle;
         }
     }
+    
+            public void UpdateControls(KeyboardState keyboardState)
+        {
+            leftTargetSpeedFraction = 0;
+            rightTargetSpeedFraction = 0;
+            var left = keyboardState.IsKeyDown(Keys.A);
+            var right = keyboardState.IsKeyDown(Keys.D);
+            var forward = keyboardState.IsKeyDown(Keys.W);
+            var backward = keyboardState.IsKeyDown(Keys.S);
+
+            if (forward)
+            {
+                if ((left && right) || (!left && !right))
+                {
+                    leftTargetSpeedFraction = 1f;
+                    rightTargetSpeedFraction = 1f;
+                }
+                //Note turns require a bit of help from the opposing track to overcome friction.
+                else if (left)
+                {
+                    leftTargetSpeedFraction = 0.5f;
+                    rightTargetSpeedFraction = 1f;
+                }
+                else
+                {
+                    leftTargetSpeedFraction = 1f;
+                    rightTargetSpeedFraction = 0.5f;
+                }
+            }
+            else if (backward)
+            {
+                if ((left && right) || (!left && !right))
+                {
+                    leftTargetSpeedFraction = -1f;
+                    rightTargetSpeedFraction = -1f;
+                }
+                else if (left)
+                {
+                    leftTargetSpeedFraction = -0.5f;
+                    rightTargetSpeedFraction = -1f;
+                }
+                else
+                {
+                    leftTargetSpeedFraction = -1f;
+                    rightTargetSpeedFraction = -0.5f;
+                }
+            }
+            else
+            {
+                //Not trying to move. Turn?
+                if (left && !right)
+                {
+                    leftTargetSpeedFraction = -1f;
+                    rightTargetSpeedFraction = 1f;
+                }
+                else if (right && !left)
+                {
+                    leftTargetSpeedFraction = 1f;
+                    rightTargetSpeedFraction = -1f;
+                }
+            }
+
+            zoom = keyboardState.IsKeyDown(Keys.LeftShift);
+            brakeRight = brakeLeft = keyboardState.IsKeyDown(Keys.Space);
+        }
 
 }
