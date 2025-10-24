@@ -32,6 +32,7 @@ namespace TGC.MonoGame.TP
         private ModelBone _cannonBone;
 
         private BodyHandle _body;
+        private BodyHandle _secBody;
         private BodyHandle _turret;
         private BodyHandle _barrel;
 
@@ -91,8 +92,8 @@ namespace TGC.MonoGame.TP
 
         private readonly Camera _camera;
 
-        private float VisualYOffset = 60f;
-        private float VisualZOffset = 27f;
+        private float VisualYOffset = 38f;
+        private float VisualZOffset = 23f;
 
         private float _previousSwivel;
 
@@ -295,7 +296,7 @@ namespace TGC.MonoGame.TP
         }
         
         static BodyHandle CreateWheel(Simulation simulation, CollidableProperty<TankBodyProperties> properties, in RigidPose tankPose, in RigidPose bodyLocalPose,
-        TypedIndex wheelShape, BodyInertia wheelInertia, float wheelFriction, BodyHandle bodyHandle, ref SubgroupCollisionFilter bodyFilter, System.Numerics.Vector3 bodyToWheelSuspension, float suspensionLength,
+        TypedIndex wheelShape, BodyInertia wheelInertia, float wheelFriction, BodyHandle bodyHandle, ref SubgroupCollisionFilter bodyFilter, ref SubgroupCollisionFilter secBodyFilter, System.Numerics.Vector3 bodyToWheelSuspension, float suspensionLength,
         in SpringSettings suspensionSettings, System.Numerics.Quaternion localWheelOrientation,
         ref QuickList<BodyHandle> wheelHandles, ref QuickList<ConstraintHandle> constraints, ref QuickList<ConstraintHandle> motors, ref QuickList<BodyHandle> bodyhandles)
         {
@@ -352,24 +353,35 @@ namespace TGC.MonoGame.TP
             //The wheels don't need to be tested against the body or each other.
             SubgroupCollisionFilter.DisableCollision(ref wheelProperties.Filter, ref bodyFilter);
             SubgroupCollisionFilter.DisableCollision(ref wheelProperties.Filter, ref wheelProperties.Filter);
+            SubgroupCollisionFilter.DisableCollision(ref wheelProperties.Filter, ref secBodyFilter);
            
                       
             return wheelHandle;
         }
-        
+
         private void CreatePhysicsBody(BufferPool bufferPool, CollidableProperty<TankBodyProperties> properties)
         {
-            var wheelShape = new Cylinder(3.4f, 1f);
+            var length = 4f;
+            var wheelShape = new Cylinder(3.4f, length);
+            var smallWheelShape = new Cylinder(3f, length);
+            var smallerWheelShape = new Cylinder(2.3f, length);
             var wheelInertia = wheelShape.ComputeInertia(0.25f);
             var wheelShapeIndex = _simulation.Shapes.Add(wheelShape);
-            
+            var smallWheelShapeIndex = _simulation.Shapes.Add(smallWheelShape);
+            var smallerWheelShapeIndex = _simulation.Shapes.Add(smallerWheelShape);
+
             tankDescription = new TankDescription
             {
-                Body = TankPartDescription.Create(1, new Box(36f, 10, 60), new RigidPose(new System.Numerics.Vector3(0, 0, 0), System.Numerics.Quaternion.Identity), 0.5f, _simulation.Shapes),
-                Turret = TankPartDescription.Create(1, new Cylinder(15f, 7f), new System.Numerics.Vector3(0f, 8.5f, 2.5f), 0.5f, _simulation.Shapes),
-                Barrel = TankPartDescription.Create(0.5f, new Box(2f, 2f, 46f), new System.Numerics.Vector3(0, 8.5f, -34), 0.5f, _simulation.Shapes),
-                TurretAnchor = new System.Numerics.Vector3(1f, 5f, 2.5f),
-                BarrelAnchor = new System.Numerics.Vector3(0, 8.5f, -11),
+                Body = TankPartDescription.Create(1, new Box(36f, 5f, 60),
+                    new RigidPose(new System.Numerics.Vector3(0, 0, 0), System.Numerics.Quaternion.Identity), 0.5f, _simulation.Shapes),
+                SecondaryBody = TankPartDescription.Create(0.1f, new Box(22f, 5f, 52.5f),
+                    new RigidPose(new System.Numerics.Vector3(0, -5, 0), System.Numerics.Quaternion.Identity), 0.5f, _simulation.Shapes),
+                Turret = TankPartDescription.Create(1, new Cylinder(15f, 7f), new System.Numerics.Vector3(0f, 6f, 2.5f),
+                    0.5f, _simulation.Shapes),
+                Barrel = TankPartDescription.Create(0.1f, new Box(2f, 2f, 46f), new System.Numerics.Vector3(0, 6f, -34),
+                    0.5f, _simulation.Shapes),
+                TurretAnchor = new System.Numerics.Vector3(1f, 3f, 2.5f),
+                BarrelAnchor = new System.Numerics.Vector3(0, 6f, -11),
                 TurretBasis = System.Numerics.Quaternion.CreateFromAxisAngle(
                     System.Numerics.Vector3.UnitY, MathF.PI),
                 TurretServo = new ServoSettings(1e7f, 0f, 1000),
@@ -379,55 +391,77 @@ namespace TGC.MonoGame.TP
 
                 LeftTreadOffset = new System.Numerics.Vector3(-15f, 0f, 0),
                 RightTreadOffset = new System.Numerics.Vector3(15f, 0f, 0),
-                SuspensionLength = 4f,
+                SuspensionLength = 6.5f,
                 SuspensionSettings = new SpringSettings(5f, 3f),
                 WheelShape = wheelShapeIndex,
+                SmallWheelShape = smallWheelShapeIndex,
+                SmallerWheelShape = smallerWheelShapeIndex,
                 WheelInertia = wheelInertia,
                 WheelFriction = 2f,
                 TreadSpacing = 8f,
-                WheelCountPerTread = 6,
+                WheelCountPerTread = 8,
                 WheelOrientation = QuaternionEx.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ, MathF.PI * -0.5f),
             };
+
+
             //PhysicsBody = tankDescription.Body.;
             if (_simulation == null) return;
 
             // Altura del suelo en (X,Z)
             float terrainY = _terrain?.GetHeightAtPosition(Position.X, Position.Z) ?? Position.Y;
-            
+
             // Calcular orientación inicial según el terreno
             CalculateTerrainRotation(out var orientationMatrix);
             var orientationQuat = Quaternion.CreateFromRotationMatrix(orientationMatrix);
 
             System.Diagnostics.Debug.WriteLine($"[TANK] YawInertia computed = {YawInertia:0.##}");
-            
+
             //float lowestY = GetLowestYFromCompound(bodyShapeCompound);
             //float spawnY = terrainY - lowestY + SpawnClearance + 100;
-            
+
             // Pose inicial
             var pose = new RigidPose(
-                new System.Numerics.Vector3(Position.X + 1300, terrainY + 200 , Position.Z),
+                new System.Numerics.Vector3(Position.X + 1300, terrainY + 200, Position.Z),
                 new System.Numerics.Quaternion(orientationQuat.X, orientationQuat.Y, orientationQuat.Z,
                     orientationQuat.W)
             );
-            
+
             var wheelHandles = new QuickList<BodyHandle>(tankDescription.WheelCountPerTread * 2, bufferPool);
-            var constraints = new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread * 2 * 6 + 4, bufferPool);
+            var constraints =
+                new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread * 2 * 6 + 4, bufferPool);
             var leftMotors = new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread, bufferPool);
             var rightMotors = new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread, bufferPool);
-            
-            ref var bodyFilter = ref CreatePart(_simulation, tankDescription.Body, pose, properties, ref BodyHandles, out _body);
-            ref var turretFilter = ref CreatePart(_simulation, tankDescription.Turret, pose, properties, ref BodyHandles, out _turret);
-            ref var barrelFilter = ref CreatePart(_simulation, tankDescription.Barrel, pose, properties, ref BodyHandles, out _barrel);
-            
+
+            ref var bodyFilter = ref CreatePart(_simulation, tankDescription.Body, pose, properties, ref BodyHandles,
+                out _body);
+            ref var secBodyFilter = ref CreatePart(_simulation, tankDescription.SecondaryBody, pose, properties,
+                ref BodyHandles, out _secBody);
+            ref var turretFilter = ref CreatePart(_simulation, tankDescription.Turret, pose, properties,
+                ref BodyHandles, out _turret);
+            ref var barrelFilter = ref CreatePart(_simulation, tankDescription.Barrel, pose, properties,
+                ref BodyHandles, out _barrel);
+
             bodyFilter = new SubgroupCollisionFilter(_body.Value, 0);
             turretFilter = new SubgroupCollisionFilter(_body.Value, 1);
             barrelFilter = new SubgroupCollisionFilter(_body.Value, 2);
+            secBodyFilter = new SubgroupCollisionFilter(_body.Value, 3);
             SubgroupCollisionFilter.DisableCollision(ref bodyFilter, ref turretFilter);
             SubgroupCollisionFilter.DisableCollision(ref turretFilter, ref barrelFilter);
-            
+            SubgroupCollisionFilter.DisableCollision(ref bodyFilter, ref secBodyFilter);
+
             Matrix3x3.CreateFromQuaternion(tankDescription.TurretBasis, out var turretBasis);
 
-            //Attach the turret to the body.
+            //Atach the seconday body to the main body
+            constraints.AllocateUnsafely() = _simulation.Solver.Add(_body, _secBody,
+                new Weld
+                {
+                    LocalOffset = new System.Numerics.Vector3(0f, -5f, 2.5f),
+                    LocalOrientation = System.Numerics.Quaternion.Identity,
+                    SpringSettings = new SpringSettings(30f,1f)
+                }
+            );
+
+        //Attach the turret to the body.
             QuaternionEx.Transform(turretBasis.Y, QuaternionEx.Conjugate(tankDescription.Body.Pose.Orientation), out var bodyLocalSwivelAxis);
             QuaternionEx.Transform(turretBasis.Y, QuaternionEx.Conjugate(tankDescription.Turret.Pose.Orientation), out var turretLocalSwivelAxis);
             RigidPose.TransformByInverse(tankDescription.TurretAnchor, tankDescription.Body.Pose, out var bodyLocalTurretAnchor);
@@ -502,15 +536,33 @@ namespace TGC.MonoGame.TP
             for (int i = 0; i < tankDescription.WheelCountPerTread; ++i)
             {
                 var wheelOffsetFromTread = treadDirection * (treadStart + i * tankDescription.TreadSpacing);
+                var verticalLift = 0f;
+                var wheelShapeToUse = tankDescription.WheelShape;
+                if (i == 0 )
+                {
+                    verticalLift = 3f;
+                    wheelShapeToUse = tankDescription.SmallerWheelShape;
+                }else if (i == tankDescription.WheelCountPerTread - 1)
+                {
+                    verticalLift = 3f;
+                    wheelShapeToUse = tankDescription.SmallWheelShape;
+                }
+                
+                var rightSuspensionOffset = tankDescription.RightTreadOffset + wheelOffsetFromTread - tankDescription.Body.Pose.Position;
+                var leftSuspensionOffset = tankDescription.LeftTreadOffset + wheelOffsetFromTread - tankDescription.Body.Pose.Position;
+
+                // Aplicar elevación en eje Y
+                rightSuspensionOffset.Y += verticalLift;
+                leftSuspensionOffset.Y += verticalLift;
+                
                 var rightWheelHandle = CreateWheel(_simulation, properties, pose, tankDescription.Body.Pose,
-                    tankDescription.WheelShape, tankDescription.WheelInertia, tankDescription.WheelFriction, _body, ref properties[_body].Filter,
-                    tankDescription.RightTreadOffset + wheelOffsetFromTread - tankDescription.Body.Pose.Position,
-                    tankDescription.SuspensionLength, tankDescription.SuspensionSettings, tankDescription.WheelOrientation,
+                    wheelShapeToUse, tankDescription.WheelInertia, tankDescription.WheelFriction, _body, ref properties[_body].Filter, ref properties[_secBody].Filter,
+                    rightSuspensionOffset, tankDescription.SuspensionLength, tankDescription.SuspensionSettings, tankDescription.WheelOrientation,
                     ref wheelHandles, ref constraints, ref rightMotors, ref BodyHandles);
+                
                 var leftWheelHandle = CreateWheel(_simulation, properties, pose, tankDescription.Body.Pose,
-                    tankDescription.WheelShape, tankDescription.WheelInertia, tankDescription.WheelFriction, _body, ref properties[_body].Filter,
-                    tankDescription.LeftTreadOffset + wheelOffsetFromTread - tankDescription.Body.Pose.Position,
-                    tankDescription.SuspensionLength, tankDescription.SuspensionSettings, tankDescription.WheelOrientation,
+                    wheelShapeToUse, tankDescription.WheelInertia, tankDescription.WheelFriction, _body, ref properties[_body].Filter, ref properties[_secBody].Filter,
+                    leftSuspensionOffset, tankDescription.SuspensionLength, tankDescription.SuspensionSettings, tankDescription.WheelOrientation,
                     ref wheelHandles, ref constraints, ref leftMotors, ref BodyHandles);
 
                 if (i >= 1)
