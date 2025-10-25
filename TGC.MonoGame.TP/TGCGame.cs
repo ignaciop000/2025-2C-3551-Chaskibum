@@ -459,7 +459,7 @@ public class TGCGame : Game
         _hud.Draw(_matchTimeSeconds, _fireCooldown, FireCooldownMax, _currentProjectile, _playerHealth, _playerMaxHealth);
     }
     
-    public void StartGame()
+    public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int tanqueSeleccionado)
     {
         _state = GameState.Playing;
     }
@@ -474,4 +474,6 @@ public class TGCGame : Game
 
         base.UnloadContent();
     }
+
+
 }
