@@ -10,11 +10,11 @@
 // - Contador, enemigos restantes, victoria/derrota [MATEO]
 // - Postes de luz [AGUS]
 // - Vida, Cooldown, tipos proyectiles [AGUS]
-// - HUD (Vida, Cooldown de disparo, Tipo proyectil: + velocidad => - daño, Ganaste/Perdiste/Juga de nuevo) [NACHO]
+// - HUD (Vida, Cooldown de disparo, Tipo proyectil: + velocidad => - daño, Ganaste/Perdiste/Juga de nuevo) [NACHO] [COMPLETADO]
 // - Menú (Iniciar -> Elegir tanque, los 2 tienen distintas caracteristicas;
 //          Configurar tiempo y cant. enemigos;
 //          Configurar volumenes;
-//          Integrantes) [NACHO]
+//          Integrantes) [NACHO] [COMPLETADO]
 // - Música (menu y juego) y Sonidos (acciones de hud, daño, choque, disparo y motor) [SANTI]
 // - Imagen tutorial [SANTI]
 // - Agregar World Border [AGUS]
@@ -211,10 +211,6 @@ public class TGCGame : Game
         
         var hullCTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
         _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, 0.002f, 0.5f, tankShader));
-        
-        var tankPanzer = Content.Load<Model>(ContentFolder3D + "panzer/Panzer");
-        var panzerTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "panzer/PzVl_Tiger_I");
-        _tankEntries.Add(new TankEntry("Panzer", tankPanzer, panzerTexture, 0.002f, 0.2f, tankShader));
         
         _tank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
         _tank2.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
