@@ -5,7 +5,6 @@
 // - Solucionar y Completar Texturas [SANTI]
 // - No quedarte atascado ni dado vuelta / Solucion atascamientos [MATEO]
 
-// - Incluir Panzer, distintas caracteristicas que T90: vida, daño base, velocidad [NACHO]
 // - Agregar mas Tanques IA (T90 o Panzer), aparecen de a poco hasta llegar al límite [MATEO]
 // - Contador, enemigos restantes, victoria/derrota [MATEO]
 // - Postes de luz [AGUS]
@@ -211,7 +210,7 @@ public class TGCGame : Game
         
         var hullCTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
         _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, 0.002f, 0.5f, tankShader));
-        
+         
         _tank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
         _tank2.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
         
