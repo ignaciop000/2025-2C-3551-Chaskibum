@@ -5,8 +5,6 @@
 // - Solucionar y Completar Texturas [SANTI]
 // - No quedarte atascado ni dado vuelta / Solucion atascamientos [MATEO]
 
-// - Agregar mas Tanques IA (T90 o Panzer), aparecen de a poco hasta llegar al límite [MATEO]
-// - Contador, enemigos restantes, victoria/derrota [MATEO]
 // - Postes de luz [AGUS]
 // - Vida, Cooldown, tipos proyectiles [AGUS]
 // - HUD (Vida, Cooldown de disparo, Tipo proyectil: + velocidad => - daño, Ganaste/Perdiste/Juga de nuevo) [NACHO] [COMPLETADO]
@@ -101,6 +99,7 @@ public class TGCGame : Game
     
     private float _matchTimeSeconds = 0f;
     private bool _hasLost = false;
+    private bool _hasWon = false;
 
     private const float FireCooldownMax = 1f; // estaba harcodeado en 1f al disparar
     private float _playerHealth = 100f;
@@ -302,18 +301,11 @@ public class TGCGame : Game
         var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
-
-        if (_hasLost)
+        
+        //Salgo del juego
+        if (keyboardState.IsKeyDown(Keys.Escape))
         {
-            Console.WriteLine("en lost");
-            _matchTimeSeconds -= deltaTime;
-            if (_matchTimeSeconds <= 0)
-            {
-                _state = GameState.MainMenu;
-                _hasLost = false;
-            }
-
-            return;
+            Exit();
         }
         
         // ------------------------------
@@ -332,65 +324,90 @@ public class TGCGame : Game
         //  MODO JUEGO
         // ------------------------------
         
-        // Capturar Input teclado
-        if (keyboardState.IsKeyDown(Keys.Escape))
-        {
-            //Salgo del juego.
-            Exit();
-        }
-
+        //si se acabo el tiempo perdemos
         _matchTimeSeconds -= deltaTime;
-        if (_matchTimeSeconds <= 0f && !_hasLost)
+        if (_matchTimeSeconds <= 0f && !_hasLost && !_hasWon)
         {
             _hasLost = true;
             _matchTimeSeconds = 5;
         }
+        
+        if (_hasLost || _hasWon)
+        {
+            if (_matchTimeSeconds <= 0)
+            {
+                _state = GameState.MainMenu;
+                _hasLost = false;
+                _hasWon = false;
+            }
+        }
+        else
+        {
+            _playerController.UpdateControls(keyboardState);
+            _tank.UpdateAim(mouseState, _camera, GraphicsDevice.Viewport);
+            _playerController.UpdateMovementAndAim(_simulation, _tank.AimDirectionWorld);
+            
+            // click izquierdo: dispara
+            _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
+            if (_fireCooldown <= 0f 
+                && mouseState.LeftButton == ButtonState.Pressed 
+                && _mousePrev.LeftButton == ButtonState.Released)
+            {
+                var tipoProyectilActual = _tank.TipoProyectilActual;
 
-        _playerController.UpdateControls(keyboardState);
-        _tank.UpdateAim(mouseState, _camera, GraphicsDevice.Viewport);
-        _playerController.UpdateMovementAndAim(_simulation, _tank.AimDirectionWorld);
+                var (muzzle, dir) = _tank.GetMuzzle(); // offset local del cañón 
+                var proj = new Projectile(_simulation, _effect, muzzle, dir, tipoProyectilActual);
+                _projectiles.Add(proj);
+
+                // Retroceso + freno breve
+                _tank.TriggerRecoil(
+                    dir, 
+                    projectileMass: tipoProyectilActual.Mass, 
+                    muzzleSpeed: tipoProyectilActual.Speed, 
+                    intensity: 1f, 
+                    withBrake: true);
+
+                _fireCooldown = 1f; // 4 disparos/seg
+            }
+            
+            for (int i = enemyTanks.Count - 1; i >= 0; i--)
+            {
+                var enemyTank = enemyTanks[i];
+                if (enemyTank.IsDead)
+                {
+                    enemyTanks.RemoveAt(i);
+                    enemyControllers.RemoveAt(i);
+                    _enemyCount--;
+                    continue;
+                }
+                
+                var enemyController = enemyControllers[i];
+                enemyTank.UpdateEnemyTankAI(_tank.Position, enemyController);
+                enemyTank.Update(gameTime);
+            }
+
+            if (_enemyCount == 0)
+            {
+                _hasWon = true;
+                _matchTimeSeconds = 5;
+            }
+            
+            //DEBUG
+            if (keyboardState.IsKeyDown(Keys.F4) && !_kbPrev.IsKeyDown(Keys.F4))
+            {
+                if (_camera == _orbitCamera)
+                {
+                    var size = GraphicsDevice.Viewport.Bounds.Size;
+                    size.X /= 2;
+                    size.Y /= 2;
+                    _camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, _orbitCamera.Position, _orbitCamera.FrontDirection, size);
+                } else {
+                    _camera = _orbitCamera;
+                }
+            }
+        }
         
         _tank?.Update(gameTime, keyboardState);
-
-        for (int i = enemyTanks.Count - 1; i >= 0; i--)
-        {
-            var enemyTank = enemyTanks[i];
-            if (enemyTank.IsDead)
-            {
-                enemyTanks.RemoveAt(i);
-                enemyControllers.RemoveAt(i);
-                _enemyCount--;
-                continue;
-            }
-                
-            var enemyController = enemyControllers[i];
-            enemyTank.UpdateEnemyTankAI(_tank.Position, enemyController);
-            enemyTank.Update(gameTime);
-        }
-        
-
-        // click izquierdo: dispara
-        _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
-        if (_fireCooldown <= 0f 
-            && mouseState.LeftButton == ButtonState.Pressed 
-            && _mousePrev.LeftButton == ButtonState.Released)
-        {
-            var tipoProyectilActual = _tank.TipoProyectilActual;
-
-            var (muzzle, dir) = _tank.GetMuzzle(); // offset local del cañón 
-            var proj = new Projectile(_simulation, _effect, muzzle, dir, tipoProyectilActual);
-            _projectiles.Add(proj);
-
-            // Retroceso + freno breve
-            _tank.TriggerRecoil(
-                dir, 
-                projectileMass: tipoProyectilActual.Mass, 
-                muzzleSpeed: tipoProyectilActual.Speed, 
-                intensity: 1f, 
-                withBrake: true);
-
-            _fireCooldown = 1f; // 4 disparos/seg
-        }
 
         // update de todos los proyectiles
         for (var i = _projectiles.Count - 1; i >= 0; --i)
@@ -408,21 +425,7 @@ public class TGCGame : Game
             _tank?.SyncFromPhysics();
             _tank?.ApplyRecoilAndBrake(deltaTime, _simulation);
         }
-
-
-        //DEBUG
-        if (keyboardState.IsKeyDown(Keys.F4) && !_kbPrev.IsKeyDown(Keys.F4))
-        {
-            if (_camera == _orbitCamera)
-            {
-                var size = GraphicsDevice.Viewport.Bounds.Size;
-                size.X /= 2;
-                size.Y /= 2;
-                _camera = new FreeCamera(GraphicsDevice.Viewport.AspectRatio, _orbitCamera.Position, _orbitCamera.FrontDirection, size);
-            } else {
-                _camera = _orbitCamera;
-            }
-        }
+        
         _debug.Update(keyboardState, _kbPrev, deltaTime, _camera);
 
         // Actualizar cámara para seguir al tanque
@@ -452,11 +455,6 @@ public class TGCGame : Game
     protected override void Draw(GameTime gameTime)
     {   
         
-        if (_hasLost)
-        {
-            DrawPerdiste();
-            return;
-        }
         GraphicsDevice.Clear(Color.Black);
         // Limpia también el depth buffer
         GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.Black, 1f, 0);
@@ -503,11 +501,21 @@ public class TGCGame : Game
             projectile.Draw(_effect, _camera.View, _camera.Projection);
 
         _debug.Draw(_camera);
-        if (!_hasLost)
+        if (!_hasLost && !_hasWon)
         {
             _hud.Draw(_matchTimeSeconds, _fireCooldown, FireCooldownMax, _currentProjectile, _playerHealth, _playerMaxHealth, _enemyCount);
         }
-            
+        
+        if (_hasLost)
+        {
+            _hud.DrawMensaje("PERDISTE", Color.Red);
+            return;
+        }
+
+        if (_hasWon)
+        {
+            _hud.DrawMensaje("GANASTE", Color.Green);
+        }
     }
 
     public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int tanqueSeleccionado)
@@ -527,19 +535,6 @@ public class TGCGame : Game
         Content.Unload();
 
         base.UnloadContent();
-    }
-
-    private void DrawPerdiste()
-    {
-        var pantalla = GraphicsDevice.Viewport;
-
-        var mensaje = "PERDISTE";
-        var medida = _font.MeasureString(mensaje);
-        var centroPantalla = new Vector2(pantalla.Width / 2f, pantalla.Height / 2f);
-
-        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-        _spriteBatch.DrawString(_font, mensaje, centroPantalla, Color.Red, 0f, medida / 2f, 5f, SpriteEffects.None, 0f);
-        _spriteBatch.End();
     }
     
     public void spawnearTanks(int cantTanks)

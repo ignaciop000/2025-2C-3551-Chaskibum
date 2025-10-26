@@ -168,4 +168,16 @@ public class HUD
         int ss = (int)(seconds % 60f);
         return $"{mm:00}:{ss:00}";
     }
+    
+    public void DrawMensaje(string mensaje, Color color)
+    {
+        var pantalla = _graphicsDevice.Viewport;
+        var medida = _menuFont.MeasureString(mensaje);
+        var centroPantalla = new Vector2(pantalla.Width / 2f, pantalla.Height / 2f);
+
+        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+        _spriteBatch.Draw(_pixel, destinationRectangle: new Rectangle(0, 0, pantalla.Width, pantalla.Height), color: new Color(0, 0, 0, 0.4f));
+        _spriteBatch.DrawString(_menuFont, mensaje, centroPantalla, color, 0f, medida / 2f, 5f, SpriteEffects.None, 0f);
+        _spriteBatch.End();
+    }
 }

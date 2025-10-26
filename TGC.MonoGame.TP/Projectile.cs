@@ -59,7 +59,7 @@ namespace TGC.MonoGame.TP
             _lifeMax = lifeSeconds;
             _life = 0f;
 
-            Damage = mass * 5f; // Masa * Multiplicador de daño
+            Damage = mass * 10f; // Masa * Multiplicador de daño
 
             // Cuerpo BEPU: esfera dinámica
             var sphere = new Sphere(radius);
