@@ -35,7 +35,7 @@ public class Debug
     private bool _physDbgReady;
 
     public void LoadContent(ContentManager content, string contentEffectsFolder, string contentSpriteFolder,
-        GraphicsDevice graphicsDevice, Tank[] tanques, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
+        GraphicsDevice graphicsDevice, List<Tank> tanques, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
         Gizmos gizmos)
     {
         
@@ -141,7 +141,7 @@ public class Debug
     {
         foreach (var tank in _tanks)
         {
-            if (tank.IsDead) return;
+            if (tank.IsDead) continue;
             
             foreach (var bodyHandle in tank.BodyHandles)
             {
@@ -320,5 +320,10 @@ public class Debug
         }
 
         gd.RasterizerState = old;
+    }
+
+    public void actualizarTanks(List<Tank> tanks)
+    {
+        _tanks = tanks;
     }
 }

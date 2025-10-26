@@ -52,7 +52,9 @@ public class TGCGame : Game
     public const string ContentFolderSounds = "Sounds/";
     public const string ContentFolderSpriteFonts = "SpriteFonts/";
     public const string ContentFolderTextures = "Textures/";
-    
+    private SpriteBatch _spriteBatch;
+    private SpriteFont _font;
+
     private enum GameState { MainMenu, Playing }
     private GameState _state = GameState.MainMenu;
     
@@ -79,11 +81,14 @@ public class TGCGame : Game
     
     private TankController _playerController;
     private TankController _enemyController;
-    
+    private int _enemyCount;
+
     private Tank _tank;
-    private Tank _tank2;
+    private List<Tank> enemyTanks;
+    private List<TankController> enemyControllers;
     private List<Tank> _tanks;
-    
+
+    private Effect tankShader;
     // Proyectiles
     private readonly List<Projectile> _projectiles = [];
     private MouseState _mousePrev;
@@ -94,7 +99,8 @@ public class TGCGame : Game
     private Trees _trees;
     private Bushes _bushes;
     
-    private float _matchTimeSeconds = 0f;                              // Tiempo de partida transcurrido
+    private float _matchTimeSeconds = 0f;
+    private bool _hasLost = false;
 
     private const float FireCooldownMax = 1f; // estaba harcodeado en 1f al disparar
     private float _playerHealth = 100f;
@@ -159,13 +165,14 @@ public class TGCGame : Game
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1)); //TODO
 
         _tank = new Tank(new Vector3(0, 0, 0), _orbitCamera, 0f, 0.1f);
-        _tank2 = new Tank(new Vector3(500, 0, 0), null, 0f, 0.1f);
-
-        _tanks = [_tank, _tank2];
+        
+        _tanks = [_tank];
 
         _debug = new Debug();
         _menu = new Menu();
         _hud = new HUD(GraphicsDevice);
+        enemyTanks = new List<Tank>();
+        enemyControllers = new List<TankController>();
         base.Initialize();
     }
 
@@ -180,7 +187,7 @@ public class TGCGame : Game
         _effect = Content.Load<Effect>(ContentFolderEffects + "BasicShader");
         
         // Cargar shader específico para tanques
-        var tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
+        tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
         
         // heights
         var terrainHeigthmap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/heightmap");
@@ -212,8 +219,7 @@ public class TGCGame : Game
         _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, 0.002f, 0.5f, tankShader));
          
         _tank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
-        _tank2.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
-        
+
         // Construyo el diccionario BodyHandle → Tank
         var tankMap = new Dictionary<BodyHandle, Tank>();
 
@@ -227,9 +233,8 @@ public class TGCGame : Game
 
         // Se lo paso al handler
         CollisionHandler.HandleToTank = tankMap;
-        
-        _playerController = new TankController(_tank, 20,200 , 2, 100, 200f);
-        _enemyController = new TankController(_tank2, 20, 200, 2, 100, 200f);
+
+        _playerController = new TankController(_tank, 20, 200, 2, 100, 200f);
 
         _trees = new Trees(_terrain, _simulation);
         _houses = new Houses(_terrain, _simulation);
@@ -273,7 +278,7 @@ public class TGCGame : Game
             ContentFolderEffects, 
             ContentFolderSpriteFonts, 
             GraphicsDevice, 
-        [_tank, _tank2], 
+            _tanks, 
             _orbitCamera,
             _simulation, 
             _terrain,
@@ -281,7 +286,9 @@ public class TGCGame : Game
         );
         
         _menu.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);
-        _hud.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);  
+        _hud.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);
+        _font = Content.Load<SpriteFont>(ContentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
+        _spriteBatch = new SpriteBatch(GraphicsDevice);
         base.LoadContent();
     }
 
@@ -296,6 +303,19 @@ public class TGCGame : Game
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
+        if (_hasLost)
+        {
+            Console.WriteLine("en lost");
+            _matchTimeSeconds -= deltaTime;
+            if (_matchTimeSeconds <= 0)
+            {
+                _state = GameState.MainMenu;
+                _hasLost = false;
+            }
+
+            return;
+        }
+        
         // ------------------------------
         //  MODO MENU
         // ------------------------------
@@ -318,16 +338,36 @@ public class TGCGame : Game
             //Salgo del juego.
             Exit();
         }
-        
-        _matchTimeSeconds += deltaTime;
+
+        _matchTimeSeconds -= deltaTime;
+        if (_matchTimeSeconds <= 0f && !_hasLost)
+        {
+            _hasLost = true;
+            _matchTimeSeconds = 5;
+        }
+
         _playerController.UpdateControls(keyboardState);
         _tank.UpdateAim(mouseState, _camera, GraphicsDevice.Viewport);
         _playerController.UpdateMovementAndAim(_simulation, _tank.AimDirectionWorld);
         
         _tank?.Update(gameTime, keyboardState);
+
+        for (int i = enemyTanks.Count - 1; i >= 0; i--)
+        {
+            var enemyTank = enemyTanks[i];
+            if (enemyTank.IsDead)
+            {
+                enemyTanks.RemoveAt(i);
+                enemyControllers.RemoveAt(i);
+                _enemyCount--;
+                continue;
+            }
+                
+            var enemyController = enemyControllers[i];
+            enemyTank.UpdateEnemyTankAI(_tank.Position, enemyController);
+            enemyTank.Update(gameTime);
+        }
         
-        _tank2?.UpdateEnemyTankAI(_tank.Position, _enemyController);
-        _tank2?.Update(gameTime);
 
         // click izquierdo: dispara
         _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
@@ -410,7 +450,13 @@ public class TGCGame : Game
     ///     Escribir aqui el codigo referido al renderizado.
     /// </summary>
     protected override void Draw(GameTime gameTime)
-    {
+    {   
+        
+        if (_hasLost)
+        {
+            DrawPerdiste();
+            return;
+        }
         GraphicsDevice.Clear(Color.Black);
         // Limpia también el depth buffer
         GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.Black, 1f, 0);
@@ -440,7 +486,13 @@ public class TGCGame : Game
         GraphicsDevice.RasterizerState = oldRasterizerState;
         
         _tank.Draw();
-        _tank2?.Draw();
+        if (_state != GameState.MainMenu)
+        {
+            foreach (var enemyTank in enemyTanks)
+            {
+                enemyTank.Draw();
+            }
+        }
 
         _trees.Dibujar();
         _houses.Dibujar();
@@ -451,12 +503,19 @@ public class TGCGame : Game
             projectile.Draw(_effect, _camera.View, _camera.Projection);
 
         _debug.Draw(_camera);
-        _hud.Draw(_matchTimeSeconds, _fireCooldown, FireCooldownMax, _currentProjectile, _playerHealth, _playerMaxHealth);
+        if (!_hasLost)
+        {
+            _hud.Draw(_matchTimeSeconds, _fireCooldown, FireCooldownMax, _currentProjectile, _playerHealth, _playerMaxHealth, _enemyCount);
+        }
+            
     }
-    
+
     public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int tanqueSeleccionado)
     {
         _state = GameState.Playing;
+        _matchTimeSeconds = (float)tiempoPartida.TotalSeconds;
+        spawnearTanks(cantidadEnemigos);
+        _enemyCount=cantidadEnemigos;
     }
 
     /// <summary>
@@ -470,5 +529,45 @@ public class TGCGame : Game
         base.UnloadContent();
     }
 
+    private void DrawPerdiste()
+    {
+        var pantalla = GraphicsDevice.Viewport;
 
+        var mensaje = "PERDISTE";
+        var medida = _font.MeasureString(mensaje);
+        var centroPantalla = new Vector2(pantalla.Width / 2f, pantalla.Height / 2f);
+
+        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+        _spriteBatch.DrawString(_font, mensaje, centroPantalla, Color.Red, 0f, medida / 2f, 5f, SpriteEffects.None, 0f);
+        _spriteBatch.End();
+    }
+    
+    public void spawnearTanks(int cantTanks)
+    {
+        for (int i = 0; i < cantTanks; i++)
+        {
+            var enemyTank = new  Tank(new Vector3(500 + 100 * i, 0, 50 * i), null, 0f, 0.1f);
+            enemyTank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
+                _bodyProperties, _terrain);
+            var enemyController = new TankController(enemyTank, 20, 200, 2, 100, 200f);
+            enemyTanks.Add(enemyTank);
+            enemyControllers.Add(enemyController);
+        }
+        
+        _tanks.AddRange(enemyTanks);
+        
+        _debug.actualizarTanks(_tanks);
+        
+        var tankMap = new Dictionary<BodyHandle, Tank>();
+
+        foreach (var tank in _tanks)
+        {
+            foreach (var handle in tank.BodyHandles)
+            {
+                tankMap[handle] = tank;
+            }
+        }
+        
+        CollisionHandler.HandleToTank = tankMap;
+    }
 }
