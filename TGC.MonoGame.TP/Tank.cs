@@ -719,6 +719,7 @@ namespace TGC.MonoGame.TP
 
         private void UpdateWorldMatrix()
         {
+            if (IsDead) return;
             if (Keyboard.GetState().IsKeyDown(Keys.P))
             {
                 VisualYOffset += 1;
