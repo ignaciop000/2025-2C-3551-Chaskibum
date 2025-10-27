@@ -1,4 +1,5 @@
-﻿using BepuPhysics;
+﻿using System;
+using BepuPhysics;
 using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -9,7 +10,7 @@ using SysQuaternion = System.Numerics.Quaternion;
 
 namespace TGC.MonoGame.TP
 {
-    public class Projectile
+    public class Projectile : GeometricPrimitive
     {
         private Simulation _simulation;
         private Effect _effect;
@@ -28,17 +29,18 @@ namespace TGC.MonoGame.TP
         private static bool _primReady;
 
         public bool IsDead { get; private set; }
+
+        public float Damage;
+        
         public Projectile(
             Simulation simulation,
             Effect effect,
             XnaVector3 spawnPos,
             XnaVector3 direction,
-            float speed = 350f,
-            float radius = 1f,
-            float mass = 2f,
+            ProjectileConfig config,
             float lifeSeconds = 4f)
         {
-            Init(simulation, effect, spawnPos, direction, speed, radius, mass, lifeSeconds);
+            Init(simulation, effect, spawnPos, direction, config.Speed, config.Radius, config.Mass, lifeSeconds);
         }
         
         private void Init(
@@ -56,6 +58,8 @@ namespace TGC.MonoGame.TP
             _radius = radius;
             _lifeMax = lifeSeconds;
             _life = 0f;
+
+            Damage = mass * 10f; // Masa * Multiplicador de daño
 
             // Cuerpo BEPU: esfera dinámica
             var sphere = new Sphere(radius);
@@ -79,7 +83,7 @@ namespace TGC.MonoGame.TP
             
             _pos = spawnPos;
 
-            EnsurePrimitive(effect.GraphicsDevice);
+            CreatePrimitive(effect.GraphicsDevice, radius * 2, 16, Color.Black);
         }
 
         public void Update(float dt)
@@ -118,7 +122,7 @@ namespace TGC.MonoGame.TP
             CollisionHandler.HandleToProjectile.Remove(_body);
         }
 
-        public void Draw(GraphicsDevice gd, Matrix view, Matrix proj)
+        public void Draw(Effect effect, Matrix view, Matrix proj)
         {
             if (IsDead) return;
 
@@ -129,46 +133,84 @@ namespace TGC.MonoGame.TP
             );
             _effect.Parameters["View"]?.SetValue(view);
             _effect.Parameters["Projection"]?.SetValue(proj);
+            _effect.Parameters["UseTexture"]?.SetValue(false);
             _effect.Parameters["DiffuseColor"]?.SetValue(Color.Black.ToVector3());
 
-            gd.SetVertexBuffer(_vb);
-            gd.Indices = _ib;
-            foreach (var pass in _effect.CurrentTechnique.Passes)
-            {
-                pass.Apply();
-                gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, _ib.IndexCount / 3);
-            }
+            base.Draw(effect);
         }
 
-        private static void EnsurePrimitive(GraphicsDevice gd)
+        private void CreatePrimitive(GraphicsDevice graphicsDevice, float diameter, int tessellation, Color color)
         {
-            if (_primReady) return;
-            var v = new[]
-            {
-                new VertexPositionColor(new XnaVector3(-0.5f, -0.5f, -0.5f), Color.White),
-                new VertexPositionColor(new XnaVector3(0.5f, -0.5f, -0.5f), Color.White),
-                new VertexPositionColor(new XnaVector3(0.5f, 0.5f, -0.5f), Color.White),
-                new VertexPositionColor(new XnaVector3(-0.5f, 0.5f, -0.5f), Color.White),
-                new VertexPositionColor(new XnaVector3(-0.5f, -0.5f, 0.5f), Color.White),
-                new VertexPositionColor(new XnaVector3(0.5f, -0.5f, 0.5f), Color.White),
-                new VertexPositionColor(new XnaVector3(0.5f, 0.5f, 0.5f), Color.White),
-                new VertexPositionColor(new XnaVector3(-0.5f, 0.5f, 0.5f), Color.White),
-            };
-            var idx = new ushort[]
-            {
-                0, 1, 2, 0, 2, 3,
-                4, 6, 5, 4, 7, 6,
-                0, 4, 5, 0, 5, 1,
-                3, 2, 6, 3, 6, 7,
-                0, 3, 7, 0, 7, 4,
-                1, 5, 6, 1, 6, 2
-            };
+            if (tessellation < 3)
+                throw new ArgumentOutOfRangeException("tessellation");
 
-            _vb = new VertexBuffer(gd, VertexPositionColor.VertexDeclaration, v.Length, BufferUsage.WriteOnly);
-            _vb.SetData(v);
-            _ib = new IndexBuffer(gd, IndexElementSize.SixteenBits, idx.Length, BufferUsage.WriteOnly);
-            _ib.SetData(idx);
-            _primReady = true;
+            var verticalSegments = tessellation;
+            var horizontalSegments = tessellation * 2;
+
+            var radius = diameter / 2;
+
+            // Start with a single vertex at the bottom of the sphere.
+            AddVertex(Vector3.Down * radius, color, Vector3.Down);
+
+            // Create rings of vertices at progressively higher latitudes.
+            for (var i = 0; i < verticalSegments - 1; i++)
+            {
+                var latitude = (i + 1) * MathHelper.Pi /
+                    verticalSegments - MathHelper.PiOver2;
+
+                var dy = (float) Math.Sin(latitude);
+                var dxz = (float) Math.Cos(latitude);
+
+                // Create a single ring of vertices at this latitude.
+                for (var j = 0; j < horizontalSegments; j++)
+                {
+                    var longitude = j * MathHelper.TwoPi / horizontalSegments;
+
+                    var dx = (float) Math.Cos(longitude) * dxz;
+                    var dz = (float) Math.Sin(longitude) * dxz;
+
+                    var normal = new Vector3(dx, dy, dz);
+
+                    AddVertex(normal * radius, color, normal);
+                }
+            }
+
+            // Finish with a single vertex at the top of the sphere.
+            AddVertex(Vector3.Up * radius, color, Vector3.Up);
+
+            // Create a fan connecting the bottom vertex to the bottom latitude ring.
+            for (var i = 0; i < horizontalSegments; i++)
+            {
+                AddIndex(0);
+                AddIndex(1 + (i + 1) % horizontalSegments);
+                AddIndex(1 + i);
+            }
+
+            // Fill the sphere body with triangles joining each pair of latitude rings.
+            for (var i = 0; i < verticalSegments - 2; i++)
+            for (var j = 0; j < horizontalSegments; j++)
+            {
+                var nextI = i + 1;
+                var nextJ = (j + 1) % horizontalSegments;
+
+                AddIndex(1 + i * horizontalSegments + j);
+                AddIndex(1 + i * horizontalSegments + nextJ);
+                AddIndex(1 + nextI * horizontalSegments + j);
+
+                AddIndex(1 + i * horizontalSegments + nextJ);
+                AddIndex(1 + nextI * horizontalSegments + nextJ);
+                AddIndex(1 + nextI * horizontalSegments + j);
+            }
+
+            // Create a fan connecting the top vertex to the top latitude ring.
+            for (var i = 0; i < horizontalSegments; i++)
+            {
+                AddIndex(CurrentVertex - 1);
+                AddIndex(CurrentVertex - 2 - (i + 1) % horizontalSegments);
+                AddIndex(CurrentVertex - 2 - i);
+            }
+
+            InitializePrimitive(graphicsDevice);
         }
 
         // ===== Helpers de conversión =====

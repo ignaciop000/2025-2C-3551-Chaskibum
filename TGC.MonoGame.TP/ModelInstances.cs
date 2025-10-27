@@ -55,7 +55,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
             {
                 // Alinear al plano del terreno
                 var pos3 = new Vector3(posicion.X, altura + alturaMapa, posicion.Y);
-                var q = terrain.CalculateRotation(pos3, yaw, out _);
+                var q = terrain.CalculateRotation(pos3, yaw);
                 world = Matrix.CreateScale(escala) * Matrix.CreateFromQuaternion(q) * Matrix.CreateTranslation(pos3);
             }
             else

@@ -23,6 +23,10 @@ public struct TankDescription
     /// </summary>
     public TankPartDescription Body;
     /// <summary>
+    /// Description of the tank's secondary body.
+    /// </summary>
+    public TankPartDescription SecondaryBody;
+    /// <summary>
     /// Location of the barrel's anchor in the tank's local space. The barrel will connect to the turret at this location.
     /// </summary>
     public Vector3 BarrelAnchor;
@@ -57,6 +61,14 @@ public struct TankDescription
     /// Shape used for all wheels.
     /// </summary>
     public TypedIndex WheelShape;
+    /// <summary>
+    /// Shape used for some wheels.
+    /// </summary>
+    public TypedIndex SmallWheelShape;
+    /// <summary>
+    /// Shape used for some wheels.
+    /// </summary>
+    public TypedIndex SmallerWheelShape;
     /// <summary>
     /// Inertia of each wheel body.
     /// </summary>
