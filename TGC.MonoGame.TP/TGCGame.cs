@@ -1,10 +1,14 @@
 ﻿// LISTA DE TAREAS:
 // - Solucionar Bug Camara Free [AGUS]
-// - Mejorar torreta (que siga mejor al mouse y que no se desincronice el collider) [MATEO]
 // - Arreglar collider Roca 9 [SANTI Y AGUS]
 // - Solucionar y Completar Texturas [SANTI]
-// - No quedarte atascado ni dado vuelta / Solucion atascamientos [MATEO]
 
+
+// - No quedarte atascado ni dado vuelta / Solucion atascamientos [MATEO]
+// - Agregar mas Tanques IA (T90 o Panzer), aparecen de a poco hasta llegar al límite [MATEO]
+// - Contador, enemigos restantes, victoria/derrota [MATEO]
+
+// - Incluir Panzer, distintas caracteristicas que T90: vida, daño base, velocidad [NACHO]
 // - Postes de luz [AGUS]
 // - Vida, Cooldown, tipos proyectiles [AGUS]
 // - HUD (Vida, Cooldown de disparo, Tipo proyectil: + velocidad => - daño, Ganaste/Perdiste/Juga de nuevo) [NACHO] [COMPLETADO]
