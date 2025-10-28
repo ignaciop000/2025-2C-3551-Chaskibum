@@ -37,7 +37,7 @@ public class HUD
         _pixel.SetData(new[] { Color.White });
     }
 
-    private void DrawInfo(float fireCooldown, float fireCooldownMax, TGCGame.ProjectileType currentProjectile, float playerHealth, float playerMaxHealth, int enemyCount)
+    private void DrawInfo(float fireCooldown, float fireCooldownMax, ProjectileType currentProjectile, float playerHealth, float playerMaxHealth, int enemyCount)
     {
         var viewport = _graphicsDevice.Viewport;
         var text = "Enemigos restantes: " + enemyCount;
@@ -90,9 +90,9 @@ public class HUD
         _spriteBatch.DrawString(_menuFont, lifeText, lifeTextPos, Color.White);
     }
 
-    private void DrawProyectil(TGCGame.ProjectileType currentProjectile, int x, int y, int ancho, int largo)
+    private void DrawProyectil(ProjectileType currentProjectile, int x, int y, int ancho, int largo)
     {
-        if (currentProjectile == TGCGame.ProjectileType.Heavy)
+        if (currentProjectile == ProjectileTypes.Heavy)
         {
             _spriteBatch.Draw(
                 _proyectil1,
@@ -141,7 +141,7 @@ public class HUD
 
 
     public void Draw(float matchTimeSeconds, float fireCooldown, float fireCooldownMax,
-        TGCGame.ProjectileType currentProjectile, float playerHealth, float playerMaxHealth, int enemyCount)
+        ProjectileType currentProjectile, float playerHealth, float playerMaxHealth, int enemyCount)
     {
         var vp = _graphicsDevice.Viewport;
         _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);

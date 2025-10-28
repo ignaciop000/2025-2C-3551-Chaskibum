@@ -1,5 +1,5 @@
 ﻿// LISTA DE TAREAS:
-// - Solucionar Bug Camara Free [AGUS]
+// - Solucionar Bug Camara Free [AGUS] [COMPLETADO]
 // - Arreglar collider Roca 9 [SANTI Y AGUS]
 // - Solucionar y Completar Texturas [SANTI]
 
@@ -10,7 +10,7 @@
 
 // - Incluir Panzer, distintas caracteristicas que T90: vida, daño base, velocidad [NACHO]
 // - Postes de luz [AGUS]
-// - Vida, Cooldown, tipos proyectiles [AGUS]
+// - Vida, Cooldown, tipos proyectiles [AGUS] [COMPLETADO]
 // - HUD (Vida, Cooldown de disparo, Tipo proyectil: + velocidad => - daño, Ganaste/Perdiste/Juga de nuevo) [NACHO] [COMPLETADO]
 // - Menú (Iniciar -> Elegir tanque, los 2 tienen distintas caracteristicas;
 //          Configurar tiempo y cant. enemigos;
@@ -20,6 +20,8 @@
 // - Imagen tutorial [SANTI]
 // - Agregar World Border [AGUS]
 // - Emprolijar código físicas [OPCIONAL, POR AHORA]
+// - Que se vea el debug de los proyectiles [OPCIONAL]
+// - Cielo y fog [OPCIONAL]
 
 
 using System;
@@ -60,7 +62,7 @@ public class TGCGame : Game
     private enum GameState { MainMenu, Playing }
     private GameState _state = GameState.MainMenu;
     
-    private const float EscalaMapa = 20;
+    private const float EscalaMapa = 30;
     private readonly GraphicsDeviceManager _graphics;
     
     private Camera _camera;                 // Cámara activa
@@ -78,6 +80,7 @@ public class TGCGame : Game
 
     private PositionGenerator _positionGenerator;
     private Terrain _terrain;
+    private WorldBorder _worldBorder;
     
     private KeyboardState _kbPrev;
     
@@ -94,23 +97,19 @@ public class TGCGame : Game
     // Proyectiles
     private readonly List<Projectile> _projectiles = [];
     private MouseState _mousePrev;
-    private float _fireCooldown;                                        // Tiempo restante hasta poder disparar de nuevo
 
     private Houses _houses;
     private Rocks _rocks;
     private Trees _trees;
     private Bushes _bushes;
+    private LightPoles _lightPoles;
     
     private float _matchTimeSeconds = 0f;
     private bool _hasLost = false;
     private bool _hasWon = false;
-
-    private const float FireCooldownMax = 1f; // estaba harcodeado en 1f al disparar
+    
     private float _playerHealth = 100f;
     private float _playerMaxHealth = 100f;
-
-    public enum ProjectileType { Standard, Heavy }
-    private ProjectileType _currentProjectile = ProjectileType.Standard;
 
     private List<TankEntry> _tankEntries = new();   
     private Debug _debug;
@@ -167,7 +166,7 @@ public class TGCGame : Game
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1)); //TODO
 
-        _tank = new Tank(new Vector3(0, 0, 0), _orbitCamera, 0f, 0.1f);
+        _tank = new Tank(new Vector3(0, 0, 0), 0f, 0.1f);
         
         _tanks = [_tank];
 
@@ -243,12 +242,13 @@ public class TGCGame : Game
         _houses = new Houses(_terrain, _simulation);
         _rocks = new Rocks(_terrain, _simulation);
         _bushes = new Bushes(_terrain, _simulation);
+        _lightPoles =  new LightPoles(_terrain, _simulation);
         
         _houses.SetPlacementRules(5f,  false); // ≤ 5°, NO se inclinan
         _trees.SetPlacementRules(20f,  true);  // ≤ 20°, se inclinan
         _bushes.SetPlacementRules(25f, true);  // ≤ 25°, se inclinan
         _rocks.SetPlacementRules(null, true);  // sin restricción, se inclinan
-
+        _lightPoles.SetPlacementRules(10f, true);
 
         // Generacion de posiciones de modelos
 
@@ -256,9 +256,10 @@ public class TGCGame : Game
         var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa; // Largo terreno en mundo
         
         _positionGenerator = new PositionGenerator(anchoMapa, largoMapa);
-        var modelos = _trees.GetModelosConPorcentaje(0.60) // Arboles
-            .Concat(_rocks.GetModelosConPorcentaje(0.35)) // Rocas
+        var modelos = _trees.GetModelosConPorcentaje(0.50) // Arboles
+            .Concat(_rocks.GetModelosConPorcentaje(0.30)) // Rocas
             .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
+            .Concat(_lightPoles.GetModelosConPorcentaje(0.15))
             .ToList();
         _positionGenerator.AgregarPosiciones(modelos);
 
@@ -270,11 +271,15 @@ public class TGCGame : Game
         _rocks.CrearObjetos();
         _houses.CrearObjetos();
         _bushes.CrearObjetos();
+        _lightPoles.CrearObjetos();
         
         _trees.CargarModelos(_effect, Content);
         _houses.CargarModelos(_effect, Content);
         _rocks.CargarModelos(_effect, Content);
         _bushes.CargarModelos(_effect, Content);
+        _lightPoles.CargarModelos(_effect, Content);
+        
+        _worldBorder = new WorldBorder(GraphicsDevice, _effect, _simulation, anchoMapa, largoMapa);
         
         _debug.LoadContent(
             Content, 
@@ -352,8 +357,7 @@ public class TGCGame : Game
             _playerController.UpdateMovementAndAim(_simulation, _tank.AimDirectionWorld);
             
             // click izquierdo: dispara
-            _fireCooldown = MathF.Max(0f, _fireCooldown - deltaTime);
-            if (_fireCooldown <= 0f 
+            if (_tank.FireCooldown <= 0f 
                 && mouseState.LeftButton == ButtonState.Pressed 
                 && _mousePrev.LeftButton == ButtonState.Released)
             {
@@ -365,13 +369,14 @@ public class TGCGame : Game
 
                 // Retroceso + freno breve
                 _tank.TriggerRecoil(
-                    dir, 
+                    dir,
+                    _camera,
                     projectileMass: tipoProyectilActual.Mass, 
                     muzzleSpeed: tipoProyectilActual.Speed, 
                     intensity: 1f, 
                     withBrake: true);
 
-                _fireCooldown = 1f; // 4 disparos/seg
+                _tank.ResetCooldown();
             }
             
             for (int i = enemyTanks.Count - 1; i >= 0; i--)
@@ -419,6 +424,9 @@ public class TGCGame : Game
             _projectiles[i].Update(deltaTime);
             if (_projectiles[i].IsDead) _projectiles.RemoveAt(i);
         }
+        
+        // Actualizar World Border
+        _worldBorder.Update(_tank.Position.ToNumerics(), deltaTime);
         
         // Actualizar simulación física
         if (_simulation != null && deltaTime is > 0.0f and < 0.1f) // Máximo 100ms por frame
@@ -487,12 +495,12 @@ public class TGCGame : Game
         _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
         GraphicsDevice.RasterizerState = oldRasterizerState;
         
-        _tank.Draw();
+        _tank.Draw(_camera);
         if (_state != GameState.MainMenu)
         {
             foreach (var enemyTank in enemyTanks)
             {
-                enemyTank.Draw();
+                enemyTank.Draw(_camera);
             }
         }
 
@@ -500,14 +508,17 @@ public class TGCGame : Game
         _houses.Dibujar();
         _rocks.Dibujar();
         _bushes.Dibujar();
+        //_lightPoles.Dibujar();
         
         foreach (var projectile in _projectiles)
             projectile.Draw(_effect, _camera.View, _camera.Projection);
+        
+        _worldBorder.Draw(_camera.View, _camera.Projection);
 
         _debug.Draw(_camera);
         if (!_hasLost && !_hasWon)
         {
-            _hud.Draw(_matchTimeSeconds, _fireCooldown, FireCooldownMax, _currentProjectile, _playerHealth, _playerMaxHealth, _enemyCount);
+            _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, _tank.TipoProyectilActual, _playerHealth, _playerMaxHealth, _enemyCount);
         }
         
         if (_hasLost)
@@ -545,7 +556,7 @@ public class TGCGame : Game
     {
         for (int i = 0; i < cantTanks; i++)
         {
-            var enemyTank = new  Tank(new Vector3(500 + 100 * i, 0, 50 * i), null, 0f, 0.1f);
+            var enemyTank = new  Tank(new Vector3(500 + 100 * i, 0, 50 * i), 0f, 0.1f);
             enemyTank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
                 _bodyProperties, _terrain);
             var enemyController = new TankController(enemyTank, 20, 200, 2, 100, 200f);
