@@ -37,10 +37,10 @@ namespace TGC.MonoGame.TP
             Effect effect,
             XnaVector3 spawnPos,
             XnaVector3 direction,
-            ProjectileConfig config,
+            ProjectileType type,
             float lifeSeconds = 4f)
         {
-            Init(simulation, effect, spawnPos, direction, config.Speed, config.Radius, config.Mass, lifeSeconds);
+            Init(simulation, effect, spawnPos, direction, type.Speed, type.Radius, type.Mass, lifeSeconds);
         }
         
         private void Init(

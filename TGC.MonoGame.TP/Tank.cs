@@ -85,8 +85,6 @@ namespace TGC.MonoGame.TP
         private const float BrakeDuration = 0.18f; // seg
         private const float BrakeK = 10f; // coeficiente de frenado (tunable)
 
-        private readonly Camera _camera;
-
         private float VisualYOffset = 38f;
         private float VisualZOffset = 23f;
 
@@ -119,14 +117,14 @@ namespace TGC.MonoGame.TP
         public Vector3 AimDirectionWorld { get; set; } = new(0, 0, 1);
 
         public float Vida = 100f;
-        public ProjectileConfig TipoProyectilActual = ProjectilePresets.Light;
+        public ProjectileType TipoProyectilActual = ProjectileTypes.Light;
+        public float FireCooldown;
 
-        public Tank(Vector3 initialPosition, Camera camera, float initialRotation = 0f, float scale = 1f)
+        public Tank(Vector3 initialPosition, float initialRotation = 0f, float scale = 1f)
         {
             _lastPos = Position = initialPosition;
             Rotation = initialRotation;
             Scale = scale;
-            _camera = camera;
         }
         
         /// <summary>
@@ -605,6 +603,8 @@ namespace TGC.MonoGame.TP
             else{ SteerRotation = MathHelper.Lerp(SteerRotation, 0f, dt * 5f); }
             
             SteerRotation = Math.Clamp(SteerRotation, MinSteer, MaxSteer);
+            
+            FireCooldown = MathF.Max(0f, FireCooldown - dt);
 
             // Girar ruedas según distancia recorrida
             UpdateWheelSpinByDistance();
@@ -799,7 +799,7 @@ namespace TGC.MonoGame.TP
             Gizmos.Draw();
         }
         
-        public void Draw()
+        public void Draw(Camera camera)
         {
             if (_model == null || _effect == null || IsDead) return;
 
@@ -829,11 +829,9 @@ namespace TGC.MonoGame.TP
                     effect.Parameters["World"]?.SetValue(worldPerMesh);
                     
                     // CRÍTICO: Configurar View y Projection desde la cámara
-                    if (_camera != null)
-                    {
-                        effect.Parameters["View"]?.SetValue(_camera.View);
-                        effect.Parameters["Projection"]?.SetValue(_camera.Projection);
-                    }
+                    effect.Parameters["View"]?.SetValue(camera.View);
+                    effect.Parameters["Projection"]?.SetValue(camera.Projection);
+                    
                 }
                 mesh.Draw();
             }
@@ -868,6 +866,7 @@ namespace TGC.MonoGame.TP
 
         // Dispara un pulso de retroceso y, opcionalmente, activa freno momentáneo.
         public void TriggerRecoil(Vector3 fireDirXna,
+            Camera camera,
             float projectileMass = 2f,
             float muzzleSpeed = 120f,
             float intensity = 1f,
@@ -890,8 +889,7 @@ namespace TGC.MonoGame.TP
 
             var amplitude = 0.001f * projectileMass * muzzleSpeed; 
             var rotational = amplitude * 0.06f;
-            if(_camera != null)
-                _camera.StartShake(amplitude, 0.12f, rotational);
+            camera.StartShake(amplitude, 0.12f, rotational);
         }
 
         public void ApplyRecoilAndBrake(float dt, Simulation simulation)
@@ -1017,10 +1015,17 @@ namespace TGC.MonoGame.TP
         {
             if (keyboardState.IsKeyDown(Keys.D1))
             {
-                TipoProyectilActual = ProjectilePresets.Light;
+                if (TipoProyectilActual == ProjectileTypes.Light) return;
+                
+                TipoProyectilActual = ProjectileTypes.Light;
+                FireCooldown = TipoProyectilActual.MaxCooldown;
+                
             } else if (keyboardState.IsKeyDown(Keys.D2))
             {
-                TipoProyectilActual = ProjectilePresets.Heavy;
+                if (TipoProyectilActual == ProjectileTypes.Heavy) return;
+                
+                TipoProyectilActual = ProjectileTypes.Heavy;
+                FireCooldown = TipoProyectilActual.MaxCooldown;
             }
         }
         
@@ -1039,7 +1044,7 @@ namespace TGC.MonoGame.TP
         public void UpdateAim(MouseState mouseState, Camera camera, Viewport vp)
         {
             var aimDir = camera.FrontDirection; 
-            var hit = PickOnTerrain(mouseState.Position, vp); //Rayo para ver donde impacta en el terreno
+            var hit = PickOnTerrain(mouseState.Position, vp, camera); //Rayo para ver donde impacta en el terreno
             if (hit.HasValue)
             {
                 aimDir = Vector3.Normalize(hit.Value - Position);
@@ -1047,11 +1052,11 @@ namespace TGC.MonoGame.TP
             AimDirectionWorld = aimDir;
         }
         
-        private Vector3? PickOnTerrain(Point mouse, Viewport viewport)
+        private Vector3? PickOnTerrain(Point mouse, Viewport viewport, Camera camera)
         {
             // Desarma matrices
-            var view = _camera.View;
-            var proj = _camera.Projection;
+            var view = camera.View;
+            var proj = camera.Projection;
 
             // Dos puntos en NDC (near/far) -> espacio mundo
             var nearPoint = viewport.Unproject(new Vector3(mouse.X, mouse.Y, 0f), proj, view, Matrix.Identity);
@@ -1083,6 +1088,11 @@ namespace TGC.MonoGame.TP
             // Si estamos muy lejos o fuera del mapa, descartamos
             if (float.IsNaN(hit.X)) return null;
             return hit;
+        }
+
+        public void ResetCooldown()
+        {
+            FireCooldown = TipoProyectilActual.MaxCooldown;
         }
     }
 }
