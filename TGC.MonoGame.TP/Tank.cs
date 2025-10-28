@@ -120,6 +120,8 @@ namespace TGC.MonoGame.TP
         public ProjectileType TipoProyectilActual = ProjectileTypes.Light;
         public float FireCooldown;
 
+        public Texture2D Texture;
+
         public Tank(Vector3 initialPosition, float initialRotation = 0f, float scale = 1f)
         {
             _lastPos = Position = initialPosition;
@@ -426,6 +428,8 @@ namespace TGC.MonoGame.TP
             // Define subgrupos de colisión para evitar colisiones internas entre cuerpo-torreta y torreta-cañón.
             Matrix3x3.CreateFromQuaternion(tankDescription.TurretBasis, out var turretBasis);
             // Convierte la base de la torreta (quaternion) a una matriz 3x3.
+            
+            Projectile.TankBarrelFilter =  barrelFilter;
             
             constraints.AllocateUnsafely() = _simulation.Solver.Add(_body, _secBody,
                 new Weld
@@ -807,7 +811,6 @@ namespace TGC.MonoGame.TP
             var turretRotation = Matrix.CreateRotationZ(TurretRotation);
             var cannonRotation = Matrix.CreateRotationX(CannonRotation);
             
-            
             for (int i = 0; i < 16; i++)
             {
                 _wheelBones[i].Transform = wheelRotation * _wheelTransforms[i]; 
@@ -831,7 +834,10 @@ namespace TGC.MonoGame.TP
                     // CRÍTICO: Configurar View y Projection desde la cámara
                     effect.Parameters["View"]?.SetValue(camera.View);
                     effect.Parameters["Projection"]?.SetValue(camera.Projection);
-                    
+                    if (Texture != null)
+                    {
+                        effect.Parameters["ModelTexture"]?.SetValue(Texture);
+                    }
                 }
                 mesh.Draw();
             }
@@ -1093,6 +1099,30 @@ namespace TGC.MonoGame.TP
         public void ResetCooldown()
         {
             FireCooldown = TipoProyectilActual.MaxCooldown;
+        }
+        
+        public void VolverAlCentro()
+        {
+            // Obtener referencia al cuerpo físico BEPU
+            var centerY = _terrain.GetHeightAtPosition(0, 0);
+            var bodyHandle = _simulation.Bodies.GetBodyReference(_body);
+            var tankPos = bodyHandle.Pose.Position;
+            var offset = new System.Numerics.Vector3(1300, centerY + 200, 0) - tankPos;
+            
+            foreach (var handle in BodyHandles)
+            {
+                var bodyRef = _simulation.Bodies.GetBodyReference(handle);    
+                var pose = bodyRef.Pose;
+                pose.Position += offset;
+                bodyRef.Pose = pose;
+                
+                var vel = bodyRef.Velocity;
+                vel.Linear = System.Numerics.Vector3.Zero;
+                vel.Angular = System.Numerics.Vector3.Zero;
+                bodyRef.Velocity = vel;
+            }
+            
+            UpdateWorldMatrix();
         }
     }
 }

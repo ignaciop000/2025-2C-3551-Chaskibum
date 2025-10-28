@@ -1,28 +1,9 @@
-﻿// LISTA DE TAREAS:
-// - Solucionar Bug Camara Free [AGUS] [COMPLETADO]
+﻿// LISTA DE TAREAS
 // - Arreglar collider Roca 9 [SANTI Y AGUS]
 // - Solucionar y Completar Texturas [SANTI]
-
-
-// - No quedarte atascado ni dado vuelta / Solucion atascamientos [MATEO]
-// - Agregar mas Tanques IA (T90 o Panzer), aparecen de a poco hasta llegar al límite [MATEO]
-// - Contador, enemigos restantes, victoria/derrota [MATEO]
-
-// - Incluir Panzer, distintas caracteristicas que T90: vida, daño base, velocidad [NACHO]
 // - Postes de luz [AGUS]
-// - Vida, Cooldown, tipos proyectiles [AGUS] [COMPLETADO]
-// - HUD (Vida, Cooldown de disparo, Tipo proyectil: + velocidad => - daño, Ganaste/Perdiste/Juga de nuevo) [NACHO] [COMPLETADO]
-// - Menú (Iniciar -> Elegir tanque, los 2 tienen distintas caracteristicas;
-//          Configurar tiempo y cant. enemigos;
-//          Configurar volumenes;
-//          Integrantes) [NACHO] [COMPLETADO]
 // - Música (menu y juego) y Sonidos (acciones de hud, daño, choque, disparo y motor) [SANTI]
 // - Imagen tutorial [SANTI]
-// - Agregar World Border [AGUS] [COMPLETADO]
-// - Emprolijar código físicas y separar en carpetas [OPCIONAL, POR AHORA]
-// - Que se vea el debug de los proyectiles [OPCIONAL]
-// - Cielo y fog [OPCIONAL]
-// - Bug suicidarte [OPCIONAL]
 
 
 using System;
@@ -35,7 +16,6 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using TGC.MonoGame.TP.Viewer.Gizmos;
 using Matrix = Microsoft.Xna.Framework.Matrix;
-using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
 namespace TGC.MonoGame.TP;
@@ -57,8 +37,6 @@ public class TGCGame : Game
     public const string ContentFolderSounds = "Sounds/";
     public const string ContentFolderSpriteFonts = "SpriteFonts/";
     public const string ContentFolderTextures = "Textures/";
-    private SpriteBatch _spriteBatch;
-    private SpriteFont _font;
 
     private enum GameState { MainMenu, Playing }
     private GameState _state = GameState.MainMenu;
@@ -87,15 +65,14 @@ public class TGCGame : Game
     private KeyboardState _kbPrev;
     
     private TankController _playerController;
-    private TankController _enemyController;
     private int _enemyCount;
 
     private Tank _tank;
-    private List<Tank> enemyTanks;
-    private List<TankController> enemyControllers;
+    private List<Tank> _enemyTanks;
+    private List<TankController> _enemyControllers;
     private List<Tank> _tanks;
 
-    private Effect tankShader;
+    private Effect _tankShader;
     // Proyectiles
     private readonly List<Projectile> _projectiles = [];
     private MouseState _mousePrev;
@@ -106,14 +83,17 @@ public class TGCGame : Game
     private Bushes _bushes;
     private LightPoles _lightPoles;
     
-    private float _matchTimeSeconds = 0f;
-    private bool _hasLost = false;
-    private bool _hasWon = false;
+    private float _matchTimeSeconds;
+    private bool _hasLost;
+    private bool _hasWon;
     
     private float _playerHealth = 100f;
     private float _playerMaxHealth = 100f;
 
     private List<TankEntry> _tankEntries = new();   
+    
+    private static readonly Random _random = new Random();
+    
     private Debug _debug;
     private HUD _hud;
     private Menu _menu;
@@ -175,8 +155,8 @@ public class TGCGame : Game
         _debug = new Debug();
         _menu = new Menu();
         _hud = new HUD(GraphicsDevice);
-        enemyTanks = new List<Tank>();
-        enemyControllers = new List<TankController>();
+        _enemyTanks = new List<Tank>();
+        _enemyControllers = new List<TankController>();
         base.Initialize();
     }
 
@@ -191,7 +171,7 @@ public class TGCGame : Game
         _effect = Content.Load<Effect>(ContentFolderEffects + "BasicShader");
         
         // Cargar shader específico para tanques
-        tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
+        _tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
         
         // Cargar shader específico para el World Border
         _worldBorderEffect = Content.Load<Effect>(ContentFolderEffects + "WorldBorderShader");
@@ -217,15 +197,15 @@ public class TGCGame : Game
         
         var tankT90 = Content.Load<Model>(ContentFolder3D + "t90/T90");
         var hullATexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
-        _tankEntries.Add(new TankEntry("T-90-A", tankT90, hullATexture, 0.002f, 0.5f, tankShader));
+        _tankEntries.Add(new TankEntry("T-90-A", tankT90, hullATexture, 0.002f, 0.5f, _tankShader));
         
         var hullBTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
-        _tankEntries.Add(new TankEntry("T-90-B", tankT90, hullBTexture, 0.002f, 0.5f, tankShader));
+        _tankEntries.Add(new TankEntry("T-90-B", tankT90, hullBTexture, 0.002f, 0.5f, _tankShader));
         
         var hullCTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
-        _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, 0.002f, 0.5f, tankShader));
+        _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, 0.002f, 0.5f, _tankShader));
          
-        _tank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
+        _tank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
 
         // Construyo el diccionario BodyHandle → Tank
         var tankMap = new Dictionary<BodyHandle, Tank>();
@@ -300,8 +280,6 @@ public class TGCGame : Game
         
         _menu.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);
         _hud.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);
-        _font = Content.Load<SpriteFont>(ContentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
-        _spriteBatch = new SpriteBatch(GraphicsDevice);
         base.LoadContent();
     }
 
@@ -353,6 +331,7 @@ public class TGCGame : Game
                 _state = GameState.MainMenu;
                 _hasLost = false;
                 _hasWon = false;
+                _tank.VolverAlCentro();
             }
         }
         else
@@ -369,7 +348,7 @@ public class TGCGame : Game
                 var tipoProyectilActual = _tank.TipoProyectilActual;
 
                 var (muzzle, dir) = _tank.GetMuzzle(); // offset local del cañón 
-                var proj = new Projectile(_simulation, _effect, muzzle, dir, tipoProyectilActual);
+                var proj = new Projectile(_simulation, _effect, muzzle, dir, tipoProyectilActual, _tank);
                 _projectiles.Add(proj);
 
                 // Retroceso + freno breve
@@ -384,18 +363,18 @@ public class TGCGame : Game
                 _tank.ResetCooldown();
             }
             
-            for (int i = enemyTanks.Count - 1; i >= 0; i--)
+            for (int i = _enemyTanks.Count - 1; i >= 0; i--)
             {
-                var enemyTank = enemyTanks[i];
+                var enemyTank = _enemyTanks[i];
                 if (enemyTank.IsDead)
                 {
-                    enemyTanks.RemoveAt(i);
-                    enemyControllers.RemoveAt(i);
+                    _enemyTanks.RemoveAt(i);
+                    _enemyControllers.RemoveAt(i);
                     _enemyCount--;
                     continue;
                 }
                 
-                var enemyController = enemyControllers[i];
+                var enemyController = _enemyControllers[i];
                 enemyTank.UpdateEnemyTankAI(_tank.Position, enemyController);
                 enemyTank.Update(gameTime);
             }
@@ -504,7 +483,7 @@ public class TGCGame : Game
         _tank.Draw(_camera);
         if (_state != GameState.MainMenu)
         {
-            foreach (var enemyTank in enemyTanks)
+            foreach (var enemyTank in _enemyTanks)
             {
                 enemyTank.Draw(_camera);
             }
@@ -514,7 +493,7 @@ public class TGCGame : Game
         _houses.Dibujar();
         _rocks.Dibujar();
         _bushes.Dibujar();
-        //_lightPoles.Dibujar();
+        _lightPoles.Dibujar();
         
         foreach (var projectile in _projectiles)
             projectile.Draw(_effect, _camera.View, _camera.Projection);
@@ -539,12 +518,13 @@ public class TGCGame : Game
         }
     }
 
-    public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int tanqueSeleccionado)
+    public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int indiceSeleccionado)
     {
-        _state = GameState.Playing;
         _matchTimeSeconds = (float)tiempoPartida.TotalSeconds;
-        spawnearTanks(cantidadEnemigos);
+        SpawnearTanks(cantidadEnemigos);
         _enemyCount=cantidadEnemigos;
+        _tank.Texture = _tankEntries[indiceSeleccionado].Texture;
+        _state = GameState.Playing;
     }
 
     /// <summary>
@@ -558,19 +538,21 @@ public class TGCGame : Game
         base.UnloadContent();
     }
     
-    public void spawnearTanks(int cantTanks)
+    public void SpawnearTanks(int cantTanks)
     {
         for (int i = 0; i < cantTanks; i++)
         {
             var enemyTank = new  Tank(new Vector3(500 + 100 * i, 0, 50 * i), 0f, 0.1f);
-            enemyTank.CargarModelo("t90/T90", tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
+            enemyTank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
                 _bodyProperties, _terrain);
+            int index = _random.Next(_tankEntries.Count); // índice aleatorio entre 0 y Count-1
+            enemyTank.Texture = _tankEntries[index].Texture;
             var enemyController = new TankController(enemyTank, 20, 200, 2, 100, 200f);
-            enemyTanks.Add(enemyTank);
-            enemyControllers.Add(enemyController);
+            _enemyTanks.Add(enemyTank);
+            _enemyControllers.Add(enemyController);
         }
         
-        _tanks.AddRange(enemyTanks);
+        _tanks.AddRange(_enemyTanks);
         
         _debug.actualizarTanks(_tanks);
         
