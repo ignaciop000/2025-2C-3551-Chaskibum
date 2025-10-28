@@ -32,6 +32,7 @@ using BepuUtilities.Memory;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
 using TGC.MonoGame.TP.Viewer.Gizmos;
 using Matrix = Microsoft.Xna.Framework.Matrix;
 using Vector2 = System.Numerics.Vector2;
@@ -116,6 +117,10 @@ public class TGCGame : Game
     private HUD _hud;
     private Menu _menu;
     
+    // Audio
+    private Song _gameplayMusic;
+    private bool _gameplayMusicStarted = false;
+    
     /// <summary>
     ///     Constructor del juego.
     /// </summary>
@@ -191,6 +196,9 @@ public class TGCGame : Game
         // Cargar shader específico para tanques
         tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
         
+        // Cargar shader específico para árboles
+        var treeShader = Content.Load<Effect>(ContentFolderEffects + "TreeShader");
+        
         // heights
         var terrainHeigthmap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/heightmap");
         // basic color
@@ -209,6 +217,9 @@ public class TGCGame : Game
             _simulation,
             EscalaMapa
             );
+        
+        // Registrar el handle del terreno en el CollisionHandler para excluirlo de sonidos
+        CollisionHandler.TerrainHandle = _terrain.Handle;
         
         var tankT90 = Content.Load<Model>(ContentFolder3D + "t90/T90");
         var hullATexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
@@ -273,7 +284,7 @@ public class TGCGame : Game
         _bushes.CrearObjetos();
         _lightPoles.CrearObjetos();
         
-        _trees.CargarModelos(_effect, Content);
+        _trees.CargarModelos(treeShader, Content);
         _houses.CargarModelos(_effect, Content);
         _rocks.CargarModelos(_effect, Content);
         _bushes.CargarModelos(_effect, Content);
@@ -297,6 +308,17 @@ public class TGCGame : Game
         _hud.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);
         _font = Content.Load<SpriteFont>(ContentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
         _spriteBatch = new SpriteBatch(GraphicsDevice);
+        
+        // Cargar música de gameplay (opcional - no falla si no existe)
+        try
+        {
+            _gameplayMusic = Content.Load<Song>("Music/gameplay_music");
+        }
+        catch
+        {
+            // Música de gameplay no encontrada, continuar sin ella
+        }
+        
         base.LoadContent();
     }
 
@@ -504,10 +526,10 @@ public class TGCGame : Game
             }
         }
 
-        _trees.Dibujar();
-        _houses.Dibujar();
-        _rocks.Dibujar();
-        _bushes.Dibujar();
+        _trees.Dibujar(_camera.View, _camera.Projection);
+        _houses.Dibujar(_camera.View, _camera.Projection);
+        _rocks.Dibujar(_camera.View, _camera.Projection);
+        _bushes.Dibujar(_camera.View, _camera.Projection);
         //_lightPoles.Dibujar();
         
         foreach (var projectile in _projectiles)
@@ -539,6 +561,9 @@ public class TGCGame : Game
         _matchTimeSeconds = (float)tiempoPartida.TotalSeconds;
         spawnearTanks(cantidadEnemigos);
         _enemyCount=cantidadEnemigos;
+        
+        // Iniciar música de gameplay
+        StartGameplayMusic();
     }
 
     /// <summary>
@@ -579,5 +604,45 @@ public class TGCGame : Game
         }
         
         CollisionHandler.HandleToTank = tankMap;
+    }
+    
+    /// <summary>
+    /// Inicia la música de gameplay
+    /// </summary>
+    private void StartGameplayMusic()
+    {
+        if (_gameplayMusic != null && !_gameplayMusicStarted)
+        {
+            try
+            {
+                MediaPlayer.IsRepeating = true;
+                MediaPlayer.Volume = 0.33f; // 33% del volumen (música de fondo)
+                MediaPlayer.Play(_gameplayMusic);
+                _gameplayMusicStarted = true;
+            }
+            catch
+            {
+                // Si hay error al reproducir, continuar sin música
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Detiene la música de gameplay
+    /// </summary>
+    private void StopGameplayMusic()
+    {
+        try
+        {
+            if (MediaPlayer.State == MediaState.Playing)
+            {
+                MediaPlayer.Stop();
+            }
+            _gameplayMusicStarted = false;
+        }
+        catch
+        {
+            // Ignorar errores
+        }
     }
 }

@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
 
 namespace TGC.MonoGame.TP;
 
@@ -38,12 +40,34 @@ public class Menu
     private SpriteBatch _spriteBatch;
     private Texture2D _pixel;
 
+    // Audio
+    private Song _menuMusic;
+    private SoundEffect _selectSound;
+    private SoundEffect _moveSound;
+    private bool _musicStarted = false;
+
     private TimeSpan SelectedMatchTime => TimeSpan.FromMinutes(_matchMinutesOptions[_matchMinutesIndex]);
     private int SelectedEnemyCount => _enemyCount;
     private int SelectedPlayerTankIndex => _playerTankIndex;
 
     public void Draw(List<TankEntry> tankEntries)
     {
+        // Iniciar música de fondo si no está sonando
+        if (!_musicStarted && _menuMusic != null)
+        {
+            try
+            {
+                MediaPlayer.IsRepeating = true;
+                MediaPlayer.Volume = 0.3f; // 30% del volumen
+                MediaPlayer.Play(_menuMusic);
+                _musicStarted = true;
+            }
+            catch
+            {
+                // Si hay error al reproducir, continuar sin música
+            }
+        }
+
         DrawMenuBackground();
         
         if (_state == MenuState.Main)
@@ -236,6 +260,34 @@ public class Menu
 
         _menuBg = content.Load<Texture2D>(contentFolderTextures + "menu_bg");
         _titleImage = content.Load<Texture2D>(contentFolderTextures + "chaskibum");
+
+        // Cargar audio (opcional - no falla si no existen los archivos)
+        try
+        {
+            _menuMusic = content.Load<Song>("Music/menu_music");
+        }
+        catch
+        {
+            // Música no encontrada, continuar sin ella
+        }
+
+        try
+        {
+            _selectSound = content.Load<SoundEffect>("Sounds/menu_select");
+        }
+        catch
+        {
+            // Sonido no encontrado
+        }
+
+        try
+        {
+            _moveSound = content.Load<SoundEffect>("Sounds/menu_move");
+        }
+        catch
+        {
+            // Sonido no encontrado
+        }
     }
 
     public void Update(KeyboardState keyboardState, KeyboardState kbPrev, GameTime gameTime, TGCGame tgcGame,
@@ -247,27 +299,40 @@ public class Menu
         {
             // Navegación menú principal
             if (keyboardState.IsKeyDown(Keys.Up) && !kbPrev.IsKeyDown(Keys.Up))
+            {
                 _menuIndex = (_menuIndex - 1 + _menuItems.Length) % _menuItems.Length;
+                PlaySound(_moveSound);
+            }
 
             if (keyboardState.IsKeyDown(Keys.Down) && !kbPrev.IsKeyDown(Keys.Down))
+            {
                 _menuIndex = (_menuIndex + 1) % _menuItems.Length;
+                PlaySound(_moveSound);
+            }
 
             if (tankEntries.Count > 0)
             {
                 if (keyboardState.IsKeyDown(Keys.Left) && !kbPrev.IsKeyDown(Keys.Left))
+                {
                     _selectedTankIndex = (_selectedTankIndex - 1 + tankEntries.Count) % tankEntries.Count;
+                    PlaySound(_moveSound);
+                }
 
                 if (keyboardState.IsKeyDown(Keys.Right) && !kbPrev.IsKeyDown(Keys.Right))
+                {
                     _selectedTankIndex = (_selectedTankIndex + 1) % tankEntries.Count;
+                    PlaySound(_moveSound);
+                }
             }
 
             if (keyboardState.IsKeyDown(Keys.Enter) && !kbPrev.IsKeyDown(Keys.Enter))
             {
+                PlaySound(_selectSound);
                 var choice = _menuItems[_menuIndex];
                 if (choice.StartsWith("Iniciar"))
                 {
                     _playerTankIndex = _selectedTankIndex;
-                    
+                    StopMenuMusic();
                     tgcGame.StartGame(SelectedMatchTime, SelectedEnemyCount, SelectedPlayerTankIndex);
                 }
                 else if (choice.StartsWith("Opciones"))
@@ -287,32 +352,85 @@ public class Menu
         else // MenuState.Options
         {
             if (keyboardState.IsKeyDown(Keys.Up) && !kbPrev.IsKeyDown(Keys.Up))
+            {
                 _optionsIndex = (_optionsIndex - 1 + _optionsItems.Length) % _optionsItems.Length;
+                PlaySound(_moveSound);
+            }
 
             if (keyboardState.IsKeyDown(Keys.Down) && !kbPrev.IsKeyDown(Keys.Down))
+            {
                 _optionsIndex = (_optionsIndex + 1) % _optionsItems.Length;
+                PlaySound(_moveSound);
+            }
             
             if (keyboardState.IsKeyDown(Keys.Left) && !kbPrev.IsKeyDown(Keys.Left))
             {
                 if (_optionsIndex == 0) // tiempo
+                {
                     _matchMinutesIndex = (_matchMinutesIndex - 1 + _matchMinutesOptions.Length) % _matchMinutesOptions.Length;
+                    PlaySound(_moveSound);
+                }
                 else if (_optionsIndex == 1) // enemigos
+                {
                     _enemyCount = Math.Max(EnemyMin, _enemyCount - 1);
+                    PlaySound(_moveSound);
+                }
             }
 
             if (keyboardState.IsKeyDown(Keys.Right) && !kbPrev.IsKeyDown(Keys.Right))
             {
                 if (_optionsIndex == 0) // tiempo
+                {
                     _matchMinutesIndex = (_matchMinutesIndex + 1) % _matchMinutesOptions.Length;
+                    PlaySound(_moveSound);
+                }
                 else if (_optionsIndex == 1) // enemigos
+                {
                     _enemyCount = Math.Min(EnemyMax, _enemyCount + 1);
+                    PlaySound(_moveSound);
+                }
             }
             
             if (keyboardState.IsKeyDown(Keys.Enter) && !kbPrev.IsKeyDown(Keys.Enter))
+            {
+                PlaySound(_selectSound);
                 _state = MenuState.Main;
+            }
             
             if (keyboardState.IsKeyDown(Keys.Escape) && !kbPrev.IsKeyDown(Keys.Escape))
+            {
+                PlaySound(_selectSound);
                 _state = MenuState.Main;
+            }
+        }
+    }
+
+    // Métodos auxiliares para audio
+    private void PlaySound(SoundEffect sound)
+    {
+        try
+        {
+            sound?.Play(volume: 0.5f, pitch: 0f, pan: 0f);
+        }
+        catch
+        {
+            // Ignorar errores de reproducción
+        }
+    }
+
+    public void StopMenuMusic()
+    {
+        try
+        {
+            if (MediaPlayer.State == MediaState.Playing)
+            {
+                MediaPlayer.Stop();
+            }
+            _musicStarted = false;
+        }
+        catch
+        {
+            // Ignorar errores
         }
     }
 }

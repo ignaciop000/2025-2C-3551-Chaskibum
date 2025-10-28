@@ -65,15 +65,15 @@ public abstract class ModelGroup
         {
             string texturaPath = i < pathsTexturas.Length ? pathsTexturas[i] : null;
             string textura2Path = i < pathsTexturas2.Length ? pathsTexturas2[i] : null;
-            Models[i].CargarModelo(pathsModelos[i], efecto, content, texturaPath, textura2Path);
+            Models[i].CargarModelo(pathsModelos[i], efecto, content, texturaPath, textura2Path, i); // Pasar el índice
         }
     }
     
-    public void Dibujar()
+    public void Dibujar(Matrix view, Matrix projection)
     {
         foreach (var model in Models)
         {
-            model.Dibujar();
+            model.Dibujar(view, projection);
         }
     }
     

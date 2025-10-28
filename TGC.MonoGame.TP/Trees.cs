@@ -55,7 +55,7 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         {
             "/tree/Tree.fbm/bark_0021",  // Tree 1 - corteza
             "/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hz", // Tree 2 - corteza
-            null  // Tree 3 - por ahora sin textura específica
+            "/tree3/BarkDecidious0107_M"  // Tree 3 - corteza
         };
         
         // Texturas de hojas (LeavesTexture)
@@ -63,7 +63,7 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         {
             "/tree/Tree.fbm/DB2X2_L01", // Tree 1 - hojas
             "/tree2/TexturesCom_Branches0018_1_alphamasked_S", // Tree 2 - hojas
-            null  // Tree 3 - por ahora sin textura específica
+            "/tree3/Branches0018_1_S"  // Tree 3 - hojas
         };
         
         base.CargarModelos(efecto, content, paths, barkTextures, leavesTextures);

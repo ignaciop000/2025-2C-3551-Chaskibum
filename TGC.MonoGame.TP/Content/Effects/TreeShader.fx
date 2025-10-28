@@ -43,17 +43,15 @@ struct VertexShaderInput
 {
     float4 Position : POSITION0;
     float2 TextureCoordinate : TEXCOORD0;
-    // Usaremos el color del vértice para decidir qué textura usar.
-    // Asumimos que el modelador 3D pintó los vértices del tronco de un color y los de las hojas de otro.
-    float4 Color : COLOR0; 
+    float3 Normal : NORMAL0; // Cambiar de Color a Normal para que funcione con los modelos
 };
 
 struct VertexShaderOutput
 {
     float4 Position : SV_POSITION;
     float2 TextureCoordinate : TEXCOORD0;
-    float4 Color : COLOR0;
-    float3 LocalPosition : TEXCOORD1; // Posición local del objeto (antes de transformaciones)
+    float3 Normal : TEXCOORD1;
+    float3 LocalPosition : TEXCOORD2; // Posición local del objeto
 };
 
 VertexShaderOutput MainVS(in VertexShaderInput input)
@@ -65,101 +63,55 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     output.Position = mul(viewPosition, Projection);
 
     output.TextureCoordinate = input.TextureCoordinate;
-    output.Color = input.Color; // Pasamos el color del vértice al Pixel Shader
-    output.LocalPosition = input.Position.xyz; // CLAVE: posición local del objeto
+    output.Normal = mul(input.Normal, (float3x3)World);
+    output.LocalPosition = input.Position.xyz;
 
     return output;
 }
 
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
-    // Apply different logic based on tree type
-    float3 localPos = input.LocalPosition;
     float2 uv = input.TextureCoordinate;
+    float3 localPos = input.LocalPosition;
+    
+    // Calcular distancia radial desde el centro (eje Y vertical)
+    float distanceFromCenter = length(float2(localPos.x, localPos.z));
+    
+    // POR DEFECTO: TODO ES HOJAS (verde)
     bool isTrunk = false;
     
-    // Check vertex color availability
-    bool hasValidColor = (input.Color.r > 0.1 || input.Color.g > 0.1 || input.Color.b > 0.1);
-    
-    // Apply tree-specific detection logic
-    if (TreeType == 0) // Tree (tree/)
+    if (TreeType == 0) // Tree (tree/) - Funciona bien
     {
-        // Tree works well with current logic, just fine-tune
-        if (hasValidColor)
-        {
-            float colorSum = input.Color.r + input.Color.g + input.Color.b;
-            bool isDarkish = colorSum < 1.8;
-            bool isBrownish = input.Color.r > input.Color.g * 1.1;
-            isTrunk = isDarkish && isBrownish;
-        }
-        else
-        {
-            float distanceFromCenter = length(float2(localPos.x, localPos.z));
-            bool isNearCenter = distanceFromCenter < 0.4; // Tighter center for tree
-            bool isLowerPart = localPos.y < 0.0;
-            isTrunk = isNearCenter || isLowerPart;
-        }
-        // Force some trunk visibility
-        if (uv.y < 0.25) isTrunk = true; // Only bottom 25% forced
+        isTrunk = (uv.y < 0.12) || (localPos.y < -1.0 && distanceFromCenter < 0.2);
     }
-    else if (TreeType == 1) // Tree2 (tree2/)
+    else if (TreeType == 1) // Tree2 (tree2/) - Leaf_Oak
     {
-        // Tree2 needs less aggressive parameters
-        if (hasValidColor)
-        {
-            // Less aggressive color detection for tree2
-            float brightness = (input.Color.r + input.Color.g + input.Color.b) / 3.0;
-            bool isDark = brightness < 0.2; // Much more restrictive
-            bool isWarm = input.Color.r > input.Color.g * 1.5; // More restrictive
-            isTrunk = isDark && isWarm; // Both conditions required
-        }
-        else
-        {
-            // Much more restrictive geometry detection for tree2
-            float distanceFromCenter = length(float2(localPos.x, localPos.z));
-            bool isNearCenter = distanceFromCenter < 0.2; // Much tighter center
-            bool isLowerPart = localPos.y < -0.5; // Much lower threshold
-            isTrunk = isNearCenter && isLowerPart; // Both conditions required
-        }
-        // Less forcing for tree2
-        if (uv.y < 0.15) isTrunk = true; // Only bottom 15% forced
+    // Pattern: Trunk is UV middle, wider and taller
+    float uvY = input.TextureCoordinate.y;
+    bool isMidRangeUV = uvY > 0.2 && uvY < 0.8;
+    bool isWiderCenter = distanceFromCenter < 1.0;
+    bool isTaller = localPos.y < 1.5;
+    isTrunk = isMidRangeUV && isWiderCenter && isTaller;
     }
     else if (TreeType == 2) // Tree3 (tree3/)
     {
-        // Tree3 needs very conservative parameters
-        if (hasValidColor)
-        {
-            // Very conservative color detection for tree3
-            float colorSum = input.Color.r + input.Color.g + input.Color.b;
-            bool isDarkish = colorSum < 0.8; // Much more restrictive
-            bool isRedish = input.Color.r > (input.Color.g + input.Color.b) * 1.5; // More restrictive
-            isTrunk = isDarkish && isRedish; // Both conditions required
-        }
-        else
-        {
-            // Very conservative geometry detection for tree3
-            float distanceFromCenter = length(float2(localPos.x, localPos.z));
-            bool isNearCenter = distanceFromCenter < 0.15; // Very tight center
-            bool isLowerPart = localPos.y < -0.8; // Very low threshold
-            isTrunk = isNearCenter && isLowerPart; // Both conditions required
-        }
-        // Minimal forcing for tree3
-        if (uv.y < 0.1) isTrunk = true; // Only bottom 10% forced
+        bool isVeryCenter = distanceFromCenter < 0.8;
+        bool isVeryLow = localPos.y < -1.0;
+        bool isBottomUV = uv.y < 0.20;
+        isTrunk = (isVeryCenter && isVeryLow) || isBottomUV;
     }
     
     if (isTrunk)
     {
-        // TRUNK: brown base + bark texture
+        // TRUNK: SOLO textura de corteza (sin mezcla con color base)
         float4 barkTexture = tex2D(BarkSampler, uv);
-        float4 brownBase = float4(0.55, 0.35, 0.15, 1.0);
-        return lerp(brownBase, barkTexture, 0.7);
+        return barkTexture;
     }
     else
     {
-        // LEAVES: green base + leaves texture  
+        // LEAVES: SOLO textura de hojas (sin mezcla con color base)
         float4 leavesTexture = tex2D(LeavesSampler, uv);
-        float4 greenBase = float4(0.25, 0.7, 0.25, 1.0);
-        return lerp(greenBase, leavesTexture, 0.7);
+        return leavesTexture;
     }
 }
 

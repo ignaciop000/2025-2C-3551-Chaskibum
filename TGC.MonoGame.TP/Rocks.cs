@@ -55,7 +55,7 @@ public class Rocks(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
             (1700f, 150f, 850f, -60f), // Roca 6
             (600f, 150f, 350f, -7f), // Roca 7
             (500f, 200f, 950f, 55f), // Roca 8
-            (900f, 350f, 500f, -45f)  // Roca 9
+            (700f, 420f, 800f, -40f)  // Roca 9
         };
         
         CrearRigidBodies(parametrosRigidBodies);

@@ -18,6 +18,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     private float _altura;
     private Texture2D _texture;
     private Texture2D _texture2; // Segunda textura (para hojas en árboles)
+    private int _modelIndex = 0; // Índice del modelo (para TreeType: 0, 1, 2)
     
     public List<Vector2> Positions { get; set; } = [];
 
@@ -130,12 +131,18 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath)
     {
-        CargarModelo(rutaRelativa, efecto, content, texturaPath, null);
+        CargarModelo(rutaRelativa, efecto, content, texturaPath, null, 0);
     }
     
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath, string textura2Path)
     {
+        CargarModelo(rutaRelativa, efecto, content, texturaPath, textura2Path, 0);
+    }
+    
+    public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath, string textura2Path, int modelIndex)
+    {
         _model = content.Load<Model>(ContentFolder3D + rutaRelativa);
+        _modelIndex = modelIndex; // Guardar el índice del modelo
 
         // Cargar textura si se proporciona
         if (!string.IsNullOrEmpty(texturaPath))
@@ -161,9 +168,15 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         _effect = efecto;
     }
 
-    public void Dibujar()
+    public void Dibujar(Matrix view, Matrix projection)
     {
+        // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
+        _effect.Parameters["View"]?.SetValue(view);
+        _effect.Parameters["Projection"]?.SetValue(projection);
         _effect.Parameters["DiffuseColor"]?.SetValue(_color.ToVector3());
+        
+        // Configurar TreeType para el shader de árboles
+        _effect.Parameters["TreeType"]?.SetValue(_modelIndex);
         
         // Si hay textura, activarla
         if (_texture != null)
@@ -179,7 +192,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
             _effect.Parameters["UseTexture"]?.SetValue(false);
         }
         
-        // Segunda textura (hojas para árboles)
+        // Segunda textura (hojas para árboles) - CRUCIAL
         if (_texture2 != null)
         {
             _effect.Parameters["LeavesTexture"]?.SetValue(_texture2);
@@ -192,7 +205,14 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
             foreach (var mesh in _model.Meshes)
             {
                 var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
-                _effect.Parameters["World"].SetValue(relativeTransform * world);
+                _effect.Parameters["World"]?.SetValue(relativeTransform * world);
+                
+                // Aplicar el efecto a cada mesh part para que use los parámetros actualizados
+                foreach (var meshPart in mesh.MeshParts)
+                {
+                    meshPart.Effect = _effect;
+                }
+                
                 mesh.Draw();
             }
         }

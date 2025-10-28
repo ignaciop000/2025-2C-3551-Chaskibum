@@ -23,6 +23,9 @@ public class CollisionHandler
     public static Dictionary<BodyHandle, Tank> HandleToTank;
     public static readonly List<ImpactoEstatico> ImpactosEstaticos = [];
     public static readonly List<ImpactoDinamico> ImpactosDinamicos = [];
+    
+    // Handle del terreno para excluirlo de los sonidos de colisión
+    public static StaticHandle TerrainHandle;
 
     public void AgregarImpactoEstatico(BodyHandle impactador, StaticHandle impactado)
     {
@@ -70,7 +73,15 @@ public class CollisionHandler
             {
                 HandleToTank[a].RecibirAtaque(projB.Damage);
                 projB.Kill();
+                return; // IMPORTANTE: salir después de manejar la colisión
             }
+        }
+        
+        // Colisión entre dos tanques
+        if (HandleToTank.ContainsKey(a) && HandleToTank.ContainsKey(b))
+        {
+            HandleToTank[a].Audio?.PlayCollision(0.8f);
+            HandleToTank[b].Audio?.PlayCollision(0.8f);
         }
     }
 
@@ -83,13 +94,18 @@ public class CollisionHandler
             // Si el móvil era un proyectil, lo matamos.
             if (HandleToProjectile.TryGetValue(impactador, out var projectile))
                 projectile.Kill();
+            
+            // NO reproducir sonido si es el terreno (el tanque siempre está tocando el suelo)
+            // Solo reproducir para otros objetos estáticos sin grupo
             return;
         }
 
-        // Si el móvil es un tanque
+        // Si el móvil es un tanque colisionando con objeto estático (no terreno)
         if (HandleToTank.ContainsKey(impactador))
         {
             group.OnCollisionWithTank(impactado);
+            // Reproducir sonido de colisión con objeto estático
+            HandleToTank[impactador].Audio?.PlayCollision(0.6f);
             return;
         }
 

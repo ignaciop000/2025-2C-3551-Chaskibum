@@ -53,6 +53,10 @@ namespace TGC.MonoGame.TP
 
         private Quaternion RotationQuaternion { get; set; } = Quaternion.Identity;
 
+        // Sistema de audio del tanque
+        public TankAudio Audio { get; private set; }
+        private bool _wasBraking = false;
+
         // Propiedades de movimiento
         public Vector3 Position { get; private set; }
         public float Rotation { get; }
@@ -180,7 +184,11 @@ namespace TGC.MonoGame.TP
             
             _effect = efecto;
             _simulation = simulation;
-            _terrain = terrain; 
+            _terrain = terrain;
+            
+            // Inicializar sistema de audio
+            Audio = new TankAudio();
+            Audio.LoadContent(content);
             
             BodyHandles = new QuickList<BodyHandle>(11, bufferPool);
             // Cargar modelo
@@ -606,6 +614,22 @@ namespace TGC.MonoGame.TP
             
             FireCooldown = MathF.Max(0f, FireCooldown - dt);
 
+            // Detectar turbo (Shift)
+            bool isTurbo = keyboardState.IsKeyDown(Keys.LeftShift);
+
+            // Actualizar sonido del motor basado en la velocidad y turbo
+            var velocity = body.Velocity.Linear;
+            var speed = MathF.Sqrt(velocity.X * velocity.X + velocity.Z * velocity.Z);
+            Audio?.UpdateEngine(speed, dt, isTurbo);
+
+            // Detectar freno
+            bool isBraking = keyboardState.IsKeyDown(Keys.Space);
+            if (isBraking && !_wasBraking && speed > 1f)
+            {
+                Audio?.PlayBrake();
+            }
+            _wasBraking = isBraking;
+
             // Girar ruedas según distancia recorrida
             UpdateWheelSpinByDistance();
             
@@ -626,6 +650,11 @@ namespace TGC.MonoGame.TP
             body.Awake = true;
             
             SteerRotation = Math.Clamp(SteerRotation, MinSteer, MaxSteer);
+
+            // Actualizar sonido del motor basado en la velocidad
+            var velocity = body.Velocity.Linear;
+            var speed = MathF.Sqrt(velocity.X * velocity.X + velocity.Z * velocity.Z);
+            Audio?.UpdateEngine(speed, dt);
 
             // Girar ruedas según distancia recorrida
             UpdateWheelSpinByDistance();
@@ -920,6 +949,10 @@ namespace TGC.MonoGame.TP
             if (IsDead) return;
             IsDead = true;
             
+            // Detener todos los sonidos del tanque
+            Audio?.StopAll();
+            Audio?.Dispose();
+            
             foreach(var body in BodyHandles)
             {
                 _simulation.Bodies.Remove(body);
@@ -1093,7 +1126,7 @@ namespace TGC.MonoGame.TP
         public void ResetCooldown()
         {
             FireCooldown = TipoProyectilActual.MaxCooldown;
+            Audio?.PlayShoot(TipoProyectilActual);
         }
     }
 }
-
