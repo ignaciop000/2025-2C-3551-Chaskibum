@@ -121,6 +121,9 @@ namespace TGC.MonoGame.TP
         public float FireCooldown;
 
         public Texture2D Texture;
+        
+        public SubgroupCollisionFilter BarrelFilter { get; set; }
+
 
         public Tank(Vector3 initialPosition, float initialRotation = 0f, float scale = 1f)
         {
@@ -428,8 +431,7 @@ namespace TGC.MonoGame.TP
             // Define subgrupos de colisión para evitar colisiones internas entre cuerpo-torreta y torreta-cañón.
             Matrix3x3.CreateFromQuaternion(tankDescription.TurretBasis, out var turretBasis);
             // Convierte la base de la torreta (quaternion) a una matriz 3x3.
-            
-            Projectile.TankBarrelFilter =  barrelFilter;
+            BarrelFilter = barrelFilter;
             
             constraints.AllocateUnsafely() = _simulation.Solver.Add(_body, _secBody,
                 new Weld

@@ -32,8 +32,6 @@ namespace TGC.MonoGame.TP
 
         public float Damage;
         
-        public static SubgroupCollisionFilter TankBarrelFilter;
-        
         public Projectile(
             Simulation simulation,
             Effect effect,
@@ -84,8 +82,9 @@ namespace TGC.MonoGame.TP
             _body = _simulation.Bodies.Add(bodyDesc);
             
             var projectileFilter = new SubgroupCollisionFilter(_body.Value, 0);
-            
-            SubgroupCollisionFilter.DisableCollision(ref projectileFilter, ref TankBarrelFilter);
+
+            var subgroupCollisionFilter = tank.BarrelFilter;
+            SubgroupCollisionFilter.DisableCollision(ref projectileFilter, ref subgroupCollisionFilter);
             
             CollisionHandler.HandleToProjectile[_body] = this;
             
