@@ -163,7 +163,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
 
     public void Dibujar()
     {
-        _effect.Parameters["DiffuseColor"]?.SetValue(_color.ToVector3());
+        _effect.Parameters["TintColor"]?.SetValue(_color.ToVector4());
         
         // Si hay textura, activarla
         if (_texture != null)

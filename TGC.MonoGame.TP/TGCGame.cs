@@ -18,10 +18,11 @@
 //          Integrantes) [NACHO] [COMPLETADO]
 // - Música (menu y juego) y Sonidos (acciones de hud, daño, choque, disparo y motor) [SANTI]
 // - Imagen tutorial [SANTI]
-// - Agregar World Border [AGUS]
-// - Emprolijar código físicas [OPCIONAL, POR AHORA]
+// - Agregar World Border [AGUS] [COMPLETADO]
+// - Emprolijar código físicas y separar en carpetas [OPCIONAL, POR AHORA]
 // - Que se vea el debug de los proyectiles [OPCIONAL]
 // - Cielo y fog [OPCIONAL]
+// - Bug suicidarte [OPCIONAL]
 
 
 using System;
@@ -70,6 +71,7 @@ public class TGCGame : Game
     
     private Effect _terrainEffect;          //Shader Terreno
     private Effect _effect;                 //Shader Basico
+    private Effect _worldBorderEffect;      //Shader WorldBorder
     
     private Simulation _simulation;
     private CollidableProperty<TankBodyProperties> _bodyProperties;     // Propiedades por colisionable (tanques)
@@ -153,7 +155,7 @@ public class TGCGame : Game
             Vector3.Zero,
             800f,
             5,
-            50000
+            3000
         );
         // Seteo la cámara inicial como la orbital
         _camera = _orbitCamera;
@@ -190,6 +192,9 @@ public class TGCGame : Game
         
         // Cargar shader específico para tanques
         tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
+        
+        // Cargar shader específico para el World Border
+        _worldBorderEffect = Content.Load<Effect>(ContentFolderEffects + "WorldBorderShader");
         
         // heights
         var terrainHeigthmap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/heightmap");
@@ -279,7 +284,7 @@ public class TGCGame : Game
         _bushes.CargarModelos(_effect, Content);
         _lightPoles.CargarModelos(_effect, Content);
         
-        _worldBorder = new WorldBorder(GraphicsDevice, _effect, _simulation, anchoMapa, largoMapa);
+        _worldBorder = new WorldBorder(GraphicsDevice, _worldBorderEffect, _simulation, anchoMapa, largoMapa);
         
         _debug.LoadContent(
             Content, 
@@ -426,7 +431,7 @@ public class TGCGame : Game
         }
         
         // Actualizar World Border
-        _worldBorder.Update(_tank.Position.ToNumerics(), deltaTime);
+        _worldBorder.Update(_tank.Position.ToNumerics());
         
         // Actualizar simulación física
         if (_simulation != null && deltaTime is > 0.0f and < 0.1f) // Máximo 100ms por frame
@@ -449,7 +454,8 @@ public class TGCGame : Game
 
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime);
-            _camera.ConstrainAboveTerrain(_terrain, clearance: 50f, samples: 16);
+            _orbitCamera.ConstrainAboveTerrain(_terrain, clearance: 50f, samples: 16);
+            _orbitCamera.ConstrainInsideWorldBorder(_worldBorder);
             
             //debug
             Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);

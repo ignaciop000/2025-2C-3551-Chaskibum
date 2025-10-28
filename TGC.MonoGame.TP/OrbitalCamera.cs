@@ -192,7 +192,7 @@ namespace TGC.MonoGame.TP
             _shakeFreqR = 25f;
         }
         
-        public override void ConstrainAboveTerrain(Terrain terrain, float clearance = 50f, int samples = 16)
+        public void ConstrainAboveTerrain(Terrain terrain, float clearance = 50f, int samples = 16)
         {
             //Altura mínima bajo la cámara
             var alturaMinima = terrain.GetHeightAtPosition(Position.X, Position.Z) + clearance;
@@ -213,6 +213,26 @@ namespace TGC.MonoGame.TP
             Position = new Vector3(Position.X, alturaMinima, Position.Z);
             RebuildView();
         }
+        
+        public void ConstrainInsideWorldBorder(WorldBorder border, float clearance = 50f)
+        {
+            // Recorremos cada plano del borde
+            foreach (var plane in border.Planes)
+            {
+                // Distancia con signo desde la cámara al plano
+                float signedDistance = Vector3.Dot(Position, plane.Normal) + plane.D;
+
+                // Si la distancia es negativa, significa que estoy "afuera" del mundo
+                if (signedDistance < clearance)
+                {
+                    // Corrijo la posición empujándola hacia adentro
+                    Position -= plane.Normal * (signedDistance - clearance);
+                }
+            }
+
+            RebuildView();
+        }
+
 
         // Reconstruye matrices y ejes a partir de la Position actual y el Target
         private void RebuildView()

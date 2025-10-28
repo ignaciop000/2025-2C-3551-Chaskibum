@@ -134,7 +134,7 @@ namespace TGC.MonoGame.TP
             _effect.Parameters["View"]?.SetValue(view);
             _effect.Parameters["Projection"]?.SetValue(proj);
             _effect.Parameters["UseTexture"]?.SetValue(false);
-            _effect.Parameters["DiffuseColor"]?.SetValue(Color.Black.ToVector3());
+            _effect.Parameters["TintColor"]?.SetValue(Color.Black.ToVector4());
 
             base.Draw(effect);
         }

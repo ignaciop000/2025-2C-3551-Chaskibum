@@ -49,6 +49,12 @@
 /processorParam:DebugMode=Auto
 /build:Effects/TreeShader.fx
 
+#begin Effects/WorldBorderShader.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/WorldBorderShader.fx
+
 #begin Models/arrow/arrow.fbx
 /importer:FbxImporter
 /processor:ModelProcessor

@@ -70,12 +70,7 @@ namespace TGC.MonoGame.TP
         {
             // This camera has no movement, once initialized with position and lookAt it is no longer updated automatically.
         }
-
-        public override void ConstrainAboveTerrain(Terrain terrain, float clearance, int samples)
-        {
-            
-        }
-
+        
         public override void StartShake(float amplitude, float f, float rotational)
         {
         }
