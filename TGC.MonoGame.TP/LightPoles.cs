@@ -17,7 +17,7 @@ public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Col
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0f, 1f, 1f) // LightPole
+            (0f, 0.25f, 0.25f) // SimpleStreetLight
         };
 
         base.CrearObjetos(parametros);
@@ -26,7 +26,7 @@ public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Col
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (ancho, alto, profundidad, yawEnGrados)
-            (20f, 10f, 20f, 0f) // LightPole
+            (7f, 400f, 7f, 0f) // SimpleStreetLight
         };
         
         CrearRigidBodies(parametrosRigidBodies);
@@ -36,15 +36,10 @@ public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Col
     {
         var paths = new[]
         {
-            "/LightPole/LightPole" // LightPole
+            "/LightPole/SimpleStreetLight" // SimpleStreetLight
         };
         
-        var texturas = new[]
-        {
-            "" // TODO: Textura
-        };
-        
-        //base.CargarModelos(efecto, content, paths);
+        base.CargarModelos(efecto, content, paths);
     }
     
     public override void OnCollisionWithTank(StaticHandle handle)

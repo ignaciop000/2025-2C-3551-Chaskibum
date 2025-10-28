@@ -54,11 +54,6 @@ namespace  TGC.MonoGame.TP
                 CalculateView();
         }
 
-        public override void ConstrainAboveTerrain(Terrain terrain, float clearance, int samples)
-        {
-            
-        }
-
         public override void StartShake(float amplitude, float f, float rotational)
         {
         }

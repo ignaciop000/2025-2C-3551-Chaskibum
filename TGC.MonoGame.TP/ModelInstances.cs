@@ -173,7 +173,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
         _effect.Parameters["View"]?.SetValue(view);
         _effect.Parameters["Projection"]?.SetValue(projection);
-        _effect.Parameters["DiffuseColor"]?.SetValue(_color.ToVector3());
+        _effect.Parameters["TintColor"]?.SetValue(_color.ToVector4());
         
         // Configurar TreeType para el shader de árboles
         _effect.Parameters["TreeType"]?.SetValue(_modelIndex);

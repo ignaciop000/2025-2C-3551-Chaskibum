@@ -11,7 +11,7 @@ float4x4 World;
 float4x4 View;
 float4x4 Projection;
 
-float3 DiffuseColor;
+float4 TintColor;
 float Time = 0;
 
 // Textura principal del modelo
@@ -70,9 +70,10 @@ float4 MainPS(VertexShaderOutput input) : COLOR
     // Usar textura o color sólido basado en el flag
     float useTexAmount = UseTexture;
     float4 texColor = tex2D(TextureSampler, input.TextureCoordinate);
-    float3 baseColor = lerp(DiffuseColor, texColor.rgb, useTexAmount);
+    float3 baseColor = lerp(TintColor.rgb, texColor.rgb, useTexAmount);
     
-    return float4(baseColor * lighting, 1.0);
+	float3 rgb = baseColor * lighting;
+	return float4(rgb * TintColor.a, TintColor.a);
 }
 
 technique BasicColorDrawing
@@ -83,4 +84,3 @@ technique BasicColorDrawing
 		PixelShader = compile PS_SHADERMODEL MainPS();
 	}
 }
-

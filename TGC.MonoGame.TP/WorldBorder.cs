@@ -5,6 +5,7 @@ using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using NumVector3 = System.Numerics.Vector3;
+using NumVector4 = System.Numerics.Vector4;
 using NumQuaternion = System.Numerics.Quaternion;
 using XnaVector3 = Microsoft.Xna.Framework.Vector3;
 using XnaMatrix = Microsoft.Xna.Framework.Matrix;
@@ -14,13 +15,13 @@ namespace TGC.MonoGame.TP
 {
     public class WorldBorder
     {
-        private readonly List<BorderPlane> _planes = new();
+        public readonly List<BorderPlane> Planes = new();
         private readonly GraphicsDevice _graphicsDevice;
         private readonly Effect _effect;
         private readonly float _mapWidth;
         private readonly float _mapLength;
 
-        private readonly RasterizerState _cullNone = new RasterizerState { CullMode = CullMode.None };
+        //private readonly RasterizerState _cullNone = new RasterizerState { CullMode = CullMode.None };
 
         public WorldBorder(GraphicsDevice graphicsDevice, Effect effect, Simulation simulation, float mapWidth, float mapLength)
         {
@@ -39,65 +40,71 @@ namespace TGC.MonoGame.TP
             float z = (_mapLength / 2f) - margin;
             float height = 2000f;
 
-            // Frente (-Z) y Fondo (+Z) → normales ±Z (Identity)
-            _planes.Add(new BorderPlane(
+            // Frente (-Z) → normal debe apuntar hacia +Z (hacia adentro)
+            Planes.Add(new BorderPlane(
                 new NumVector3(0f, 0f, -z),
                 NumQuaternion.Identity,
                 _mapWidth, height,
                 sim, _graphicsDevice, _effect));
 
-            _planes.Add(new BorderPlane(
+            // Fondo (+Z) → normal debe apuntar hacia -Z
+            var rot180Y = NumQuaternion.CreateFromAxisAngle(NumVector3.UnitY, MathF.PI);
+            Planes.Add(new BorderPlane(
                 new NumVector3(0f, 0f, z),
-                NumQuaternion.Identity,
+                rot180Y,
                 _mapWidth, height,
                 sim, _graphicsDevice, _effect));
 
-            // Izquierda (-X) y Derecha (+X) → normales ±X (rotación 90° en Y)
-            var rotY = NumQuaternion.CreateFromAxisAngle(NumVector3.UnitY, MathF.PI / 2f);
-
-            _planes.Add(new BorderPlane(
+            // Izquierda (-X) → normal debe apuntar hacia +X
+            var rotYLeft = NumQuaternion.CreateFromAxisAngle(NumVector3.UnitY, MathF.PI / 2f);
+            Planes.Add(new BorderPlane(
                 new NumVector3(-x, 0f, 0f),
-                rotY,
+                rotYLeft,
                 _mapLength, height,
                 sim, _graphicsDevice, _effect));
 
-            _planes.Add(new BorderPlane(
+            // Derecha (+X) → normal debe apuntar hacia -X
+            var rotYRight = NumQuaternion.CreateFromAxisAngle(NumVector3.UnitY, -MathF.PI / 2f);
+            Planes.Add(new BorderPlane(
                 new NumVector3(x, 0f, 0f),
-                rotY,
+                rotYRight,
                 _mapLength, height,
                 sim, _graphicsDevice, _effect));
         }
 
-        public void Update(NumVector3 tankPosition, float deltaTime)
+        public void Update(NumVector3 tankPosition)
         {
-            foreach (var plane in _planes)
-                plane.Update(tankPosition, deltaTime);
+            foreach (var plane in Planes)
+                plane.Update(tankPosition);
         }
 
         public void Draw(XnaMatrix view, XnaMatrix projection)
         {
-            var old = _graphicsDevice.RasterizerState;
-            _graphicsDevice.RasterizerState = _cullNone;
+            //var old = _graphicsDevice.RasterizerState;
+            //_graphicsDevice.RasterizerState = _cullNone;
 
-            foreach (var plane in _planes)
+            foreach (var plane in Planes)
                 plane.Draw(view, projection);
 
-            _graphicsDevice.RasterizerState = old;
+            //_graphicsDevice.RasterizerState = old;
         }
     }
 
-    class BorderPlane
+    public class BorderPlane
     {
         private readonly VertexBuffer _vb;
         private readonly IndexBuffer _ib;
         private readonly Effect _effect;
-
+        
         private readonly NumVector3 _position;
         private readonly NumQuaternion _orientation;
-        private readonly NumVector3 _normal;
-        private readonly float _d;
+        public readonly NumVector3 Normal;
+        public readonly float D;
 
-        private bool _isNear;
+        private float _alpha;
+        private float _distance;
+        private const float MaxDistance = 300f;
+        private const float MaxAlpha = 0.9f;
 
         public BorderPlane(NumVector3 position, NumQuaternion orientation,
             float width, float height,
@@ -106,19 +113,16 @@ namespace TGC.MonoGame.TP
             _position = position;
             _orientation = orientation;
             _effect = effect;
+            
+            Normal = NumVector3.Normalize(NumVector3.Transform(NumVector3.UnitZ, orientation)); // Normal del plano en mundo (Z local transformada)
+            D = -NumVector3.Dot(Normal, position); // D de la ecuación del plano
 
-            // 1) Forma y registro en BEPU (pared delgada)
+            // Forma y registro en BEPU (pared delgada)
             var shape = new Box(width, height, 1f);
             var shapeIndex = sim.Shapes.Add(shape);
-
-            // 2) Pose con orientación correcta
             sim.Statics.Add(new StaticDescription(position, orientation, shapeIndex));
-
-            // 3) Normal del plano en mundo (Z local transformada)
-            _normal = NumVector3.Normalize(NumVector3.Transform(NumVector3.UnitZ, orientation));
-            _d = -NumVector3.Dot(_normal, position);
-
-            // 4) Quad de debug en espacio local (X–Y, Z=0)
+            
+            // Quad en espacio local (X–Y, Z=0)
             var verts = new[]
             {
                 new VertexPositionColor(new XnaVector3(-width * 0.5f, 0f, 0f), Color.Black),     // 0 BL
@@ -126,7 +130,7 @@ namespace TGC.MonoGame.TP
                 new VertexPositionColor(new XnaVector3(-width * 0.5f, height, 0f), Color.Black), // 2 TL
                 new VertexPositionColor(new XnaVector3( width * 0.5f, height, 0f), Color.Black), // 3 TR
             };
-            short[] indices = { 0, 1, 2, 1, 3, 2 };
+            short[] indices = [0, 2, 1, 1, 2, 3];
 
             _vb = new VertexBuffer(gd, typeof(VertexPositionColor), verts.Length, BufferUsage.WriteOnly);
             _vb.SetData(verts);
@@ -134,38 +138,44 @@ namespace TGC.MonoGame.TP
             _ib.SetData(indices);
         }
 
-        public void Update(NumVector3 tankPos, float dt)
+        public void Update(NumVector3 tankPos)
         {
-            // Distancia al plano: |n·p + d|
-            float dist = Math.Abs(NumVector3.Dot(tankPos, _normal) + _d);
-            const float threshold = 200f;
-            _isNear = dist < threshold;
+            _distance = Math.Abs(NumVector3.Dot(tankPos, Normal) + D); // Evaluar la posicion del tanque en la ecuación del plano
+
+            float factor = 1f - MathHelper.Clamp(_distance / MaxDistance, 0f, 1f); // Que tan cerca o lejos está el tanque
+
+            _alpha = factor * MaxAlpha;
         }
+
 
         public void Draw(XnaMatrix view, XnaMatrix projection)
         {
-            // Dibuja siempre el borde: blanco si lejos, rojo si cerca
-            var q = new XnaQuaternion(_orientation.X, _orientation.Y, _orientation.Z, _orientation.W);
-            var world = XnaMatrix.CreateFromQuaternion(q) *
+            if (_distance > MaxDistance) return; // No dibujarlo si esta demasiado lejos
+            
+            var quaternion = new XnaQuaternion(_orientation.X, _orientation.Y, _orientation.Z, _orientation.W);
+            var world = XnaMatrix.CreateFromQuaternion(quaternion) *
                         XnaMatrix.CreateTranslation(new XnaVector3(_position.X, _position.Y, _position.Z));
-
-            // Requisitos: tu shader debe tener estos parámetros
+            
             _effect.Parameters["View"]?.SetValue(view);
             _effect.Parameters["Projection"]?.SetValue(projection);
             _effect.Parameters["World"]?.SetValue(world);
-            _effect.Parameters["UseTexture"]?.SetValue(false);
+            
+            var color = new NumVector4(1f, 0f, 0f, _alpha);
+            _effect.Parameters["TintColor"]?.SetValue(color);
 
-            // Tu shader usa DiffuseColor como float3
-            var color = _isNear ? new NumVector3(1f, 0f, 0f) : new NumVector3(0f, 0f, 0f);
-            _effect.Parameters["DiffuseColor"]?.SetValue(color);
+            var gd = _vb.GraphicsDevice;
+            var oldBlend = gd.BlendState;
+            gd.BlendState = BlendState.NonPremultiplied;
 
             foreach (var pass in _effect.CurrentTechnique.Passes)
             {
                 pass.Apply();
-                _vb.GraphicsDevice.SetVertexBuffer(_vb);
-                _vb.GraphicsDevice.Indices = _ib;
-                _vb.GraphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, 2);
+                gd.SetVertexBuffer(_vb);
+                gd.Indices = _ib;
+                gd.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, 2);
             }
+
+            gd.BlendState = oldBlend;
         }
     }
 }

@@ -38,9 +38,10 @@ namespace TGC.MonoGame.TP
             XnaVector3 spawnPos,
             XnaVector3 direction,
             ProjectileType type,
+            Tank tank,
             float lifeSeconds = 4f)
         {
-            Init(simulation, effect, spawnPos, direction, type.Speed, type.Radius, type.Mass, lifeSeconds);
+            Init(simulation, effect, spawnPos, direction, type.Speed, type.Radius, type.Mass, tank, lifeSeconds);
         }
         
         private void Init(
@@ -51,6 +52,7 @@ namespace TGC.MonoGame.TP
             float speed,
             float radius,
             float mass,
+            Tank tank,
             float lifeSeconds)
         {
             _simulation = simulation;
@@ -76,8 +78,13 @@ namespace TGC.MonoGame.TP
                 collidable,
                 new BodyActivityDescription(0.01f)
             );
-
+            
             _body = _simulation.Bodies.Add(bodyDesc);
+            
+            var projectileFilter = new SubgroupCollisionFilter(_body.Value, 0);
+
+            var subgroupCollisionFilter = tank.BarrelFilter;
+            SubgroupCollisionFilter.DisableCollision(ref projectileFilter, ref subgroupCollisionFilter);
             
             CollisionHandler.HandleToProjectile[_body] = this;
             
@@ -134,7 +141,7 @@ namespace TGC.MonoGame.TP
             _effect.Parameters["View"]?.SetValue(view);
             _effect.Parameters["Projection"]?.SetValue(proj);
             _effect.Parameters["UseTexture"]?.SetValue(false);
-            _effect.Parameters["DiffuseColor"]?.SetValue(Color.Black.ToVector3());
+            _effect.Parameters["TintColor"]?.SetValue(Color.Black.ToVector4());
 
             base.Draw(effect);
         }
