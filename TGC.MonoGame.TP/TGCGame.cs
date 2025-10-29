@@ -512,8 +512,7 @@ public class TGCGame : Game
                 enemyTank.Draw(_camera);
             }
         }
-
-        _trees.Dibujar(_camera.View, _camera.Projection);
+        
         _houses.Dibujar(_camera.View, _camera.Projection);
         _rocks.Dibujar(_camera.View, _camera.Projection);
         _bushes.Dibujar(_camera.View, _camera.Projection);
@@ -522,6 +521,14 @@ public class TGCGame : Game
         foreach (var projectile in _projectiles)
             projectile.Draw(_effect, _camera.View, _camera.Projection);
         
+        GraphicsDevice.BlendState = BlendState.AlphaBlend;
+        GraphicsDevice.DepthStencilState = DepthStencilState.DepthRead;
+        
+        _trees.Dibujar(_camera.View, _camera.Projection);
+
+        GraphicsDevice.BlendState = BlendState.Opaque;
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+
         _worldBorder.Draw(_camera.View, _camera.Projection);
 
         _debug.Draw(_camera);
