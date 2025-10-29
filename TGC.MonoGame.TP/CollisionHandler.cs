@@ -61,7 +61,11 @@ public class CollisionHandler
         {
             if (HandleToTank.ContainsKey(b)) // Y b es tanque
             {
-                HandleToTank[b].RecibirAtaque(projA.Damage);
+                var tank = HandleToTank[b];
+
+                if (tank == projA.TanqueDisparador) return;
+                
+                tank.RecibirAtaque(projA.Damage);
                 projA.Kill();
                 return;
             }
@@ -71,9 +75,13 @@ public class CollisionHandler
         {
             if (HandleToTank.ContainsKey(a)) // Y a es tanque
             {
-                HandleToTank[a].RecibirAtaque(projB.Damage);
+                var tank = HandleToTank[a];
+
+                if (tank == projB.TanqueDisparador) return;
+                
+                tank.RecibirAtaque(projB.Damage);
                 projB.Kill();
-                return; // IMPORTANTE: salir después de manejar la colisión
+                return;
             }
         }
         

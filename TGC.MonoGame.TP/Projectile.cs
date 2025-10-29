@@ -28,6 +28,8 @@ namespace TGC.MonoGame.TP
         private static IndexBuffer _ib;
         private static bool _primReady;
 
+        public Tank TanqueDisparador;
+
         public bool IsDead { get; private set; }
 
         public float Damage;
@@ -60,6 +62,7 @@ namespace TGC.MonoGame.TP
             _radius = radius;
             _lifeMax = lifeSeconds;
             _life = 0f;
+            TanqueDisparador = tank;
 
             Damage = mass * 10f; // Masa * Multiplicador de daño
 
@@ -80,11 +83,6 @@ namespace TGC.MonoGame.TP
             );
             
             _body = _simulation.Bodies.Add(bodyDesc);
-            
-            var projectileFilter = new SubgroupCollisionFilter(_body.Value, 0);
-
-            var subgroupCollisionFilter = tank.BarrelFilter;
-            SubgroupCollisionFilter.DisableCollision(ref projectileFilter, ref subgroupCollisionFilter);
             
             CollisionHandler.HandleToProjectile[_body] = this;
             

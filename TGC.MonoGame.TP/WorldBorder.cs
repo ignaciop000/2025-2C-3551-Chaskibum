@@ -21,8 +21,6 @@ namespace TGC.MonoGame.TP
         private readonly float _mapWidth;
         private readonly float _mapLength;
 
-        //private readonly RasterizerState _cullNone = new RasterizerState { CullMode = CullMode.None };
-
         public WorldBorder(GraphicsDevice graphicsDevice, Effect effect, Simulation simulation, float mapWidth, float mapLength)
         {
             _graphicsDevice = graphicsDevice;
@@ -80,13 +78,8 @@ namespace TGC.MonoGame.TP
 
         public void Draw(XnaMatrix view, XnaMatrix projection)
         {
-            //var old = _graphicsDevice.RasterizerState;
-            //_graphicsDevice.RasterizerState = _cullNone;
-
             foreach (var plane in Planes)
                 plane.Draw(view, projection);
-
-            //_graphicsDevice.RasterizerState = old;
         }
     }
 
