@@ -605,6 +605,7 @@ namespace TGC.MonoGame.TP
         // Actualizar tanque jugador
         public void Update(GameTime gameTime, KeyboardState keyboardState)
         {
+            if (IsDead) return;
             var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             var body = _simulation.Bodies.GetBodyReference(_body);
