@@ -1,10 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using BepuPhysics;
 using BepuPhysics.Collidables;
+using ImGuiNET;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using TGC.MonoGame.Samples.Collisions;
+using TGC.MonoGame.Samples.Viewer.GUI.ImGuiNET;
 using TGC.MonoGame.TP.Viewer.Gizmos;
 
 namespace TGC.MonoGame.TP;
@@ -20,7 +24,11 @@ public class Debug
     private GraphicsDevice _graphicsDevice;
     private Terrain _terrain;
     private Simulation _simulation;
-
+    private SpriteBatch _spriteBatch;
+    
+    private BoundingFrustum _boundingFrustum;
+    private Matrix View;
+    private Matrix Projection;
     private Gizmos Gizmos { get; set; }
 
     //private Vector3 _debugBoxSize;
@@ -46,26 +54,25 @@ public class Debug
         Gizmos = gizmos;
         DebugEffect = content.Load<Effect>(contentEffectsFolder + "Debug");
         DebugEffect.Parameters["DebugColor"]?.SetValue(Color.Red.ToVector4());
-
+        _boundingFrustum = new BoundingFrustum(orbitCamera.View * orbitCamera.Projection);
+        View = orbitCamera.View;
+        Projection = orbitCamera.Projection;
+        _spriteBatch = new SpriteBatch(_graphicsDevice);
         //_spriteBatch = new SpriteBatch(graphicsDevice);
         //_debugFont = content.Load<SpriteFont>(contentSpriteFolder + "CascadiaCode/CascadiaCodePL");
     }
 
-    public void Update(KeyboardState keyboardState, KeyboardState kbPrev, float dt, Camera camera)
+    public void Update(KeyboardState keyboardState, KeyboardState kbPrev, float dt, OrbitCamera camera)
     {
         if (keyboardState.IsKeyDown(Keys.F2) && !kbPrev.IsKeyDown(Keys.F2))
         {
             _showTerrainMeshDebug = !_showTerrainMeshDebug;
         }
-
-        /*if (keyboardState.IsKeyDown(Keys.F3) && !kbPrev.IsKeyDown(Keys.F3))
-        {
-            _showTankTelemetry = !_showTankTelemetry;
-            _tank.DebugTelemetry = _showTankTelemetry;
-        }*/
+        
+        _boundingFrustum= new BoundingFrustum(camera.View * camera.Projection) ;
     }
 
-    public void Draw(Camera camera)
+    public void Draw(Camera camera, OrbitCamera orbitCamera, Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime)
     {
         if (_showTerrainMeshDebug)
         {
@@ -82,7 +89,7 @@ public class Debug
             _graphicsDevice.RasterizerState = oldRS;
 
             // --- DEBUG: ver el mesh físico del terreno ---
-            //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); // si tu .fx lo usa
+            //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); 
             DrawPhysicsMeshDebug(DebugEffect, camera.View, camera.Projection);
 
             // Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
@@ -106,35 +113,61 @@ public class Debug
                 if (desc.Shape.Type == Box.Id)
                 {
                     var shape = _simulation.Shapes.GetShape<Box>(desc.Shape.Index);
+                    
+                    var transformation = Matrix.CreateFromQuaternion(new Quaternion(
+                                            desc.Pose.Orientation.X,
+                                            desc.Pose.Orientation.Y,
+                                            desc.Pose.Orientation.Z,
+                                            desc.Pose.Orientation.W)) *
+                                             Matrix.CreateTranslation(desc.Pose.Position.X, desc.Pose.Position.Y, desc.Pose.Position.Z);
 
                     var worldMatrix =
                         Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
-                        Matrix.CreateFromQuaternion(new Quaternion(
-                            desc.Pose.Orientation.X,
-                            desc.Pose.Orientation.Y,
-                            desc.Pose.Orientation.Z,
-                            desc.Pose.Orientation.W)) *
-                        Matrix.CreateTranslation(desc.Pose.Position.X, desc.Pose.Position.Y, desc.Pose.Position.Z);
-
+                        transformation;
+                        
                     DebugEffect.Parameters["World"].SetValue(worldMatrix);
-
-                    foreach (var pass in DebugEffect.CurrentTechnique.Passes)
+                    
+                    var halfExtents = new Vector3(shape.Width / 2f, shape.Height / 2f, shape.Length / 2f);
+                    var localBox = new BoundingBox(-halfExtents, halfExtents);
+                    var transformedCorners = new Vector3[8];
+                    
+                    var corners = localBox.GetCorners();
+                    for (int j = 0; j < 8; j++)
                     {
-                        pass.Apply();
-                        DebugPrimitiveRenderer.DrawCube(_graphicsDevice);
+                        transformedCorners[j] = Vector3.Transform(corners[j], transformation);
+                    }
+                    
+                    var worldBox = BoundingBox.CreateFromPoints(transformedCorners);
+                    
+                    if (_boundingFrustum.Intersects(worldBox))
+                    {
+                        foreach (var pass in DebugEffect.CurrentTechnique.Passes)
+                        {
+                            pass.Apply();
+                            DebugPrimitiveRenderer.DrawCube(_graphicsDevice);
+                        }
                     }
                 }
             }
+            gizmos.DrawFrustum(orbitCamera.View * orbitCamera.Projection, Color.Yellow);
+            gizmos.Draw();
+            
+            _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
+            _spriteBatch.Draw(shadowMapRenderTarget, new Rectangle(20, 150, _graphicsDevice.Viewport.Width/5, _graphicsDevice.Viewport.Height/5), Color.White);
+            _spriteBatch.End();
+            
+            imGuiRenderer.BeforeLayout(gameTime);
+        
+            ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
+            ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 60), ImGuiCond.Always);
+            ImGui.Begin("Performance");
+            ImGui.TextWrapped($"Application average {1000f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
+            ImGui.End();
 
+            imGuiRenderer.AfterLayout();
+            
             _graphicsDevice.RasterizerState = oldRS2;
         }
-
-        /*if (_showTankTelemetry && _debugFont != null)
-        {
-            _spriteBatch.Begin();
-            _spriteBatch.DrawString(_debugFont, _tank.TelemetryText ?? "", new Vector2(14, 14), Color.LimeGreen);
-            _spriteBatch.End();
-        }*/
     }
 
     private void DrawCollider()

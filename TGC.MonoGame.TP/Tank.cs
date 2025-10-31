@@ -23,9 +23,9 @@ namespace TGC.MonoGame.TP
         private Vector3 _lastPos;
         private const float WheelRadius = 2.0f; // ajustá según tu modelo/escala
 
-        private Model _model;
+        public Model Model;
         private Effect _effect;
-        private Matrix _world;
+        public Matrix _world;
 
         private ModelBone[] _wheelBones;
         private ModelBone _turretBone;
@@ -194,7 +194,7 @@ namespace TGC.MonoGame.TP
             
             BodyHandles = new QuickList<BodyHandle>(11, bufferPool);
             // Cargar modelo
-            _model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
+            Model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
             
             // Cargar texturas del T90
             var hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
@@ -208,11 +208,11 @@ namespace TGC.MonoGame.TP
             for (int i = 0; i < 16; i++)
             {
                 string boneName = $"Wheel{i + 1}";
-                _wheelBones[i] = _model.Bones[boneName];
+                _wheelBones[i] = Model.Bones[boneName];
             }
 
-            _turretBone = _model.Bones["Turret"];
-            _cannonBone = _model.Bones["Cannon"];
+            _turretBone = Model.Bones["Turret"];
+            _cannonBone = Model.Bones["Cannon"];
             _cannonBone.Parent = _turretBone;
             
             // Store the original transform matrix for each animating bone.
@@ -227,10 +227,10 @@ namespace TGC.MonoGame.TP
             
 
             // Allocate the transform matrix array.
-            _boneTransforms = new Matrix[_model.Bones.Count];
+            _boneTransforms = new Matrix[Model.Bones.Count];
 
             // Asignar efecto y texturas a todas las partes del modelo
-            foreach (var mesh in _model.Meshes)
+            foreach (var mesh in Model.Meshes)
             {
                 foreach (var meshPart in mesh.MeshParts)
                 {
@@ -405,11 +405,11 @@ namespace TGC.MonoGame.TP
             
             // Pose inicial
             var pose = new RigidPose(
-                new System.Numerics.Vector3(Position.X + 1300, alturaTerreno + 200, Position.Z),
+                new System.Numerics.Vector3(Position.X + 1300, alturaTerreno + 100, Position.Z),
                 new System.Numerics.Quaternion(orientationQuat.X, orientationQuat.Y, orientationQuat.Z,
                     orientationQuat.W)
             );
-            // Posición inicial elevada (X+1300, Y=altura+200) y orientación alineada al terreno.
+            // Posición inicial y orientación alineada al terreno.
             var wheelHandles = new QuickList<BodyHandle>(tankDescription.WheelCountPerTread * 2, bufferPool);
             var constraints =
                 new QuickList<ConstraintHandle>(tankDescription.WheelCountPerTread * 2 * 6 + 4, bufferPool);
@@ -752,33 +752,7 @@ namespace TGC.MonoGame.TP
         private void UpdateWorldMatrix()
         {
             if (IsDead) return;
-            if (Keyboard.GetState().IsKeyDown(Keys.P))
-            {
-                VisualYOffset += 1;
-                Console.WriteLine("YOffset: " + VisualYOffset);
-                Console.WriteLine("ZOffset: " + VisualZOffset);
-            }
-
-            if (Keyboard.GetState().IsKeyDown(Keys.O))
-            {
-                VisualYOffset -= 1;
-                Console.WriteLine("YOffset: " + VisualYOffset);
-                Console.WriteLine("ZOffset: " + VisualZOffset);
-            }
             
-            if (Keyboard.GetState().IsKeyDown(Keys.L))
-            {
-                VisualZOffset += 1;
-                Console.WriteLine("YOffset: " + VisualYOffset);
-                Console.WriteLine("ZOffset: " + VisualZOffset);
-            }
-            
-            if (Keyboard.GetState().IsKeyDown(Keys.K))
-            {
-                VisualZOffset -= 1;
-                Console.WriteLine("YOffset: " + VisualYOffset);
-                Console.WriteLine("ZOffset: " + VisualZOffset);
-            }
             // Sincronizar posición y rotación desde la física
             var pose = _simulation.Bodies.GetBodyReference(_body).Pose;
 
@@ -819,8 +793,8 @@ namespace TGC.MonoGame.TP
             Gizmos.DrawCube(turretAnchor * matriz  , Color.Green);
             Gizmos.DrawCube(barrelAnchor * matriz, Color.Red);
             
-            Matrix[] boneTransforms = new Matrix[_model.Bones.Count];
-            _model.CopyAbsoluteBoneTransformsTo(boneTransforms);
+            Matrix[] boneTransforms = new Matrix[Model.Bones.Count];
+            Model.CopyAbsoluteBoneTransformsTo(boneTransforms);
             
             var boneWorldTransform = boneTransforms[_turretBone.Index] * _world;
             var boneWorldPosition = boneWorldTransform.Translation;
@@ -833,7 +807,7 @@ namespace TGC.MonoGame.TP
         
         public void Draw(Camera camera)
         {
-            if (_model == null || _effect == null || IsDead) return;
+            if (Model == null || _effect == null || IsDead) return;
 
             var wheelRotation = Matrix.CreateRotationX(WheelRotation);
             var turretRotation = Matrix.CreateRotationZ(TurretRotation);
@@ -847,24 +821,25 @@ namespace TGC.MonoGame.TP
             _turretBone.Transform = turretRotation * _turretTransform;
             _cannonBone.Transform = cannonRotation * _cannonTransform;
             
-            var absBones = new Matrix[_model.Bones.Count];
-            _model.CopyAbsoluteBoneTransformsTo(absBones);
+            var absBones = new Matrix[Model.Bones.Count];
+            Model.CopyAbsoluteBoneTransformsTo(absBones);
     
-            foreach (var mesh in _model.Meshes)
+            foreach (var mesh in Model.Meshes)
             {
                 var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
 
                 foreach (var part in mesh.MeshParts)
                 {
-                    var effect = part.Effect;
-                    effect.Parameters["World"]?.SetValue(worldPerMesh);
+                    
+                    part.Effect = _effect;
+                    _effect.Parameters["World"]?.SetValue(worldPerMesh);
                     
                     // CRÍTICO: Configurar View y Projection desde la cámara
-                    effect.Parameters["View"]?.SetValue(camera.View);
-                    effect.Parameters["Projection"]?.SetValue(camera.Projection);
+                    _effect.Parameters["View"]?.SetValue(camera.View);
+                    _effect.Parameters["Projection"]?.SetValue(camera.Projection);
                     if (Texture != null)
                     {
-                        effect.Parameters["ModelTexture"]?.SetValue(Texture);
+                        _effect.Parameters["ModelTexture"]?.SetValue(Texture);
                     }
                 }
                 mesh.Draw();
@@ -879,10 +854,10 @@ namespace TGC.MonoGame.TP
             _turretBone.Transform = turretRotation * _turretTransform;
             _cannonBone.Transform = cannonRotation * _cannonTransform;
             
-            if (_boneTransforms == null || _boneTransforms.Length != _model.Bones.Count)
-                _boneTransforms = new Matrix[_model.Bones.Count];
+            if (_boneTransforms == null || _boneTransforms.Length != Model.Bones.Count)
+                _boneTransforms = new Matrix[Model.Bones.Count];
 
-            _model.CopyAbsoluteBoneTransformsTo(_boneTransforms);
+            Model.CopyAbsoluteBoneTransformsTo(_boneTransforms);
 
             // Transform del cañón en espacio mundo
             var cannonAbs = _boneTransforms[_cannonBone.Index];

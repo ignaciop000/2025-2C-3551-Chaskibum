@@ -13,6 +13,9 @@ float4x4 Projection;
 
 float4 TintColor;
 float Time = 0;
+float AmbientLight = 0.3;
+float3 lightPosition;
+float3 eyePosition;
 
 // Textura principal del modelo
 texture ModelTexture;
@@ -60,20 +63,25 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
 
 float4 MainPS(VertexShaderOutput input) : COLOR
 {
-    // Iluminación básica
-    float3 lightDir = normalize(float3(1, 1, 1));
-    float3 normal = normalize(input.Normal);
-    float diffuse = saturate(dot(normal, lightDir));
-    float ambient = 0.3;
-    float lighting = ambient + diffuse * 0.7;
+
+    float3 lightDirection = normalize(lightPosition - input.WorldPos);
+    float3 viewDirection = normalize(eyePosition - input.WorldPos);
+    float3 halfVector = normalize(lightDirection + viewDirection);
+    float3 normal = normalize(input.Normal.xyz);
     
-    // Usar textura o color sólido basado en el flag
-    float useTexAmount = UseTexture;
     float4 texColor = tex2D(TextureSampler, input.TextureCoordinate);
-    float3 baseColor = lerp(TintColor.rgb, texColor.rgb, useTexAmount);
+    float useTexAmount = UseTexture;
+    float3 color = lerp(TintColor.rgb, texColor.rgb, useTexAmount);
     
-	float3 rgb = baseColor * lighting;
-	return float4(rgb * TintColor.a, TintColor.a);
+    float NdotL = saturate(dot(normal, lightDirection));
+    float3 diffuseLight = 0.8 * float3(1,1,1) * NdotL;  
+    
+    float NdotH = dot(normal, halfVector);
+    float3 specularLight = 0.05 * float3(1,1,1) * pow(saturate(NdotH),1.1);
+    
+    float4 finalColor = float4(saturate(float3(1,1,1) * 0.2 + diffuseLight) * color + specularLight, texColor.a);
+    
+	return finalColor;
 }
 
 technique BasicColorDrawing

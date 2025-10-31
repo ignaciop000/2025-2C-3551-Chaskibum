@@ -141,7 +141,7 @@ public class HUD
 
 
     public void Draw(float matchTimeSeconds, float fireCooldown, float fireCooldownMax,
-        ProjectileType currentProjectile, float playerHealth, float playerMaxHealth, int enemyCount)
+        ProjectileType currentProjectile, float playerHealth, float playerMaxHealth, int enemyCount, GameTime gameTime)
     {
         var vp = _graphicsDevice.Viewport;
         _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
