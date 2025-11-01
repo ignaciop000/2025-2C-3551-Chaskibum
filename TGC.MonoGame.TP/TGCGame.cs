@@ -1,10 +1,40 @@
-﻿// LISTA DE TAREAS
-// - Arreglar collider Roca 9 [SANTI Y AGUS]
-// - Solucionar y Completar Texturas [SANTI]
-// - Postes de luz [AGUS]
-// - Música (menu y juego) y Sonidos (acciones de hud, daño, choque, disparo y motor) [SANTI]
-// - Imagen tutorial [SANTI]
+﻿// ARREGLOS
+// - Separar en clases distintas TanqueJugador y TanqueEnemigo (ambas heredan de Tanque) [AGUS]
+// - Los tanques no deben spawnear donde hay obstaculos + no deben spawnear volando [AGUS]
+// - Mostrar vida tanques enemigos [NACHO]
+// - Que se vea el debug de los proyectiles [NACHO]
+// - Bajar volumenes altos [SANTI]
+// - Arreglar el árbol raro [SANTI]
+// - Cielo y niebla [SANTI]
 
+// NUEVAS TAREAS
+// - Terminar Shadow Map [MATEO]
+// - Modo God [MATEO]
+// - Verificar iluminación Blinn-Phong sobre todos los vehículos, elementos del entorno y terreno [MATEO]
+// - Mejorar IA tanques: deben disparar al jugador (y este debe perder vida) [AGUS]
+// - Deformación tanques [NACHO]
+// - Animación ruedas con Texture Scrolling [SANTI]
+
+// FINALMENTE [TODOS]
+// - Separar los .cs en carpetas
+// - Emprolijar código (principalmente físicas, pero no estaria mal diseñar mejor algunas cosas)
+// - Emprolijar shaders (borrarles cosas innecesarias o unificarlos si se puede)
+
+// ERRORES A SOLUCIONAR [TODOS]
+// - A veces algunos proyectiles rebotan en el piso
+// - Ver si se solucionó el bug del suicidio
+// - Error de BEPU de que un valor es nan o infinito
+// - Error de index out of boundaries en GetHeightAtPosition llamado desde TGCGame
+
+// OPCIONALES [EL QUE QUIERA]
+// - Hacer volumen configurable
+// - Imagen tutorial [SANTI]
+// - Textura terreno con normales
+// - Que los cambios en el menú sean no solo skin, si no tmb tamaño, vida, daño base, velocidad
+// - Crear algún sistema de partículas que muestren humo, fuego, chispas, etc.
+// - Delineado tanques ocultos
+// - Agregar un efecto de Bloom para los disparos, y el humo/fuego si fue implementado.
+// - Modo versus
 
 using System;
 using System.Collections.Generic;
