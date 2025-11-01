@@ -31,8 +31,8 @@ texture texDiffuseMap;
 sampler2D diffuseMap = sampler_state
 {
     Texture = (texDiffuseMap);
-    ADDRESSU = WRAP;
-    ADDRESSV = WRAP;
+    ADDRESSU = MIRROR;
+    ADDRESSV = MIRROR;
     MINFILTER = LINEAR;
     MAGFILTER = LINEAR;
     MIPFILTER = LINEAR;
@@ -180,16 +180,18 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
     float inclinationBias = max(modulatedEpsilon * (1.0 - dot(normal, lightDirection)), maxEpsilon);
 	
     float notInShadow = 0.0;
-        float2 texelSize = 1.0 / shadowMapSize;
-        for (int x = -1; x <= 1; x++)
-            for (int y = -1; y <= 1; y++)
-            {
-                float pcfDepth = tex2D(shadowMapSampler, shadowMapTextureCoordinates + float2(x, y) * texelSize).r + inclinationBias;
-                notInShadow += step(lightSpacePosition.z, pcfDepth) / 9.0;
-            }
+    float2 texelSize = 1.0 / shadowMapSize;
+    for (int x = -1; x <= 1; x++)
+        for (int y = -1; y <= 1; y++)
+        {
+            float pcfDepth = tex2D(shadowMapSampler, shadowMapTextureCoordinates + float2(x, y) * texelSize).r + inclinationBias;
+            notInShadow += step(lightSpacePosition.z, pcfDepth) / 9.0;
+        }
 	
-	float4 grassTex = tex2D(diffuseMap, input.TextureCoordinates * 50);
-    float4 dirtTex = tex2D(diffuseMap2, input.TextureCoordinates * 50);
+	float4 grassTex = tex2D(diffuseMap, input.TextureCoordinates * 100);
+    float4 dirtTex = tex2D(diffuseMap2, input.TextureCoordinates * 100);
+    
+    
     float3 mapColor = tex2D(colorMap, input.TextureCoordinates).rgb;
 	float4 color =  lerp(grassTex, dirtTex, mapColor.r);
 	

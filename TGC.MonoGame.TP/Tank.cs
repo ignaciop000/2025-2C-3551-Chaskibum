@@ -541,6 +541,7 @@ namespace TGC.MonoGame.TP
                 var wheelShapeToUse = tankDescription.WheelShape;
                 if (i == 0 )
                 {
+                    wheelOffsetFromTread += treadDirection * (tankDescription.TreadSpacing / 4);
                     verticalLift = 3f;
                     wheelShapeToUse = tankDescription.SmallerWheelShape;
                 }else if (i == tankDescription.WheelCountPerTread - 1)
