@@ -51,7 +51,7 @@ public class TGCGame : Game
     private RenderTarget2D _shadowMapRenderTarget;
     
     private TargetCamera _targetLightCamera;
-    private const int ShadowmapSize = 2048;
+    private const int ShadowmapSize = 4096;
     
     private Camera _camera;                 // Cámara activa
     private OrbitCamera _orbitCamera;       // Cámara que sigue al tanque
@@ -453,6 +453,42 @@ public class TGCGame : Game
                     _camera = _orbitCamera;
                 }
             }
+            
+            if (Keyboard.GetState().IsKeyDown(Keys.L))
+            {
+                _lightPosition += new Vector3(0, 100, 0);
+                Console.WriteLine(_lightPosition);
+            }
+        
+            if (Keyboard.GetState().IsKeyDown(Keys.K))
+            {
+                _lightPosition -= new Vector3(0, 100, 0);
+                Console.WriteLine(_lightPosition);
+            }
+            if (Keyboard.GetState().IsKeyDown(Keys.O))
+            {
+                _lightPosition += new Vector3(100, 0, 0);
+                Console.WriteLine(_lightPosition);
+            }
+        
+            if (Keyboard.GetState().IsKeyDown(Keys.P))
+            {
+                _lightPosition -= new Vector3(100, 0, 0);
+                Console.WriteLine(_lightPosition);
+            }
+            if (Keyboard.GetState().IsKeyDown(Keys.U))
+            {
+                _lightPosition += new Vector3(0, 0, 100);
+                Console.WriteLine(_lightPosition);
+            }
+        
+            if (Keyboard.GetState().IsKeyDown(Keys.I))
+            {
+                _lightPosition -= new Vector3(0, 0, 100);
+                Console.WriteLine(_lightPosition);
+            }
+            _targetLightCamera.Position = _lightPosition;
+            _terrain.LightPosition = _lightPosition;
             
             var forward = Microsoft.Xna.Framework.Vector3.Normalize(_orbitCamera.FrontDirection);
             _targetLightCamera.TargetPosition = _tank.Position + forward * 1100;
