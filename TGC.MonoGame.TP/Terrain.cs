@@ -18,6 +18,8 @@ public class Terrain
     private readonly Texture2D _terrainTexture;
     private readonly Texture2D _terrainTexture2;
     public StaticHandle Handle;
+    public Vector3 LightPosition;
+    public Vector3 EyePosition;
     
     /// <summary>
     /// Datos del mapa de altura (Heightmap) utilizados para representar la topografía de un terreno.
@@ -36,7 +38,7 @@ public class Terrain
     /// Representa una clase para modelar y renderizar un terreno en base a un mapa de alturas.
     /// Contiene funcionalidad para cargar un mapa de alturas, mapas de textura y generar la estructura del terreno.
     public Terrain(GraphicsDevice graphicsDevice, Texture2D heightMap, Texture2D colorMap,
-        Texture2D diffuseMap, Texture2D diffuseMap2, Effect effect, Simulation simulation, float scaleXZ)
+        Texture2D diffuseMap, Texture2D diffuseMap2, Effect effect, Simulation simulation, float scaleXZ, Vector3 eyePos)
     {
         //Shader
         _effect = effect;
@@ -47,6 +49,8 @@ public class Terrain
         // diffuse maps auxiliares
         _terrainTexture = diffuseMap;
         _terrainTexture2 = diffuseMap2;
+        LightPosition =  new Vector3(1000, 1000, 1000);
+        EyePosition = eyePos;
     }
 
     /// Genera la estructura del terreno cargando un mapa de alturas y creando los vértices necesarios.
@@ -106,8 +110,8 @@ public class Terrain
                 vertices[v4].Normal += n0;
 
                 indices[idx++] = v1;
-                indices[idx++] = v2;
                 indices[idx++] = v4;
+                indices[idx++] = v2;
 
                 // Triángulo 2: v1, v4, v3
                 var n1 = Vector3.Normalize(Vector3.Cross(vertices[v4].Position - vertices[v1].Position, vertices[v3].Position - vertices[v1].Position));
@@ -116,8 +120,8 @@ public class Terrain
                 vertices[v3].Normal += n1;
 
                 indices[idx++] = v1;
-                indices[idx++] = v4;
                 indices[idx++] = v3;
+                indices[idx++] = v4;
             }
         }
 
@@ -234,10 +238,12 @@ public class Terrain
         _effect.Parameters["texColorMap"].SetValue(_colorMapTexture);
         _effect.Parameters["texDiffuseMap"].SetValue(_terrainTexture);
         _effect.Parameters["texDiffuseMap2"].SetValue(_terrainTexture2);
+        _effect.Parameters["lightPosition"].SetValue(LightPosition);
+        _effect.Parameters["eyePosition"].SetValue(EyePosition);
 
-        graphicsDevice.SetVertexBuffer(_vbTerrain);
+        _effect.Parameters["WorldViewProjection"].SetValue(world * view * projection);
+        _effect.Parameters["InverseTransposeWorld"].SetValue(Matrix.Transpose(Matrix.Invert(world)));
 
-        //Render con shader
         graphicsDevice.SetVertexBuffer(_vbTerrain);
         graphicsDevice.Indices = _ibTerrain;
 
@@ -355,5 +361,4 @@ public class Terrain
         var radians = MathF.Acos(dot);
         return MathHelper.ToDegrees(radians);
     }
-    
 }

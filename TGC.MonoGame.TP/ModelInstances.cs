@@ -5,13 +5,16 @@ using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using TGC.MonoGame.Samples.Collisions;
+using TGC.MonoGame.TP.Viewer.Gizmos;
 
 namespace TGC.MonoGame.TP;
 
 public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
 {
-    private Model _model;
-    private readonly List<Matrix> _worlds = [];
+    public Model Model;
+    private BoundingBox _box;
+    public readonly List<Matrix> _worlds = [];
     public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
     private Effect _effect;
@@ -115,9 +118,10 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
 
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content)
     {
-        _model = content.Load<Model>(ContentFolder3D + rutaRelativa);
-
-        foreach (var mesh in _model.Meshes)
+        Model = content.Load<Model>(ContentFolder3D + rutaRelativa);
+        _box = BoundingVolumesExtensions.CreateAABBFrom(Model);
+        
+        foreach (var mesh in Model.Meshes)
         {
             foreach (var meshPart in mesh.MeshParts)
             {
@@ -141,7 +145,8 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath, string textura2Path, int modelIndex)
     {
-        _model = content.Load<Model>(ContentFolder3D + rutaRelativa);
+        Model = content.Load<Model>(ContentFolder3D + rutaRelativa);
+        _box = BoundingVolumesExtensions.CreateAABBFrom(Model);
         _modelIndex = modelIndex; // Guardar el índice del modelo
 
         // Cargar textura si se proporciona
@@ -156,7 +161,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
             _texture2 = content.Load<Texture2D>(ContentFolder3D + textura2Path);
         }
 
-        foreach (var mesh in _model.Meshes)
+        foreach (var mesh in Model.Meshes)
         {
             foreach (var meshPart in mesh.MeshParts)
             {
@@ -168,52 +173,56 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         _effect = efecto;
     }
 
-    public void Dibujar(Matrix view, Matrix projection)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, Gizmos gizmos, string texto)
     {
         // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
-        _effect.Parameters["View"]?.SetValue(view);
-        _effect.Parameters["Projection"]?.SetValue(projection);
-        _effect.Parameters["TintColor"]?.SetValue(_color.ToVector4());
+        
+        effect.Parameters["TintColor"]?.SetValue(_color.ToVector4());
         
         // Configurar TreeType para el shader de árboles
-        _effect.Parameters["TreeType"]?.SetValue(_modelIndex);
+        effect.Parameters["TreeType"]?.SetValue(_modelIndex);
         
         // Si hay textura, activarla
         if (_texture != null)
         {
-            _effect.Parameters["UseTexture"]?.SetValue(true);
-            _effect.Parameters["ModelTexture"]?.SetValue(_texture);
+            effect.Parameters["UseTexture"]?.SetValue(true);
+            effect.Parameters["ModelTexture"]?.SetValue(_texture);
             
             // Para TreeShader: textura de corteza
-            _effect.Parameters["BarkTexture"]?.SetValue(_texture);
+            effect.Parameters["BarkTexture"]?.SetValue(_texture);
         }
         else
         {
-            _effect.Parameters["UseTexture"]?.SetValue(false);
+            effect.Parameters["UseTexture"]?.SetValue(false);
         }
         
         // Segunda textura (hojas para árboles) - CRUCIAL
         if (_texture2 != null)
         {
-            _effect.Parameters["LeavesTexture"]?.SetValue(_texture2);
+            effect.Parameters["LeavesTexture"]?.SetValue(_texture2);
         }
         
         foreach (var world in _worlds)
         {
-            var modelMeshesBaseTransforms = new Matrix[_model.Bones.Count];
-            _model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
-            foreach (var mesh in _model.Meshes)
+            var esVisible = EsVisible(world, boundingFrustum);
+            
+            if (esVisible)
             {
-                var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
-                _effect.Parameters["World"]?.SetValue(relativeTransform * world);
-                
-                // Aplicar el efecto a cada mesh part para que use los parámetros actualizados
-                foreach (var meshPart in mesh.MeshParts)
-                {
-                    meshPart.Effect = _effect;
-                }
-                
-                mesh.Draw();
+              var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
+              Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
+              foreach (var mesh in Model.Meshes)
+              {
+                  var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
+                  effect.Parameters["World"]?.SetValue(relativeTransform * world);
+                  
+                  // Aplicar el efecto a cada mesh part para que use los parámetros actualizados
+                  foreach (var meshPart in mesh.MeshParts)
+                  {
+                      meshPart.Effect = effect;
+                  }
+                  
+                  mesh.Draw();
+              }
             }
         }
     }
@@ -229,6 +238,16 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     private float NextFloat(float min, float max)
     {
         return (float)(min + (max - min) * _random.NextDouble());
+    }
+
+    public bool EsVisible(Matrix world, BoundingFrustum boundingFrustum)
+    {
+        var corners = _box.GetCorners();
+        for (int i = 0; i < corners.Length; i++)
+            corners[i] = Vector3.Transform(corners[i], world);
+
+        var boundingBox = BoundingBox.CreateFromPoints(corners);
+        return boundingFrustum.Intersects(boundingBox);
     }
 }
 

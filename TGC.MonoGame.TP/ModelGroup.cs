@@ -4,12 +4,14 @@ using BepuPhysics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using TGC.MonoGame.Samples.Collisions;
+using TGC.MonoGame.TP.Viewer.Gizmos;
 
 namespace TGC.MonoGame.TP;
 
 public abstract class ModelGroup
 {
-    protected readonly List<ModelInstances> Models = [];
+    public readonly List<ModelInstances> Models = [];
 
     protected ModelGroup(List<Color> colors, Terrain terrain, Simulation simulation)
     {
@@ -69,11 +71,11 @@ public abstract class ModelGroup
         }
     }
     
-    public void Dibujar(Matrix view, Matrix projection)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, Gizmos gizmos, string texto)
     {
         foreach (var model in Models)
         {
-            model.Dibujar(view, projection);
+            model.Draw(effect, boundingFrustum, gizmos, texto);
         }
     }
     
