@@ -13,11 +13,11 @@ public class Bushes(Terrain terrain, Simulation simulation) : ModelGroup(Colors,
     
     public void CrearObjetos()
     {
-        var parametros = new[]
+        var parametros = new (float, float, float, bool, Texture2D[])[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (-15f, 1f, 2f) // Bush
+            (-15f, 1f, 2f, false, null) // Bush
         };
 
         base.CrearObjetos(parametros);

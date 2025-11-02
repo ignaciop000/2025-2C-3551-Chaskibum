@@ -21,12 +21,12 @@ public abstract class ModelGroup
         }
     }
 
-    protected void CrearObjetos((float, float, float)[] parametros)
+    protected void CrearObjetos((float, float, float, bool, Texture2D[])[] parametros)
     {
         for (int i = 0; i < Models.Count; i++)
         {
-            var (altura, escalaMin, escalaMax) = parametros[i];
-            Models[i].CrearObjetos(altura, escalaMin, escalaMax);
+            var (altura, escalaMin, escalaMax, usaNormalMapping, normalMap ) = parametros[i];
+            Models[i].CrearObjetos(altura, escalaMin, escalaMax, usaNormalMapping, normalMap);
         }
     }
     

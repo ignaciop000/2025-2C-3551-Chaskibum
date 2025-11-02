@@ -63,7 +63,6 @@ public class TGCGame : Game
     //Debug
     private Gizmos Gizmos { get; set;}
     private ImGuiRenderer _imGuiRenderer;
-    private bool dibujar = true;
     private BoundingFrustum _boundingFrustum;
     
     public const string ContentFolder3D = "Models/";
@@ -221,10 +220,19 @@ public class TGCGame : Game
         _terrainEffect = Content.Load<Effect>(ContentFolderEffects + "Terrain");
         _effect = Content.Load<Effect>(ContentFolderEffects + "BasicShader");
         _shadowEffect = Content.Load<Effect>(ContentFolderEffects + "ShadowMap");
-        _effect.Parameters["lightPosition"].SetValue(_lightPosition);
+        _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
+        _effect.Parameters["ambientColor"]?.SetValue(new Vector3(1,1,1));
+        _effect.Parameters["Ka"]?.SetValue(0.1f);
+        _effect.Parameters["diffuseColor"]?.SetValue(new Vector3(1,1,1));
+        _effect.Parameters["Kd"]?.SetValue(0.8f);
+        _effect.Parameters["specularColor"]?.SetValue(new Vector3(1,1,1));
+        _effect.Parameters["Ks"]?.SetValue(0.2f);
+        _effect.Parameters["shininess"]?.SetValue(4f);
+        
         
         // Cargar shader específico para tanques
         _tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
+        _tankShader.Parameters["Ka"].SetValue(1f);
         
         // Cargar shader específico para el World Border
         _worldBorderEffect = Content.Load<Effect>(ContentFolderEffects + "WorldBorderShader");
@@ -237,15 +245,23 @@ public class TGCGame : Game
         // basic color
         var terrainColorMap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/colormap");
         // blend texture 1
-        var terrainGrass = Content.Load<Texture2D>(ContentFolderTextures + "grass");
+        var terrainGrass = Content.Load<Texture2D>(ContentFolderTextures + "gras");
         // blend texture 2
         var terrainGround = Content.Load<Texture2D>(ContentFolderTextures + "ground");
-
+        //normal map pastp
+        var normalMap = Content.Load<Texture2D>(ContentFolderTextures + "normal");
+        
+        var normalMapRock = Content.Load<Texture2D>(ContentFolder3D + "rocks/Textures/Rock_Normal");
+        var normalMapHouse = Content.Load<Texture2D>(ContentFolder3D + "house/city_house_2_Nor");
+        var normalMapTree2Leaves = Content.Load<Texture2D>(ContentFolder3D + "tree2/TexturesCom_Branches0018_1_alphamasked_Snor");
+        var normalMapTree2Bark = Content.Load<Texture2D>(ContentFolder3D + "tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor");
+        var normalMapTreeLeaves = Content.Load<Texture2D>(ContentFolder3D + "tree/Tree.fbm/DB2X2_L01_Nor");
         _terrain = new Terrain(GraphicsDevice, 
             terrainHeigthmap, 
             terrainColorMap, 
             terrainGrass, 
             terrainGround, 
+            normalMap,
             _terrainEffect,
             _simulation,
             EscalaMapa,
@@ -312,9 +328,9 @@ public class TGCGame : Game
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
         _positionGenerator.AgregarPosiciones(arbustos, 450);
 
-        _trees.CrearObjetos();
-        _rocks.CrearObjetos();
-        _houses.CrearObjetos();
+        _trees.CrearObjetos( normalMapTree2Leaves, normalMapTree2Bark, normalMapTreeLeaves);
+        _rocks.CrearObjetos(normalMapRock);
+        _houses.CrearObjetos(normalMapHouse);
         _bushes.CrearObjetos();
         _lightPoles.CrearObjetos();
         
@@ -357,7 +373,7 @@ public class TGCGame : Game
             SurfaceFormat.Single, DepthFormat.Depth24, 0, RenderTargetUsage.PlatformContents);
 
         _terrain.LightPosition = _lightPosition;
-        _effect.Parameters["lightPosition"].SetValue(_lightPosition);
+        _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         _targetLightCamera.Position = _lightPosition;
         _targetLightCamera.BuildView();
         
@@ -412,6 +428,7 @@ public class TGCGame : Game
         {
             if (_matchTimeSeconds <= 0)
             {
+                _tankShader.Parameters["Ka"].SetValue(1f);
                 _state = GameState.MainMenu;
                 _hasLost = false;
                 _hasWon = false;
@@ -601,12 +618,13 @@ public class TGCGame : Game
         
         _effect.Parameters["View"].SetValue(_camera.View);
         _effect.Parameters["Projection"].SetValue(_camera.Projection);
-        _effect.Parameters["eyePosition"].SetValue(_camera.Position);
+        _effect.Parameters["eyePosition"]?.SetValue(_camera.Position);
         
         //_terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
         DibujarTerreno();    
         
-        
+        _tankShader.Parameters["lightPosition"].SetValue(_lightPosition);
+        _tankShader.Parameters["eyePosition"].SetValue(_camera.Position);
         _tank.Draw(_camera);
         if (_state != GameState.MainMenu)
         {
@@ -616,24 +634,7 @@ public class TGCGame : Game
             }
         }
 
-        if (dibujar)
-        {
-            _houses.Draw(_effect, _boundingFrustum, Gizmos, "Casa");
-            _rocks.Draw(_effect, _boundingFrustum, Gizmos, "Piedra");
-            _bushes.Draw(_effect,_boundingFrustum, Gizmos, "Arbusto");
-            _lightPoles.Draw(_effect, _boundingFrustum, Gizmos, "Poste de luz");
-        }
-       
-        foreach (var projectile in _projectiles)
-            projectile.Draw(_effect, _camera.View, _camera.Projection);
-        
-        //GraphicsDevice.BlendState = BlendState.AlphaBlend;
-        //GraphicsDevice.DepthStencilState = DepthStencilState.DepthRead;
-        
-        _trees.Draw(_effect, _boundingFrustum, Gizmos, "Arbol");
-
-        GraphicsDevice.BlendState = BlendState.Opaque;
-        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
+        DibujarElementos();
 
         _worldBorder.Draw(_camera.View, _camera.Projection);
 
@@ -665,6 +666,7 @@ public class TGCGame : Game
         StartGameplayMusic();
         _tank.Texture = _tankEntries[indiceSeleccionado].Texture;
         _state = GameState.Playing;
+        _tankShader.Parameters["Ka"].SetValue(0.2f);
     }
 
     /// <summary>
@@ -843,5 +845,28 @@ public class TGCGame : Game
         _terrainEffect.Parameters["LightViewProjection"].SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
         
         _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
+    }
+
+    private void DibujarElementos()
+    {
+        _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
+        
+        _rocks.Draw(_effect, _boundingFrustum, Gizmos, "Piedra");
+        
+        GraphicsDevice.RasterizerState = RasterizerState.CullNone;
+        _houses.Draw(_effect, _boundingFrustum, Gizmos, "Casa");
+        
+        GraphicsDevice.BlendState = BlendState.AlphaBlend;
+        _trees.Draw(_effect, _boundingFrustum, Gizmos, "Arbol");
+        GraphicsDevice.BlendState = BlendState.Opaque;
+        
+        _bushes.Draw(_effect,_boundingFrustum, Gizmos, "Arbusto");
+        GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+        
+        _lightPoles.Draw(_effect, _boundingFrustum, Gizmos, "Poste de luz");
+        
+       
+        foreach (var projectile in _projectiles) 
+            projectile.Draw(_effect, _camera.View, _camera.Projection);
     }
 }

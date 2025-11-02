@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Net.Mime;
 using BepuPhysics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
@@ -22,22 +23,23 @@ public class Rocks(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         Color.White  // Roca 9
     ];
 
-    public void CrearObjetos()
+    public void CrearObjetos(Texture2D normalMap)
     {
+        var normalMaps = new[]{normalMap};
         var parametros = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (5f, 0.1f, 0.2f), // Roca 0
-            (5f, 0.1f, 0.2f), // Roca 1
-            (5f, 0.1f, 0.2f), // Roca 2
-            (5f, 0.1f, 0.2f), // Roca 3
-            (5f, 0.1f, 0.2f), // Roca 4
-            (5f, 0.1f, 0.2f), // Roca 5
-            (5f, 0.1f, 0.2f), // Roca 6
-            (5f, 0.1f, 0.2f), // Roca 7
-            (5f, 0.1f, 0.2f), // Roca 8
-            (5f, 0.1f, 0.2f)  // Roca 9
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 0
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 1
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 2
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 3
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 4
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 5
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 6
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 7
+            (5f, 0.1f, 0.2f, true, normalMaps), // Roca 8
+            (5f, 0.1f, 0.2f, true, normalMaps)  // Roca 9
         };
 
         base.CrearObjetos(parametros);

@@ -24,13 +24,18 @@ namespace TGC.MonoGame.TP
         private const float WheelRadius = 2.0f; // ajustá según tu modelo/escala
 
         public Model Model;
-        private Effect _effect;
+        public Effect _effect;
         public Matrix _world;
 
         private ModelBone[] _wheelBones;
         private ModelBone _turretBone;
         private ModelBone _cannonBone;
-
+        
+        private Texture2D hullATexture;
+        private Texture2D hullBTexture;
+        private Texture2D hullCTexture;
+        private Texture2D treadmillsTexture;
+        
         private BodyHandle _body;
         private BodyHandle _secBody;
         private BodyHandle _turret;
@@ -197,10 +202,10 @@ namespace TGC.MonoGame.TP
             Model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
             
             // Cargar texturas del T90
-            var hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
-            var hullBTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
-            var hullCTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
-            var treadmillsTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/treadmills");
+            hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
+            hullBTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
+            hullCTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
+            treadmillsTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/treadmills");
                 
             // Look up shortcut references to the bones we are going to animate.
             _wheelBones = new ModelBone[16];
@@ -828,6 +833,11 @@ namespace TGC.MonoGame.TP
             foreach (var mesh in Model.Meshes)
             {
                 var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
+                _effect.Parameters["ModelTexture"]?.SetValue(hullATexture);
+                if (mesh.Name.Contains("Treadmill"))
+                {
+                    _effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);
+                }
 
                 foreach (var part in mesh.MeshParts)
                 {
@@ -838,10 +848,6 @@ namespace TGC.MonoGame.TP
                     // CRÍTICO: Configurar View y Projection desde la cámara
                     _effect.Parameters["View"]?.SetValue(camera.View);
                     _effect.Parameters["Projection"]?.SetValue(camera.Projection);
-                    if (Texture != null)
-                    {
-                        _effect.Parameters["ModelTexture"]?.SetValue(Texture);
-                    }
                 }
                 mesh.Draw();
             }

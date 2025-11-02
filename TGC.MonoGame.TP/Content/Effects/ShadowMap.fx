@@ -31,7 +31,7 @@ DepthPassVertexShaderOutput DepthVS(in DepthPassVertexShaderInput input)
 float4 DepthPS(in DepthPassVertexShaderOutput input) : COLOR
 {
     float depth = input.ScreenSpacePosition.z / input.ScreenSpacePosition.w;
-    return float4(1, 1, 1, 1.0);
+    return float4(depth, depth, depth, 1.0);
 }
 
 technique DepthPass

@@ -14,13 +14,14 @@ public class Houses(Terrain terrain, Simulation simulation) : ModelGroup(Colors,
         Color.White // house
     ];
     
-    public void CrearObjetos()
+    public void CrearObjetos(Texture2D normalMap)
     {
+        var normalMaps = new[] { normalMap };
         var parametros = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0f, 34f, 34f)  // house
+            (0f, 34f, 34f, true, normalMaps)  // house
         };
 
         base.CrearObjetos(parametros);

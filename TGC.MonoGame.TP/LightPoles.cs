@@ -13,11 +13,11 @@ public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Col
     
     public void CrearObjetos()
     {
-        var parametros = new[]
+        var parametros = new (float, float, float, bool, Texture2D[])[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0f, 0.25f, 0.25f) // SimpleStreetLight
+            (0f, 0.25f, 0.25f, false, null) // SimpleStreetLight
         };
 
         base.CrearObjetos(parametros);

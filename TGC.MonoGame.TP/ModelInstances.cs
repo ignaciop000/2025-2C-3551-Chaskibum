@@ -17,11 +17,10 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     public readonly List<Matrix> _worlds = [];
     public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
-    private Effect _effect;
     private float _altura;
-    private Texture2D _texture;
-    private Texture2D _texture2; // Segunda textura (para hojas en árboles)
-    private int _modelIndex = 0; // Índice del modelo (para TreeType: 0, 1, 2)
+    private Texture2D[] _texturas;
+    private bool _usaNormalMapping;
+    private Texture2D[] _normalMaps;
     
     public List<Vector2> Positions { get; set; } = [];
 
@@ -40,8 +39,11 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         _worlds.Add(world);
     }
     
-    public void CrearObjetos(float altura, float escalaMin, float escalaMax)
+    public void CrearObjetos(float altura, float escalaMin, float escalaMax, bool usaNormalMapping, Texture2D[] normalMaps)
     {
+        _texturas = new Texture2D[2];
+        _usaNormalMapping = usaNormalMapping;
+        _normalMaps = normalMaps;
         foreach (var posicion in Positions)
         {
             //Filtro por inclinación
@@ -128,9 +130,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
                 meshPart.Effect = efecto;
             }
         }
-
-        // Me lo guardo para usar en el dibujado
-        _effect = efecto;
+        
     }
     
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath)
@@ -147,30 +147,29 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     {
         Model = content.Load<Model>(ContentFolder3D + rutaRelativa);
         _box = BoundingVolumesExtensions.CreateAABBFrom(Model);
-        _modelIndex = modelIndex; // Guardar el índice del modelo
-
+       
         // Cargar textura si se proporciona
         if (!string.IsNullOrEmpty(texturaPath))
         {
-            _texture = content.Load<Texture2D>(ContentFolder3D + texturaPath);
+            _texturas[0] = content.Load<Texture2D>(ContentFolder3D + texturaPath);
         }
         
         // Cargar segunda textura si se proporciona (para hojas)
         if (!string.IsNullOrEmpty(textura2Path))
         {
-            _texture2 = content.Load<Texture2D>(ContentFolder3D + textura2Path);
+            _texturas[1] = content.Load<Texture2D>(ContentFolder3D + textura2Path);
         }
-
+        if(rutaRelativa.Contains("tree"))
+            Console.WriteLine($"Path: {rutaRelativa}");
         foreach (var mesh in Model.Meshes)
         {
+            if(rutaRelativa.Contains("tree"))
+                Console.WriteLine($"-Mesh: {mesh.Name}");
             foreach (var meshPart in mesh.MeshParts)
             {
                 meshPart.Effect = efecto;
             }
         }
-
-        // Me lo guardo para usar en el dibujado
-        _effect = efecto;
     }
 
     public void Draw(Effect effect, BoundingFrustum boundingFrustum, Gizmos gizmos, string texto)
@@ -178,52 +177,36 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
         
         effect.Parameters["TintColor"]?.SetValue(_color.ToVector4());
-        
-        // Configurar TreeType para el shader de árboles
-        effect.Parameters["TreeType"]?.SetValue(_modelIndex);
-        
-        // Si hay textura, activarla
-        if (_texture != null)
-        {
-            effect.Parameters["UseTexture"]?.SetValue(true);
-            effect.Parameters["ModelTexture"]?.SetValue(_texture);
-            
-            // Para TreeShader: textura de corteza
-            effect.Parameters["BarkTexture"]?.SetValue(_texture);
-        }
-        else
-        {
-            effect.Parameters["UseTexture"]?.SetValue(false);
-        }
-        
-        // Segunda textura (hojas para árboles) - CRUCIAL
-        if (_texture2 != null)
-        {
-            effect.Parameters["LeavesTexture"]?.SetValue(_texture2);
-        }
-        
+        effect.Parameters["UseTexture"]?.SetValue(true);
+        effect.Parameters["ModelTexture"].SetValue(_texturas[0]);
+
         foreach (var world in _worlds)
         {
-            var esVisible = EsVisible(world, boundingFrustum);
+            //Continuar si no esta dentro del frustum
+            if (!EsVisible(world, boundingFrustum))
+                continue;
             
-            if (esVisible)
+            var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
+            Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
+
+            SetShader(effect);
+            
+            foreach (var mesh in Model.Meshes)
             {
-              var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
-              Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
-              foreach (var mesh in Model.Meshes)
-              {
-                  var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
-                  effect.Parameters["World"]?.SetValue(relativeTransform * world);
-                  
-                  // Aplicar el efecto a cada mesh part para que use los parámetros actualizados
-                  foreach (var meshPart in mesh.MeshParts)
-                  {
-                      meshPart.Effect = effect;
-                  }
-                  
-                  mesh.Draw();
-              }
+                if (texto.Equals("Arbol"))
+                    ElegirTexturaYNormal(mesh, effect);
+                
+                var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
+                effect.Parameters["World"]?.SetValue(relativeTransform * world);
+                
+                foreach (var meshPart in mesh.MeshParts)
+                {
+                    meshPart.Effect = effect;
+                }
+
+                mesh.Draw();
             }
+            
         }
     }
 
@@ -248,6 +231,41 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
 
         var boundingBox = BoundingBox.CreateFromPoints(corners);
         return boundingFrustum.Intersects(boundingBox);
+    }
+
+    private void SetShader(Effect effect)
+    {
+        
+        if (_usaNormalMapping)
+        {
+            effect.CurrentTechnique = effect.Techniques["NormalMapping"];
+            effect.Parameters["NormalTexture"].SetValue(_normalMaps[0]);
+        }
+        else
+        {
+            effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"];
+        }
+    }
+
+    private void ElegirTexturaYNormal(ModelMesh mesh, Effect effect)
+    {
+        if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
+        {
+            effect.Parameters["ModelTexture"].SetValue(_texturas[1]);
+            if(mesh.Name.Contains("Plane"))
+                effect.Parameters["NormalTexture"].SetValue(_normalMaps[0]);
+        }
+        else if(mesh.Name.Contains("Trunk") || mesh.Name.Contains("Branch"))
+        {
+            effect.CurrentTechnique = effect.Techniques["NormalMapping"];
+            effect.Parameters["NormalTexture"].SetValue(_normalMaps[1]);
+            effect.Parameters["ModelTexture"].SetValue(_texturas[0]);
+        }
+        else
+        {
+            effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"];
+            effect.Parameters["ModelTexture"].SetValue(_texturas[0]);
+        }
     }
 }
 

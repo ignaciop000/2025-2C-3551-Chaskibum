@@ -16,15 +16,17 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         Color.White  // Tree 3
     ];
     
-    public void CrearObjetos()
+    public void CrearObjetos(Texture2D normalMapTree2Leaves, Texture2D normalMapTree2Bark, Texture2D normalMapTreeLeaves)
     {
-        var parametros = new[]
+        var normalMapsTree1 = new[]{normalMapTreeLeaves};
+        var normalMapsTree2 = new[]{normalMapTree2Leaves, normalMapTree2Bark};
+        var parametros = new []
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0f, 25f, 50f), // Tree
-            (0f, 0.15f, 0.3f), // Tree 2
-            (0f, 10f, 25f) // Tree 3
+            (0f, 25f, 50f, true, normalMapsTree1), // Tree
+            (0f, 0.15f, 0.3f, true, normalMapsTree2), // Tree 2
+            (0f, 10f, 25f, false, null) // Tree 3
         };
 
         base.CrearObjetos(parametros);

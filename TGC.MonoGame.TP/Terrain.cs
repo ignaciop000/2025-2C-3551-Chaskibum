@@ -17,6 +17,7 @@ public class Terrain
     private readonly Texture2D _colorMapTexture;
     private readonly Texture2D _terrainTexture;
     private readonly Texture2D _terrainTexture2;
+    private readonly Texture2D _normalMap;
     public StaticHandle Handle;
     public Vector3 LightPosition;
     public Vector3 EyePosition;
@@ -38,7 +39,7 @@ public class Terrain
     /// Representa una clase para modelar y renderizar un terreno en base a un mapa de alturas.
     /// Contiene funcionalidad para cargar un mapa de alturas, mapas de textura y generar la estructura del terreno.
     public Terrain(GraphicsDevice graphicsDevice, Texture2D heightMap, Texture2D colorMap,
-        Texture2D diffuseMap, Texture2D diffuseMap2, Effect effect, Simulation simulation, float scaleXZ, Vector3 eyePos)
+        Texture2D diffuseMap, Texture2D diffuseMap2, Texture2D normalMap, Effect effect, Simulation simulation, float scaleXZ, Vector3 eyePos)
     {
         //Shader
         _effect = effect;
@@ -49,6 +50,7 @@ public class Terrain
         // diffuse maps auxiliares
         _terrainTexture = diffuseMap;
         _terrainTexture2 = diffuseMap2;
+        _normalMap = normalMap;
         LightPosition =  new Vector3(1000, 1000, 1000);
         EyePosition = eyePos;
     }
@@ -238,6 +240,7 @@ public class Terrain
         _effect.Parameters["texColorMap"].SetValue(_colorMapTexture);
         _effect.Parameters["texDiffuseMap"].SetValue(_terrainTexture);
         _effect.Parameters["texDiffuseMap2"].SetValue(_terrainTexture2);
+        _effect.Parameters["NormalTexture"].SetValue(_normalMap);
         _effect.Parameters["lightPosition"].SetValue(LightPosition);
         _effect.Parameters["eyePosition"].SetValue(EyePosition);
 
