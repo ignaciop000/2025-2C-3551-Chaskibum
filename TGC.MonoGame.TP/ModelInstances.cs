@@ -18,7 +18,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
     private float _altura;
-    private Texture2D[] _texturas;
+    public Texture2D[] _texturas;
     private bool _usaNormalMapping;
     private Texture2D[] _normalMaps;
     

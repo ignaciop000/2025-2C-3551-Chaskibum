@@ -151,7 +151,7 @@ float4 NormalMapPS(VertexShaderOutput input) : COLOR
 
 	// Get the texture texel
     float4 texelColor = tex2D(TextureSampler, input.TextureCoordinate);
-    clip(texelColor.a - 0.2);
+    clip(texelColor.a - 0.3);
 	// Calculate the diffuse light
     float NdotL = saturate(dot(normal, lightDirection));
     float3 diffuseLight = Kd * diffuseColor * NdotL;

@@ -77,4 +77,50 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
         model?.DestruirInstancia(handle);
     }
+
+    public void DrawSombra(BoundingFrustum boundingFrustum, Effect effect, TargetCamera targetLightCamera)
+    {
+        foreach (var instance in Models)
+        {
+            effect.Parameters["checkInvisible"]?.SetValue(true);
+            var model =  instance.Model;
+            var modelMeshesBaseTransforms = new Matrix[model.Bones.Count];
+            model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
+            var worlds = instance._worlds;
+            
+            foreach (var world in worlds)
+            {
+                if (!instance.EsVisible(world, boundingFrustum))
+                {
+                    continue;
+                }
+                foreach (var modelMesh in model.Meshes)
+                {
+                    SetTexture(modelMesh, effect, instance);
+                    foreach (var part in modelMesh.MeshParts)
+                        part.Effect = effect;
+                        
+                    var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * world;
+                    // WorldViewProjection is used to transform from model space to clip space
+                    effect.Parameters["WorldViewProjection"].SetValue(worldMatrix * targetLightCamera.View * targetLightCamera.Projection);
+                        
+                    // Once we set these matrices we draw
+                    modelMesh.Draw();
+                }
+            }
+        }
+        effect.Parameters["checkInvisible"]?.SetValue(false);
+    }
+
+    private void SetTexture(ModelMesh mesh, Effect effect, ModelInstances model)
+    {
+        if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
+        {
+            effect.Parameters["ModelTexture"]?.SetValue(model._texturas[1]);
+        }
+        else
+        {
+            effect.Parameters["ModelTexture"]?.SetValue(model._texturas[0]);
+        }
+    }
 }

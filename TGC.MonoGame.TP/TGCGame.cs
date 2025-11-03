@@ -84,8 +84,8 @@ public class TGCGame : Game
     
     private Camera _camera;                 // Cámara activa
     private OrbitCamera _orbitCamera;       // Cámara que sigue al tanque
-    private const float LightCameraFarPlaneDistance = 20000f;
-    private const float LightCameraNearPlaneDistance = 5f;
+    private const float LightCameraFarPlaneDistance = 10000f;
+    private const float LightCameraNearPlaneDistance = 1f;
     
     private Effect _terrainEffect;          //Shader Terreno
     private Effect _effect;                 //Shader Basico
@@ -370,7 +370,7 @@ public class TGCGame : Game
         }
         
         _shadowMapRenderTarget = new RenderTarget2D(GraphicsDevice, ShadowmapSize, ShadowmapSize, false,
-            SurfaceFormat.Single, DepthFormat.Depth24, 0, RenderTargetUsage.PlatformContents);
+            SurfaceFormat.Color, DepthFormat.Depth24, 0, RenderTargetUsage.PlatformContents);
 
         _terrain.LightPosition = _lightPosition;
         _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
@@ -625,7 +625,6 @@ public class TGCGame : Game
         
         _tankShader.Parameters["lightPosition"].SetValue(_lightPosition);
         _tankShader.Parameters["eyePosition"].SetValue(_camera.Position);
-        _tank.Draw(_camera);
         if (_state != GameState.MainMenu)
         {
             foreach (var enemyTank in _enemyTanks)
@@ -633,6 +632,7 @@ public class TGCGame : Game
                 enemyTank.Draw(_camera);
             }
         }
+        _tank.Draw(_camera);
 
         DibujarElementos();
 
@@ -686,7 +686,7 @@ public class TGCGame : Game
         {
             
             var random = new Random();
-            var radio = (float)(1000f + random.NextDouble() * 1000f); 
+            var radio = (float)(100f + random.NextDouble() * 1000f); 
             var angulo = (float)(random.NextDouble() * Math.PI * 2); 
             
             var offsetX = (float)Math.Cos(angulo) * radio;
@@ -779,7 +779,6 @@ public class TGCGame : Game
             allInstances.AddRange(_bushes.Models);
             allInstances.AddRange(_houses.Models);
             allInstances.AddRange(_lightPoles.Models);
-            allInstances.AddRange(_trees.Models);
             
             foreach (var instance in allInstances)
             {
@@ -787,6 +786,8 @@ public class TGCGame : Game
                 var modelMeshesBaseTransforms = new Matrix[model.Bones.Count];
                 model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
                 var worlds = instance._worlds;
+                if(instance._texturas.Length > 0)
+                    _shadowEffect.Parameters["ModelTexture"]?.SetValue(instance._texturas[0]);
                 
                 foreach (var world in worlds)
                 {
@@ -808,12 +809,14 @@ public class TGCGame : Game
                     }
                 }
             }
+
+            _trees.DrawSombra(_boundingFrustum, _shadowEffect, _targetLightCamera);
             
-            DrawTankShadow(_tank);
-            foreach (var tank in _enemyTanks)
+            foreach (var enemyTank in _enemyTanks)
             {
-                DrawTankShadow(tank);
+                DrawTankShadow(enemyTank);
             }
+            DrawTankShadow(_tank);
         }
 
     private void DrawTankShadow(Tank tank)

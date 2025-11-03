@@ -844,8 +844,6 @@ namespace TGC.MonoGame.TP
                     
                     part.Effect = _effect;
                     _effect.Parameters["World"]?.SetValue(worldPerMesh);
-                    
-                    // CRÍTICO: Configurar View y Projection desde la cámara
                     _effect.Parameters["View"]?.SetValue(camera.View);
                     _effect.Parameters["Projection"]?.SetValue(camera.Projection);
                 }
