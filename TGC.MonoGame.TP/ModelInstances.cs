@@ -19,7 +19,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     private Color _color = color;
     private float _altura;
     public Texture2D[] _texturas;
-    private bool _usaNormalMapping;
+    public bool UsaNormalMapping;
     private Texture2D[] _normalMaps;
     
     public List<Vector2> Positions { get; set; } = [];
@@ -42,7 +42,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     public void CrearObjetos(float altura, float escalaMin, float escalaMax, bool usaNormalMapping, Texture2D[] normalMaps)
     {
         _texturas = new Texture2D[2];
-        _usaNormalMapping = usaNormalMapping;
+        UsaNormalMapping = usaNormalMapping;
         _normalMaps = normalMaps;
         foreach (var posicion in Positions)
         {
@@ -160,11 +160,9 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
             _texturas[1] = content.Load<Texture2D>(ContentFolder3D + textura2Path);
         }
         if(rutaRelativa.Contains("tree"))
-            Console.WriteLine($"Path: {rutaRelativa}");
         foreach (var mesh in Model.Meshes)
         {
             if(rutaRelativa.Contains("tree"))
-                Console.WriteLine($"-Mesh: {mesh.Name}");
             foreach (var meshPart in mesh.MeshParts)
             {
                 meshPart.Effect = efecto;
@@ -172,12 +170,14 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         }
     }
 
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, Gizmos gizmos, string texto)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping)
     {
         // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
         
         effect.Parameters["TintColor"]?.SetValue(_color.ToVector4());
         effect.Parameters["UseTexture"]?.SetValue(true);
+        if(texto.Equals("Poste de luz"))
+            effect.Parameters["UseTexture"]?.SetValue(false);
         effect.Parameters["ModelTexture"].SetValue(_texturas[0]);
 
         foreach (var world in _worlds)
@@ -189,12 +189,15 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
             var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
             Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
 
-            SetShader(effect);
+            if (usarNormalMapping)
+            { SetTechnique(effect);  }
+            else 
+            { effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"]; }
             
             foreach (var mesh in Model.Meshes)
             {
                 if (texto.Equals("Arbol"))
-                    ElegirTexturaYNormal(mesh, effect);
+                    ElegirTexturaYNormal(mesh, effect, usarNormalMapping);
                 
                 var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
                 effect.Parameters["World"]?.SetValue(relativeTransform * world);
@@ -233,10 +236,10 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         return boundingFrustum.Intersects(boundingBox);
     }
 
-    private void SetShader(Effect effect)
+    private void SetTechnique(Effect effect)
     {
         
-        if (_usaNormalMapping)
+        if (UsaNormalMapping)
         {
             effect.CurrentTechnique = effect.Techniques["NormalMapping"];
             effect.Parameters["NormalTexture"].SetValue(_normalMaps[0]);
@@ -247,19 +250,22 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         }
     }
 
-    private void ElegirTexturaYNormal(ModelMesh mesh, Effect effect)
+    private void ElegirTexturaYNormal(ModelMesh mesh, Effect effect, bool usarNormalMapping)
     {
         if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
         {
             effect.Parameters["ModelTexture"].SetValue(_texturas[1]);
-            if(mesh.Name.Contains("Plane"))
+            if(mesh.Name.Contains("Plane") && UsaNormalMapping && usarNormalMapping)
                 effect.Parameters["NormalTexture"].SetValue(_normalMaps[0]);
         }
         else if(mesh.Name.Contains("Trunk") || mesh.Name.Contains("Branch"))
         {
-            effect.CurrentTechnique = effect.Techniques["NormalMapping"];
-            effect.Parameters["NormalTexture"].SetValue(_normalMaps[1]);
             effect.Parameters["ModelTexture"].SetValue(_texturas[0]);
+            if (UsaNormalMapping && usarNormalMapping)
+            {
+                effect.CurrentTechnique = effect.Techniques["NormalMapping"];
+                effect.Parameters["NormalTexture"].SetValue(_normalMaps[1]);
+            }
         }
         else
         {

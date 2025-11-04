@@ -71,11 +71,11 @@ public abstract class ModelGroup
         }
     }
     
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, Gizmos gizmos, string texto)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping)
     {
         foreach (var model in Models)
         {
-            model.Draw(effect, boundingFrustum, gizmos, texto);
+            model.Draw(effect, boundingFrustum, texto, usarNormalMapping);
         }
     }
     

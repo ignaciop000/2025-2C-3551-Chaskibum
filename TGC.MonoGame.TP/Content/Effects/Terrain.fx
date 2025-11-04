@@ -210,9 +210,7 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
     float3 lightDirection = normalize(lightPosition - input.WorldSpacePosition.xyz);
     float3 viewDirection = normalize(eyePosition - input.WorldSpacePosition);
     float3 halfVector = normalize(lightDirection + viewDirection);
-    float3 normalMap = getNormalFromMap(input.TextureCoordinates, input.WorldSpacePosition.xyz, normalize(input.Normal.xyz));
-    float3 normalTex = normalize(input.Normal.rgb);
-    float3 normal =  lerp(normalMap, normalTex, mapColor.r);
+    float3 normal = normalize(input.Normal.rgb);
     
     float inclinationBias = max(modulatedEpsilon * (1.0 - dot(normal, lightDirection)), maxEpsilon);
 	

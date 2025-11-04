@@ -5,14 +5,14 @@ using Microsoft.Xna.Framework;
 
 namespace TGC.MonoGame.TP;
 
-public class PositionGenerator(float anchoMapa, float largoMapa)
+public class PositionGenerator()
 {
     private readonly Random _random = new();
     
-    public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, float distanciaMinima = 550)
+    public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, Color[,] colorMap, float escalaMap, float distanciaMinima = 550)
     {
         // Generar posiciones
-        List<Vector2> posiciones = GenerarPuntos(distanciaMinima);
+        List<Vector2> posiciones = GenerarPuntos(distanciaMinima, colorMap, escalaMap);
         int total = posiciones.Count;
         int modelosCount = modelos.Count;
 
@@ -59,58 +59,34 @@ public class PositionGenerator(float anchoMapa, float largoMapa)
     }
     
     // Generar posiciones aleatorias que no se pisen
-    private List<Vector2> GenerarPuntos(float minDist, int attempts = 100)
+    private List<Vector2> GenerarPuntos(float minDist, Color[,] colorMap, float escalaMap, int attempts = 100)
     {
         List<Vector2> points = [];
-        List<Vector2> active = [];
 
-        double width = anchoMapa / 2;
-        double height = largoMapa / 2;
+        int mapWidth = colorMap.GetLength(0);
+        int mapHeight = colorMap.GetLength(1);
 
-        // Primer punto
-        Vector2 first = new Vector2(0, 0);
-        points.Add(first);
-        active.Add(first);
-
-        while (active.Count > 0)
-        {
-            int idx = _random.Next(active.Count);
-            Vector2 center = active[idx];
-            bool found = false;
-
-            for (int i = 0; i < attempts; i++)
+            while (attempts > 0)
             {
-                // Generar punto en un anillo entre [minDist, 6 * minDist]
-                double angle = _random.NextDouble() * Math.PI * 2;
-                double radius = minDist * (1 + 5 * Math.Pow(_random.NextDouble(), 1.5)); // La potencia hace que tiendan a estar mas cerca
-                Vector2 newPoint = center + new Vector2(
-                    (float)(Math.Cos(angle) * radius),
-                    (float)(Math.Sin(angle) * radius)
-                );
+                int pointX = _random.Next(0, mapWidth);
+                int pointY = _random.Next(0, mapHeight);
+                var color = colorMap[pointX, pointY];
+
+                var x = ((pointX - mapWidth / 2f) * escalaMap)/2;
+                var y = ((pointY - mapHeight / 2f) * escalaMap)/2;
+                var noEsCalle = color.R < 150;
                 
-                // Offset de ruido
-                float maxOffset = minDist * 0.3f; // 30% de minDist
-                float offsetX = (float)(_random.NextDouble() - 0.5) * 2 * maxOffset;
-                float offsetY = (float)(_random.NextDouble() - 0.5) * 2 * maxOffset;
-
-                newPoint += new Vector2(offsetX, offsetY);
-
-
+                Vector2 newPoint = new Vector2(x, y);
+                
                 // Validar dentro del área y lejos de otros puntos
-                if (newPoint.X >= -width && newPoint.X < width &&
-                    newPoint.Y >= -height && newPoint.Y < height &&
-                    points.All(p => Vector2.Distance(p, newPoint) >= minDist))
+                
+                if (points.All(p => Vector2.Distance(p, newPoint) >= minDist) && noEsCalle)
                 {
                     points.Add(newPoint);
-                    active.Add(newPoint);
-                    found = true;
-                    break;
+                    attempts = 100;
                 }
+                attempts--;
             }
-
-            if (!found)
-                active.RemoveAt(idx);
-        }
 
         return points;
     }

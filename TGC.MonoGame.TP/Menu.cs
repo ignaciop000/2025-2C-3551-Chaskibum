@@ -50,7 +50,7 @@ public class Menu
     private int SelectedEnemyCount => _enemyCount;
     private int SelectedPlayerTankIndex => _playerTankIndex;
 
-    public void Draw(List<TankEntry> tankEntries)
+    public void Draw(List<TankEntry> tankEntries, Texture2D treadmillTexture)
     {
         // Iniciar música de fondo si no está sonando
         if (!_musicStarted && _menuMusic != null)
@@ -71,7 +71,7 @@ public class Menu
         DrawMenuBackground();
         
         if (_state == MenuState.Main)
-            DrawMenuTankPreview(tankEntries);
+            DrawMenuTankPreview(tankEntries, treadmillTexture);
         
         if (_state == MenuState.Main)
             DrawMainMenu();
@@ -79,7 +79,7 @@ public class Menu
             DrawOptionsMenu();
     }
 
-    private void DrawMenuTankPreview(List<TankEntry> tankEntries)
+    private void DrawMenuTankPreview(List<TankEntry> tankEntries, Texture2D treadmillTexture)
     {
         _graphicsDevice.BlendState = BlendState.Opaque;
         _graphicsDevice.DepthStencilState = DepthStencilState.Default;
@@ -95,10 +95,10 @@ public class Menu
             Matrix.CreateScale(entry.scale) *
             Matrix.CreateTranslation(0f, entry.posY, 0f);
 
-        DrawModel(entry.Model, world, _previewView, _previewProj, entry.Texture, entry.effect);
+        DrawModel(entry.Model, world, _previewView, _previewProj, entry.Texture, entry.effect, treadmillTexture);
     }
 
-    private void DrawModel(Model model, Matrix world, Matrix view, Matrix proj, Texture2D texture, Effect effect)
+    private void DrawModel(Model model, Matrix world, Matrix view, Matrix proj, Texture2D texture, Effect effect, Texture2D treadmillTexture)
     {
         var boneTransforms = new Matrix[model.Bones.Count];
         model.CopyAbsoluteBoneTransformsTo(boneTransforms);
@@ -106,6 +106,7 @@ public class Menu
         foreach (var mesh in model.Meshes)
         {
             var meshWorld = boneTransforms[mesh.ParentBone.Index] * world;
+            
             foreach (var part in mesh.MeshParts)
             {
                 var fx = effect.Clone();
@@ -113,6 +114,10 @@ public class Menu
                 fx.Parameters["View"]?.SetValue(view);
                 fx.Parameters["Projection"]?.SetValue(proj);
                 fx.Parameters["ModelTexture"]?.SetValue(texture);
+                if (mesh.Name.Contains("Treadmill"))
+                {
+                    fx.Parameters["ModelTexture"]?.SetValue(treadmillTexture);
+                }
                 part.Effect = fx;
             }
 

@@ -4,13 +4,11 @@
 // - Mostrar vida tanques enemigos [NACHO]
 // - Que se vea el debug de los proyectiles [NACHO]
 // - Bajar volumenes altos [SANTI]
-// - Arreglar el árbol raro [SANTI]
 // - Cielo y niebla [SANTI]
 
 // NUEVAS TAREAS
 // - Terminar Shadow Map [MATEO]
 // - Modo God [MATEO]
-// - Verificar iluminación Blinn-Phong sobre todos los vehículos, elementos del entorno y terreno [MATEO]
 // - Mejorar IA tanques: deben disparar al jugador (y este debe perder vida) [AGUS]
 // - Deformación tanques [NACHO]
 // - Animación ruedas con Texture Scrolling [SANTI]
@@ -80,7 +78,7 @@ public class TGCGame : Game
     private RenderTarget2D _shadowMapRenderTarget;
     
     private TargetCamera _targetLightCamera;
-    private const int ShadowmapSize = 4096;
+    private const int ShadowmapSize = 2048;
     
     private Camera _camera;                 // Cámara activa
     private OrbitCamera _orbitCamera;       // Cámara que sigue al tanque
@@ -112,6 +110,7 @@ public class TGCGame : Game
     private List<Tank> _enemyTanks;
     private List<TankController> _enemyControllers;
     private List<Tank> _tanks;
+    List<ModelInstances> _allInstances;
 
     private Effect _tankShader;
     // Proyectiles
@@ -127,6 +126,8 @@ public class TGCGame : Game
     private float _matchTimeSeconds;
     private bool _hasLost;
     private bool _hasWon;
+    private bool _usarNormalMapping;
+    private bool _dibujarSombras;
     
     private float _playerHealth = 100f;
     private float _playerMaxHealth = 100f;
@@ -170,6 +171,8 @@ public class TGCGame : Game
     /// </summary>
     protected override void Initialize()
     {
+        _usarNormalMapping = true;
+        _dibujarSombras = true;
         //DEBUG
         Gizmos = new Gizmos();
         
@@ -194,7 +197,7 @@ public class TGCGame : Game
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1)); //TODO
 
-        _tank = new Tank(new Vector3(1300, 0, 0), 0f, 0.1f);
+        _tank = new Tank(new Vector3(0, 0, 0), 0f, 0.1f);
         
         _tanks = [_tank];
 
@@ -244,6 +247,8 @@ public class TGCGame : Game
         var terrainHeigthmap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/heightmap");
         // basic color
         var terrainColorMap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/colormap");
+        var spawnMap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/spawnmap");
+
         // blend texture 1
         var terrainGrass = Content.Load<Texture2D>(ContentFolderTextures + "gras");
         // blend texture 2
@@ -315,18 +320,20 @@ public class TGCGame : Game
 
         var anchoMapa = (_terrain.HeightmapData.GetLength(0) - 1) * EscalaMapa; // Ancho terreno en mundo
         var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa; // Largo terreno en mundo
+
+        var colorMap = _terrain.LoadColorMap(spawnMap);
         
-        _positionGenerator = new PositionGenerator(anchoMapa, largoMapa);
+        _positionGenerator = new PositionGenerator();
         var modelos = _trees.GetModelosConPorcentaje(0.50) // Arboles
             .Concat(_rocks.GetModelosConPorcentaje(0.30)) // Rocas
             .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
             .Concat(_lightPoles.GetModelosConPorcentaje(0.15))
             .ToList();
-        _positionGenerator.AgregarPosiciones(modelos);
+        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa);
 
         // Genero otros puntos para los arbustos
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
-        _positionGenerator.AgregarPosiciones(arbustos, 450);
+        _positionGenerator.AgregarPosiciones(arbustos, colorMap, EscalaMapa, 450);
 
         _trees.CrearObjetos( normalMapTree2Leaves, normalMapTree2Bark, normalMapTreeLeaves);
         _rocks.CrearObjetos(normalMapRock);
@@ -380,6 +387,14 @@ public class TGCGame : Game
         _imGuiRenderer = new ImGuiRenderer(this);
         _imGuiRenderer.RebuildFontAtlas();
         _boundingFrustum = new BoundingFrustum(_orbitCamera.View * _orbitCamera.Projection);
+        
+        _allInstances = new List<ModelInstances>();
+        
+        _allInstances.AddRange(_rocks.Models);
+        _allInstances.AddRange(_bushes.Models);
+        _allInstances.AddRange(_houses.Models);
+        _allInstances.AddRange(_lightPoles.Models);
+        
         base.LoadContent();
     }
 
@@ -437,7 +452,14 @@ public class TGCGame : Game
         }
         else
         {
-            
+            if (keyboardState.IsKeyUp(Keys.N) && _kbPrev.IsKeyDown(Keys.N))
+            {
+                _usarNormalMapping = !_usarNormalMapping;
+            }
+            if (keyboardState.IsKeyUp(Keys.M) && _kbPrev.IsKeyDown(Keys.M))
+            {
+                _dibujarSombras = !_dibujarSombras;
+            }
             _playerController.UpdateControls(keyboardState);
             _tank.UpdateAim(mouseState, _camera, GraphicsDevice.Viewport);
             _playerController.UpdateMovementAndAim(_simulation, _tank.AimDirectionWorld);
@@ -596,13 +618,14 @@ public class TGCGame : Game
     /// </summary>
     protected override void Draw(GameTime gameTime)
     {
-        DrawShadows();
+        if(_dibujarSombras)
+            DrawShadows();
         GraphicsDevice.SetRenderTarget(null);
         GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.CornflowerBlue, 1f, 0);
         
         if (_state == GameState.MainMenu)
         {
-            _menu.Draw(_tankEntries);
+            _menu.Draw(_tankEntries, _tank.treadmillsTexture);
             return; // no dibujamos el juego
         }
 
@@ -629,7 +652,7 @@ public class TGCGame : Game
         {
             foreach (var enemyTank in _enemyTanks)
             {
-                enemyTank.Draw(_camera);
+               enemyTank.Draw(_camera);
             }
         }
         _tank.Draw(_camera);
@@ -638,7 +661,8 @@ public class TGCGame : Game
 
         _worldBorder.Draw(_camera.View, _camera.Projection);
 
-        _debug.Draw(_camera, _orbitCamera, Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime);
+        _debug.Draw(_camera, _orbitCamera, _targetLightCamera , Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime, _terrain);
+        
         if (!_hasLost && !_hasWon)
         {
             _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, _tank.TipoProyectilActual, _playerHealth, _playerMaxHealth, _enemyCount, gameTime);
@@ -772,15 +796,8 @@ public class TGCGame : Game
             GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.Black, 1f, 0);
 
             _shadowEffect.CurrentTechnique = _shadowEffect.Techniques["DepthPass"];
-
-            List<ModelInstances> allInstances = new List<ModelInstances>();
             
-            allInstances.AddRange(_rocks.Models);
-            allInstances.AddRange(_bushes.Models);
-            allInstances.AddRange(_houses.Models);
-            allInstances.AddRange(_lightPoles.Models);
-            
-            foreach (var instance in allInstances)
+            foreach (var instance in _allInstances)
             {
                 var model =  instance.Model;
                 var modelMeshesBaseTransforms = new Matrix[model.Bones.Count];
@@ -825,6 +842,7 @@ public class TGCGame : Game
         tank.Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
         foreach (var modelMesh in tank.Model.Meshes)
         {
+            
             foreach (var part in modelMesh.MeshParts)
                 part.Effect = _shadowEffect;
 
@@ -841,32 +859,36 @@ public class TGCGame : Game
 
     private void DibujarTerreno()
     {
-        _terrainEffect.CurrentTechnique = _terrainEffect.Techniques["DrawShadowedPCF"];
-        _terrainEffect.Parameters["shadowMap"].SetValue(_shadowMapRenderTarget);
-        _terrainEffect.Parameters["lightPosition"].SetValue(_lightPosition);
-        _terrainEffect.Parameters["shadowMapSize"].SetValue(Vector2.One * ShadowmapSize);
-        _terrainEffect.Parameters["LightViewProjection"].SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
+        _terrainEffect.CurrentTechnique = _terrainEffect.Techniques["RenderTerrain"];
+        if (_dibujarSombras)
+        {
+            _terrainEffect.CurrentTechnique = _terrainEffect.Techniques["DrawShadowedPCF"];
+            _terrainEffect.Parameters["shadowMap"]?.SetValue(_shadowMapRenderTarget);
+            _terrainEffect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * ShadowmapSize);
+        }
+        _terrainEffect.Parameters["lightPosition"]?.SetValue(_lightPosition);
+        _terrainEffect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
         
-        _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
+        _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection, _boundingFrustum);
     }
 
     private void DibujarElementos()
     {
         _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         
-        _rocks.Draw(_effect, _boundingFrustum, Gizmos, "Piedra");
+        _rocks.Draw(_effect, _boundingFrustum, "Piedra", _usarNormalMapping);
         
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
-        _houses.Draw(_effect, _boundingFrustum, Gizmos, "Casa");
+        _houses.Draw(_effect, _boundingFrustum, "Casa", _usarNormalMapping);
         
         GraphicsDevice.BlendState = BlendState.AlphaBlend;
-        _trees.Draw(_effect, _boundingFrustum, Gizmos, "Arbol");
+        _trees.Draw(_effect, _boundingFrustum, "Arbol", _usarNormalMapping);
         GraphicsDevice.BlendState = BlendState.Opaque;
         
-        _bushes.Draw(_effect,_boundingFrustum, Gizmos, "Arbusto");
+        _bushes.Draw(_effect,_boundingFrustum, "Arbusto", _usarNormalMapping);
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
         
-        _lightPoles.Draw(_effect, _boundingFrustum, Gizmos, "Poste de luz");
+        _lightPoles.Draw(_effect, _boundingFrustum, "Poste de luz", _usarNormalMapping);
         
        
         foreach (var projectile in _projectiles) 

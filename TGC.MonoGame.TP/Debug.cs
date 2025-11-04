@@ -72,7 +72,7 @@ public class Debug
         _boundingFrustum= new BoundingFrustum(camera.View * camera.Projection) ;
     }
 
-    public void Draw(Camera camera, OrbitCamera orbitCamera, Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime)
+    public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime, Terrain terrain)
     {
         if (_showTerrainMeshDebug)
         {
@@ -86,11 +86,12 @@ public class Debug
 
             DrawCollider();
 
+            DrawChunks(terrain);
             _graphicsDevice.RasterizerState = oldRS;
 
             // --- DEBUG: ver el mesh físico del terreno ---
             //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); 
-            DrawPhysicsMeshDebug(DebugEffect, camera.View, camera.Projection);
+            //DrawPhysicsMeshDebug(DebugEffect, camera.View, camera.Projection);
 
             // Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
             DebugEffect.Parameters["View"].SetValue(camera.View);
@@ -150,24 +151,24 @@ public class Debug
                 }
             }
             gizmos.DrawFrustum(orbitCamera.View * orbitCamera.Projection, Color.Yellow);
+            //gizmos.DrawFrustum(targetLightCamera.View * targetLightCamera.Projection, Color.Green);
             gizmos.Draw();
             
             _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
-            _spriteBatch.Draw(shadowMapRenderTarget, new Rectangle(20, 150, _graphicsDevice.Viewport.Width/5, _graphicsDevice.Viewport.Height/5), Color.White);
+            _spriteBatch.Draw(shadowMapRenderTarget, new Rectangle(20, 150, _graphicsDevice.Viewport.Width/5, _graphicsDevice.Viewport.Width/5), Color.White);
             _spriteBatch.End();
-            
-            imGuiRenderer.BeforeLayout(gameTime);
-        
-            ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
-            ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 60), ImGuiCond.Always);
-            ImGui.Begin("Performance");
-            ImGui.TextWrapped($"Application average {1000f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
-            ImGui.End();
-
-            imGuiRenderer.AfterLayout();
             
             _graphicsDevice.RasterizerState = oldRS2;
         }
+        imGuiRenderer.BeforeLayout(gameTime);
+        
+        ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 60), ImGuiCond.Always);
+        ImGui.Begin("Performance");
+        ImGui.TextWrapped($"Application average {1000f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
+        ImGui.End();
+
+        imGuiRenderer.AfterLayout();
     }
 
     private void DrawCollider()
@@ -358,5 +359,15 @@ public class Debug
     public void actualizarTanks(List<Tank> tanks)
     {
         _tanks = tanks;
+    }
+
+    private void DrawChunks(Terrain terrain)
+    {
+        foreach (var chunk in terrain.Chunks)
+        {
+            Vector3 origin = (chunk.BoundingBox.Min + chunk.BoundingBox.Max) / 2f;
+            Vector3 size = chunk.BoundingBox.Max - chunk.BoundingBox.Min;
+            Gizmos.DrawCube(origin, size);
+        }
     }
 }

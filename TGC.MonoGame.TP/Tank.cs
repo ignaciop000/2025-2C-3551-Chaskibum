@@ -34,7 +34,7 @@ namespace TGC.MonoGame.TP
         private Texture2D hullATexture;
         private Texture2D hullBTexture;
         private Texture2D hullCTexture;
-        private Texture2D treadmillsTexture;
+        public Texture2D treadmillsTexture;
         
         private BodyHandle _body;
         private BodyHandle _secBody;
@@ -833,7 +833,7 @@ namespace TGC.MonoGame.TP
             foreach (var mesh in Model.Meshes)
             {
                 var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
-                _effect.Parameters["ModelTexture"]?.SetValue(hullATexture);
+                _effect.Parameters["ModelTexture"]?.SetValue(Texture);
                 if (mesh.Name.Contains("Treadmill"))
                 {
                     _effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);

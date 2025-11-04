@@ -48,7 +48,7 @@ float4 DepthPS(in DepthPassVertexShaderOutput input) : COLOR
     float depth = input.ScreenSpacePosition.z / input.ScreenSpacePosition.w;
     float alpha = tex2D(TextureSampler, input.TextureCoordinate).a;
     float checkInv = checkInvisible;
-    clip(alpha - 0.4 * checkInv);
+    clip(alpha - 0.3 * checkInv);
     
     return float4(depth, depth, depth, 1.0);
 }

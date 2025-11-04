@@ -24,9 +24,9 @@ namespace TGC.MonoGame.TP
         private readonly XnaQuaternion _rot = XnaQuaternion.Identity;
 
         // Debug-geom: cubito rápido
-        private static VertexBuffer _vb;
-        private static IndexBuffer _ib;
-        private static bool _primReady;
+        //private static VertexBuffer _vb;
+        //private static IndexBuffer _ib;
+        //private static bool _primReady;
 
         public Tank TanqueDisparador;
 
