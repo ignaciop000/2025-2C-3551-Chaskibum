@@ -1,5 +1,4 @@
 ﻿// ARREGLOS
-// - Separar en clases distintas TanqueJugador y TanqueEnemigo (ambas heredan de Tanque) [AGUS]
 // - Los tanques no deben spawnear donde hay obstaculos + no deben spawnear volando [AGUS]
 // - Mostrar vida tanques enemigos [NACHO]
 // - Que se vea el debug de los proyectiles [NACHO]
@@ -41,7 +40,6 @@ using System.Collections.Generic;
 using System.Linq;
 using BepuPhysics;
 using BepuUtilities.Memory;
-using ImGuiNET;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -109,10 +107,9 @@ public class TGCGame : Game
     private TankController _playerController;
     private int _enemyCount;
 
-    private Tank _tank;
-    private List<Tank> _enemyTanks;
+    private PlayerTank _tank;
+    private List<EnemyTank> _enemyTanks;
     private List<TankController> _enemyControllers;
-    private List<Tank> _tanks;
 
     private Effect _tankShader;
     // Proyectiles
@@ -180,7 +177,7 @@ public class TGCGame : Game
         _orbitCamera = new OrbitCamera(
             GraphicsDevice.Viewport.AspectRatio,
             Vector3.Zero,
-            800f,
+            300f,
             5,
             3000
         );
@@ -195,14 +192,12 @@ public class TGCGame : Game
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1)); //TODO
 
-        _tank = new Tank(new Vector3(1300, 0, 0), 0f, 0.1f);
-        
-        _tanks = [_tank];
+        _tank = new PlayerTank(new Vector3(0, 0, 0), 0f, 0.1f);
 
         _debug = new Debug();
         _menu = new Menu();
         _hud = new HUD(GraphicsDevice);
-        _enemyTanks = new List<Tank>();
+        _enemyTanks = new List<EnemyTank>();
         _enemyControllers = new List<TankController>();
         _lightPosition = new Vector3(1300, 8000, 0);
         _targetLightCamera = new TargetCamera(1f, _lightPosition, new Vector3(1300,0,0));
@@ -267,20 +262,6 @@ public class TGCGame : Game
          
         _tank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos, _bodyProperties, _terrain);
 
-        // Construyo el diccionario BodyHandle → Tank
-        var tankMap = new Dictionary<BodyHandle, Tank>();
-
-        foreach (var tank in _tanks)
-        {
-            foreach (var handle in tank.BodyHandles)
-            {
-                tankMap[handle] = tank;
-            }
-        }
-
-        // Se lo paso al handler
-        CollisionHandler.HandleToTank = tankMap;
-
         _playerController = new TankController(_tank, 20, 200, 2, 100, 200f);
 
         _trees = new Trees(_terrain, _simulation);
@@ -301,6 +282,8 @@ public class TGCGame : Game
         var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa; // Largo terreno en mundo
         
         _positionGenerator = new PositionGenerator(anchoMapa, largoMapa);
+        _positionGenerator.GenerarPosicionesReservadas();
+        
         var modelos = _trees.GetModelosConPorcentaje(0.50) // Arboles
             .Concat(_rocks.GetModelosConPorcentaje(0.30)) // Rocas
             .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
@@ -329,9 +312,7 @@ public class TGCGame : Game
         _debug.LoadContent(
             Content, 
             ContentFolderEffects, 
-            ContentFolderSpriteFonts, 
             GraphicsDevice, 
-            _tanks, 
             _orbitCamera,
             _simulation, 
             _terrain,
@@ -439,13 +420,16 @@ public class TGCGame : Game
                 // Retroceso + freno breve
                 _tank.TriggerRecoil(
                     dir,
-                    _camera,
                     projectileMass: tipoProyectilActual.Mass, 
                     muzzleSpeed: tipoProyectilActual.Speed, 
                     intensity: 1f, 
                     withBrake: true);
 
                 _tank.ResetCooldown();
+                
+                var amplitude = 0.001f * tipoProyectilActual.Mass * tipoProyectilActual.Speed; 
+                var rotational = amplitude * 0.06f;
+                _camera.StartShake(amplitude, 0.12f, rotational);
             }
             
             for (int i = _enemyTanks.Count - 1; i >= 0; i--)
@@ -460,7 +444,7 @@ public class TGCGame : Game
                 }
                 
                 var enemyController = _enemyControllers[i];
-                enemyTank.UpdateEnemyTankAI(_tank.Position, enemyController);
+                enemyTank.UpdateAI(_tank.Position, enemyController);
                 enemyTank.Update(gameTime);
             }
 
@@ -548,6 +532,11 @@ public class TGCGame : Game
             
             _tank?.SyncFromPhysics();
             _tank?.ApplyRecoilAndBrake(deltaTime, _simulation);
+            foreach (var tank in _enemyTanks)
+            {
+                tank.SyncFromPhysics();
+                tank.ApplyRecoilAndBrake(deltaTime, _simulation);
+            }
         }
         
         _debug.Update(keyboardState, _kbPrev, deltaTime, _orbitCamera);
@@ -556,8 +545,7 @@ public class TGCGame : Game
         if (_tank != null)
         {
             // Usar la posición y rotación del tanque
-            var alturaTerreno = _terrain.GetHeightAtPosition(_tank.Position.X, _tank.Position.Z); 
-            _orbitCamera.SetTarget(new Vector3(_tank.Position.X, alturaTerreno + 50f, _tank.Position.Z));
+            _orbitCamera.SetTarget(new Vector3(_tank.Position.X, _tank.Position.Y + 25, _tank.Position.Z));
 
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime);
@@ -677,23 +665,16 @@ public class TGCGame : Game
 
         base.UnloadContent();
     }
-    
-    public void SpawnearTanks(int cantTanks)
+
+    private void SpawnearTanks(int cantTanks)
     {
-        for (int i = 0; i < cantTanks; i++)
+        for (int i = 1; i < cantTanks + 1; i++) // Desde 1 porque la posición 0 es la del jugador
         {
+            var generatedPosition = _positionGenerator.ReservedPositions[i];
+           
+            var spawnPosition = new Vector3(generatedPosition.X, 0, generatedPosition.Y);
             
-            var random = new Random();
-            var radio = (float)(1000f + random.NextDouble() * 1000f); 
-            var angulo = (float)(random.NextDouble() * Math.PI * 2); 
-            
-            var offsetX = (float)Math.Cos(angulo) * radio;
-            var offsetZ = (float)Math.Sin(angulo) * radio;
-            var spawnPosition = new Vector3(offsetX + _tank.Position.X, 0, offsetZ + _tank.Position.Z);
-            
-            
-            var enemyTank = new Tank(spawnPosition, 0f, 0.1f);
-            
+            var enemyTank = new EnemyTank(spawnPosition, 0f, 0.1f);
             
             enemyTank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
                 _bodyProperties, _terrain);
@@ -704,20 +685,25 @@ public class TGCGame : Game
             _enemyControllers.Add(enemyController);
         }
         
-        _tanks.AddRange(_enemyTanks);
+        _debug.Tanks = [.._enemyTanks, _tank];
         
-        _debug.actualizarTanks(_tanks);
-        
+        // Construyo el diccionario BodyHandle → Tank
         var tankMap = new Dictionary<BodyHandle, Tank>();
+        
+        foreach (var handle in _tank.BodyHandles)
+        {
+            tankMap[handle] = _tank;
+        }
 
-        foreach (var tank in _tanks)
+        foreach (var tank in _enemyTanks)
         {
             foreach (var handle in tank.BodyHandles)
             {
                 tankMap[handle] = tank;
             }
         }
-        
+
+        // Se lo paso al handler
         CollisionHandler.HandleToTank = tankMap;
     }
     
@@ -824,7 +810,7 @@ public class TGCGame : Game
                 part.Effect = _shadowEffect;
 
             // We set the main matrices for each mesh to draw
-            var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * tank._world;
+            var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * tank.World;
 
             // WorldViewProjection is used to transform from model space to clip space
             _shadowEffect.Parameters["WorldViewProjection"].SetValue(worldMatrix * _targetLightCamera.View * _targetLightCamera.Projection);

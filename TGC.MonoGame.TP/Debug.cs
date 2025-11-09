@@ -18,7 +18,7 @@ public class Debug
     private Effect DebugEffect { get; set; }
     //private SpriteBatch _spriteBatch;
     //private SpriteFont _debugFont;
-    private List<Tank> _tanks;
+    public List<Tank> Tanks;
     private bool _showTerrainMeshDebug;
     //private bool _showTankTelemetry = false;
     private GraphicsDevice _graphicsDevice;
@@ -42,12 +42,10 @@ public class Debug
     private int _physDbgIndexCount;
     private bool _physDbgReady;
 
-    public void LoadContent(ContentManager content, string contentEffectsFolder, string contentSpriteFolder,
-        GraphicsDevice graphicsDevice, List<Tank> tanques, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
+    public void LoadContent(ContentManager content, string contentEffectsFolder,
+        GraphicsDevice graphicsDevice, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
         Gizmos gizmos)
     {
-        
-        _tanks = new List<Tank>(tanques);
         _simulation = simulation;
         _terrain = terrain;
         _graphicsDevice = graphicsDevice;
@@ -172,7 +170,7 @@ public class Debug
 
     private void DrawCollider()
     {
-        foreach (var tank in _tanks)
+        foreach (var tank in Tanks)
         {
             if (tank.IsDead) continue;
             tank.DrawDebug();
@@ -353,10 +351,5 @@ public class Debug
         }
 
         gd.RasterizerState = old;
-    }
-
-    public void actualizarTanks(List<Tank> tanks)
-    {
-        _tanks = tanks;
     }
 }
