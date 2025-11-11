@@ -23,9 +23,6 @@ public class CollisionHandler
     public static Dictionary<BodyHandle, Tank> HandleToTank;
     public static readonly List<ImpactoEstatico> ImpactosEstaticos = [];
     public static readonly List<ImpactoDinamico> ImpactosDinamicos = [];
-    
-    // Handle del terreno para excluirlo de los sonidos de colisión
-    public static StaticHandle TerrainHandle;
 
     public void AgregarImpactoEstatico(BodyHandle impactador, StaticHandle impactado)
     {
@@ -53,16 +50,13 @@ public class CollisionHandler
         
         ImpactosDinamicos.Clear();
     }
-
     
     private void HandleDynamicCollision(BodyHandle a, BodyHandle b)
     {
         if (HandleToProjectile.TryGetValue(a, out var projA)) // Si a es proyectil
         {
-            if (HandleToTank.ContainsKey(b)) // Y b es tanque
+            if (HandleToTank.TryGetValue(b, out var tank)) // Y b es tanque
             {
-                var tank = HandleToTank[b];
-
                 if (tank == projA.TanqueDisparador) return;
                 
                 tank.RecibirAtaque(projA.Damage);
@@ -73,10 +67,8 @@ public class CollisionHandler
         
         if (HandleToProjectile.TryGetValue(b, out var projB)) // Si b es proyectil
         {
-            if (HandleToTank.ContainsKey(a)) // Y a es tanque
+            if (HandleToTank.TryGetValue(a, out var tank)) // Y a es tanque
             {
-                var tank = HandleToTank[a];
-
                 if (tank == projB.TanqueDisparador) return;
                 
                 tank.RecibirAtaque(projB.Damage);

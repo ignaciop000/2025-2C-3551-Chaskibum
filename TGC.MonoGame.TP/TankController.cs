@@ -70,7 +70,7 @@ public struct TankController(
         }
 
         // Siempre calculá los ángulos objetivo
-        var (targetSwivelAngle, targetPitchAngle) = tank.ComputeTurretAngles(simulation, -aimDirection);
+        var (targetSwivelAngle, targetPitchAngle) = tank.ComputeTurretAngles(simulation, aimDirection);
         if ( targetSwivelAngle != _previousTurretSwivel
              || targetPitchAngle != _previousBarrelPitch)
         {

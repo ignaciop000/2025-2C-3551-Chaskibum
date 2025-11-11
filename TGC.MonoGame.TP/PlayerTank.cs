@@ -5,17 +5,9 @@ using Microsoft.Xna.Framework.Input;
 
 namespace TGC.MonoGame.TP;
 
-public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, float scale = 1f) : Tank(initialPosition, initialRotation, scale)
+public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, float scale = 0.1f) : Tank(initialPosition, initialRotation, scale)
 {
     private const float SteerSpeed = 90f;
-    
-    public override void RecibirAtaque(float danio)
-    {
-        Vida -= danio;
-            
-        //if (Vida <= 0f)
-            // TODO: GameOver. Capaz este bien matar, capaz no
-    }
     
     public void Update(GameTime gameTime, KeyboardState keyboardState)
     {
@@ -129,19 +121,33 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
         return hit;
     }
     
-    public void VolverAlCentro()
+    public void Reset()
+    {
+        IsDead = false;
+        Vida = 100f;
+        WasBraking = false;
+        TipoProyectilActual = ProjectileTypes.Light;
+        BrakeTime = 0f;
+        RecoilTime = 0f;
+        ResetCooldown();
+        
+        VolverAlCentro();
+    }
+    
+    private void VolverAlCentro()
     {
         // Obtener referencia al cuerpo físico BEPU
         var centerY = Terrain.GetHeightAtPosition(0, 0);
         var bodyHandle = Simulation.Bodies.GetBodyReference(Body);
         var tankPos = bodyHandle.Pose.Position;
-        var offset = new System.Numerics.Vector3(0, centerY + 10, 0) - tankPos;
+        var offset = new System.Numerics.Vector3(0, centerY + 25, 0) - tankPos;
             
         foreach (var handle in BodyHandles)
         {
             var bodyRef = Simulation.Bodies.GetBodyReference(handle);    
             var pose = bodyRef.Pose;
             pose.Position += offset;
+            pose.Orientation = System.Numerics.Quaternion.Identity;
             bodyRef.Pose = pose;
                 
             var vel = bodyRef.Velocity;
@@ -151,5 +157,14 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
         }
             
         UpdateWorldMatrix();
+        
+        LastPos = Position;
+    }
+    
+    public override void Kill()
+    {
+        base.Kill();
+
+        Texture = null;
     }
 }

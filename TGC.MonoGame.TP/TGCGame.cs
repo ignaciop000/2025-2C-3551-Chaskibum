@@ -192,7 +192,7 @@ public class TGCGame : Game
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1)); //TODO
 
-        _tank = new PlayerTank(new Vector3(0, 0, 0), 0f, 0.1f);
+        _tank = new PlayerTank(new Vector3(0, 0, 0));
 
         _debug = new Debug();
         _menu = new Menu();
@@ -246,9 +246,6 @@ public class TGCGame : Game
             EscalaMapa,
             _camera.Position
             );
-        
-        // Registrar el handle del terreno en el CollisionHandler para excluirlo de sonidos
-        CollisionHandler.TerrainHandle = _terrain.Handle;
         
         var tankT90 = Content.Load<Model>(ContentFolder3D + "t90/T90");
         var hullATexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
@@ -383,7 +380,7 @@ public class TGCGame : Game
         
         //si se acabo el tiempo perdemos
         _matchTimeSeconds -= deltaTime;
-        if (_matchTimeSeconds <= 0f && !_hasLost && !_hasWon)
+        if (!_hasLost && !_hasWon && (_matchTimeSeconds <= 0f || _tank.IsDead))
         {
             _hasLost = true;
             _matchTimeSeconds = 5;
@@ -396,7 +393,13 @@ public class TGCGame : Game
                 _state = GameState.MainMenu;
                 _hasLost = false;
                 _hasWon = false;
-                _tank.VolverAlCentro();
+                foreach (var tank in _enemyTanks)
+                {
+                    tank.Kill();
+                }
+                _enemyTanks.Clear();
+                _enemyControllers.Clear();
+                _tank.Reset();
             }
         }
         else
@@ -411,22 +414,9 @@ public class TGCGame : Game
                 && mouseState.LeftButton == ButtonState.Pressed 
                 && _mousePrev.LeftButton == ButtonState.Released)
             {
-                var tipoProyectilActual = _tank.TipoProyectilActual;
-
-                var (muzzle, dir) = _tank.GetMuzzle(); // offset local del cañón 
-                var proj = new Projectile(_simulation, _effect, muzzle, dir, tipoProyectilActual, _tank);
-                _projectiles.Add(proj);
-
-                // Retroceso + freno breve
-                _tank.TriggerRecoil(
-                    dir,
-                    projectileMass: tipoProyectilActual.Mass, 
-                    muzzleSpeed: tipoProyectilActual.Speed, 
-                    intensity: 1f, 
-                    withBrake: true);
-
-                _tank.ResetCooldown();
+                _tank.Shoot(_simulation, _projectiles, _effect);
                 
+                var tipoProyectilActual = _tank.TipoProyectilActual;
                 var amplitude = 0.001f * tipoProyectilActual.Mass * tipoProyectilActual.Speed; 
                 var rotational = amplitude * 0.06f;
                 _camera.StartShake(amplitude, 0.12f, rotational);
@@ -444,7 +434,7 @@ public class TGCGame : Game
                 }
                 
                 var enemyController = _enemyControllers[i];
-                enemyTank.UpdateAI(_tank.Position, enemyController);
+                enemyTank.UpdateAI(_tank.Position, enemyController, _simulation, _projectiles, _effect);
                 enemyTank.Update(gameTime);
             }
 
@@ -596,12 +586,9 @@ public class TGCGame : Game
         
         
         _tank.Draw(_camera);
-        if (_state != GameState.MainMenu)
+        foreach (var enemyTank in _enemyTanks)
         {
-            foreach (var enemyTank in _enemyTanks)
-            {
-                enemyTank.Draw(_camera);
-            }
+            enemyTank.Draw(_camera);
         }
 
         if (dibujar)
@@ -674,7 +661,7 @@ public class TGCGame : Game
            
             var spawnPosition = new Vector3(generatedPosition.X, 0, generatedPosition.Y);
             
-            var enemyTank = new EnemyTank(spawnPosition, 0f, 0.1f);
+            var enemyTank = new EnemyTank(spawnPosition);
             
             enemyTank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
                 _bodyProperties, _terrain);

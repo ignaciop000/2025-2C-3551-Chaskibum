@@ -230,7 +230,12 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     public void DestruirInstancia(StaticHandle handle)
     {
         var index = Handles.IndexOf(handle);
-        simulation.Statics.Remove(handle);
+
+        if (simulation.Statics.StaticExists(handle))
+        {
+            simulation.Statics.Remove(handle);
+        }
+        
         Handles.Remove(handle);
         _worlds.RemoveAt(index);
     }

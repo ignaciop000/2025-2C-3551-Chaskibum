@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
@@ -18,8 +19,8 @@ namespace TGC.MonoGame.TP;
 
 public abstract class Tank
 {
-    public bool IsDead { get; protected set; }
-    private Vector3 _lastPos;
+    public bool IsDead;
+    protected Vector3 LastPos;
     private const float WheelRadius = 2.0f;
 
     public Model Model;
@@ -78,12 +79,12 @@ public abstract class Tank
 
     private TankDescription _tankDescription;
     // Recoil
-    private float _recoilTime;
+    protected float RecoilTime;
     private const float RecoilDuration = 0.12f; // seg: cuánto dura el empujón
     private System.Numerics.Vector3 _recoilAccelSys = System.Numerics.Vector3.Zero;
 
     // Brake (freno por “arrastre”)
-    private float _brakeTime;
+    protected float BrakeTime;
     private const float BrakeDuration = 0.18f; // seg
     private const float BrakeK = 10f; // coeficiente de frenado (tunable)
 
@@ -124,9 +125,9 @@ public abstract class Tank
 
     public Texture2D Texture;
         
-    protected Tank(Vector3 initialPosition, float initialRotation = 0f, float scale = 1f)
+    protected Tank(Vector3 initialPosition, float initialRotation, float scale)
     {
-        _lastPos = Position = initialPosition;
+        LastPos = Position = initialPosition;
         Rotation = initialRotation;
         Scale = scale;
     }
@@ -136,6 +137,7 @@ public abstract class Tank
     /// </summary>
     public (float targetYaw, float targetPitch) ComputeTurretAngles(Simulation simulation, Vector3 aimDirection)
     {
+        aimDirection = -aimDirection; // Se invierte pues los cálculos necesitan el vector que va hacia el cañón
         // Descomponemos el vector de puntería en dos ángulos: yaw de torreta y pitch de cañón.
         // Primero llevamos 'aimDirection' al sistema de referencia de la torreta (su "turret basis").
         QuaternionEx.ConcatenateWithoutOverlap(QuaternionEx.Conjugate(simulation.Bodies[Body].Pose.Orientation), _fromBodyLocalToTurretBasisLocal, out var toTurretBasis);
@@ -403,7 +405,7 @@ public abstract class Tank
             
         // Pose inicial
         var pose = new RigidPose(
-            new System.Numerics.Vector3(Position.X, alturaTerreno + 10, Position.Z),
+            new System.Numerics.Vector3(Position.X, alturaTerreno + 25, Position.Z),
             new System.Numerics.Quaternion(orientationQuat.X, orientationQuat.Y, orientationQuat.Z,
                 orientationQuat.W)
         );
@@ -648,7 +650,7 @@ public abstract class Tank
         
     protected void UpdateWheelSpinByDistance()
     {
-        var delta = Position - _lastPos;
+        var delta = Position - LastPos;
         var dist = delta.Length();
 
         // Dirección “forward” actual para signo (+ avanza / - retrocede)
@@ -665,7 +667,7 @@ public abstract class Tank
         if (WheelRotation > MathHelper.TwoPi) WheelRotation -= MathHelper.TwoPi;
         else if (WheelRotation < -MathHelper.TwoPi) WheelRotation += MathHelper.TwoPi;
 
-        _lastPos = Position;
+        LastPos = Position;
     }
     
     public void SyncFromPhysics()
@@ -776,7 +778,7 @@ public abstract class Tank
     }
     
     // Devuelve posición y dirección de la boca del cañón, tomando el hueso real del cañón
-    public (Vector3 pos, Vector3 dir) GetMuzzle(float muzzleOffsetLocal = 300.2f)
+    private (Vector3 pos, Vector3 dir) GetMuzzle(float muzzleOffsetLocal = 300.2f)
     {
         var turretRotation = Matrix.CreateRotationZ(TurretRotation);
         var cannonRotation = Matrix.CreateRotationX(CannonRotation); // mismo eje/signo que Draw
@@ -803,7 +805,7 @@ public abstract class Tank
     }
     
     // Dispara un pulso de retroceso y, opcionalmente, activa freno momentáneo.
-    public void TriggerRecoil(Vector3 fireDirXna,
+    private void TriggerRecoil(Vector3 fireDirXna,
         float projectileMass = 2f,
         float muzzleSpeed = 120f,
         float intensity = 1f,
@@ -817,11 +819,11 @@ public abstract class Tank
 
         // Aceleración de retroceso 
         _recoilAccelSys = -new System.Numerics.Vector3(dir.X, dir.Y, dir.Z) * recoilMagnitude;
-        _recoilTime = RecoilDuration;
+        RecoilTime = RecoilDuration;
 
         if (withBrake)
         {
-            _brakeTime = BrakeDuration;
+            BrakeTime = BrakeDuration;
         }
     }
     
@@ -832,27 +834,63 @@ public abstract class Tank
         var bodyRef = simulation.Bodies.GetBodyReference(Body); // usa tu handle del tanque
 
         // Retroceso: empuja en dirección opuesta por un tiempo corto
-        if (_recoilTime > 0f)
+        if (RecoilTime > 0f)
         {
             bodyRef.Velocity.Linear += _recoilAccelSys * dt;
-            _recoilTime -= dt;
+            RecoilTime -= dt;
         }
 
         // Freno: arrastre proporcional a la velocidad actual 
-        if (_brakeTime > 0f)
+        if (BrakeTime > 0f)
         {
             var v = bodyRef.Velocity.Linear;
             var drag = -v * (BrakeK * dt); 
             bodyRef.Velocity.Linear += drag;
-            _brakeTime -= dt;
+            BrakeTime -= dt;
         }
     }
         
-    public abstract void RecibirAtaque(float danio);
+    public void RecibirAtaque(float danio)
+    {
+        Vida -= danio;
+            
+        if (Vida <= 0f)
+            Kill();
+    }
 
-    public void ResetCooldown()
+    public virtual void Kill()
+    {
+        if (IsDead) return;
+        IsDead = true;
+            
+        // Detener todos los sonidos del tanque
+        Audio?.StopAll();
+    }
+    
+    protected virtual void ResetCooldown()
     {
         FireCooldown = TipoProyectilActual.MaxCooldown;
+    }
+
+    public void Shoot(Simulation simulation, List<Projectile> projectiles, Effect projectileEffect)
+    {
+        if (IsDead) return;
+        if (FireCooldown > 0f) return;
+
+        var (muzzle, dir) = GetMuzzle();
+
+        var proj = new Projectile(simulation, projectileEffect, muzzle, dir, TipoProyectilActual, this);
+        projectiles.Add(proj);
+
+        TriggerRecoil(
+            dir,
+            projectileMass: TipoProyectilActual.Mass, 
+            muzzleSpeed: TipoProyectilActual.Speed, 
+            intensity: 1f, 
+            withBrake: true);
+
+        ResetCooldown();
+        
         Audio?.PlayShoot(TipoProyectilActual);
     }
 }

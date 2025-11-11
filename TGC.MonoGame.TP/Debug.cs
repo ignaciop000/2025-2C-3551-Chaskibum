@@ -178,7 +178,10 @@ public class Debug
             {
                 if (_simulation == null || bodyHandle.Value < 0) return;
 
+                if(!_simulation.Bodies.BodyExists(bodyHandle)) continue;
+                
                 var body = _simulation.Bodies.GetBodyReference(bodyHandle);
+                
                 var bodyPose = body.Pose;
 
                 // Convertir a MonoGame

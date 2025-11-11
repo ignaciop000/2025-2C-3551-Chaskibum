@@ -122,8 +122,10 @@ namespace TGC.MonoGame.TP
             if (IsDead) return;
             IsDead = true;
 
-            // Quitar el cuerpo una sola vez (sin Exists/HandleExists)
-            _simulation.Bodies.Remove(_body);
+            if (_simulation.Bodies.BodyExists(_body))
+            {
+                _simulation.Bodies.Remove(_body);
+            }
             CollisionHandler.HandleToProjectile.Remove(_body);
         }
 
