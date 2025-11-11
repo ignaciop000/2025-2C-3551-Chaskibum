@@ -1,7 +1,6 @@
 ﻿// ARREGLOS
 // - Separar en clases distintas TanqueJugador y TanqueEnemigo (ambas heredan de Tanque) [AGUS]
 // - Los tanques no deben spawnear donde hay obstaculos + no deben spawnear volando [AGUS]
-// - Mostrar vida tanques enemigos [NACHO]
 // - Que se vea el debug de los proyectiles [NACHO]
 // - Bajar volumenes altos [SANTI]
 // - Arreglar el árbol raro [SANTI]
@@ -644,9 +643,9 @@ public class TGCGame : Game
         {
             foreach (var enemyTank in _enemyTanks)
             {
-                var healthBarPosition3D = enemyTank.Position + Vector3.Up * 150f;
+                var healthBarPosition3D = enemyTank.Position + Microsoft.Xna.Framework.Vector3.Up * 50f;
                 var projectedPosition = GraphicsDevice.Viewport.Project(healthBarPosition3D, _camera.Projection, _camera.View, Matrix.Identity);
-                if (projectedPosition.Z < 1)
+                if (projectedPosition.Z < 1) //Si esta visible
                 {
                     var healthPercentage = enemyTank.Vida / enemyTank.MaxVida;
                     _hud.DrawHealthBar(new Vector2(projectedPosition.X, projectedPosition.Y), healthPercentage, 100, 10);
