@@ -121,6 +121,7 @@ namespace TGC.MonoGame.TP
         public Vector3 AimDirectionWorld { get; set; } = new(0, 0, 1);
 
         public float Vida = 100f;
+        public float MaxVida = 100f;
         public ProjectileType TipoProyectilActual = ProjectileTypes.Light;
         public float FireCooldown;
 

@@ -638,21 +638,33 @@ public class TGCGame : Game
         _worldBorder.Draw(_camera.View, _camera.Projection);
 
         _debug.Draw(_camera, _orbitCamera, Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime);
+        
+        _hud.Begin();
         if (!_hasLost && !_hasWon)
         {
+            foreach (var enemyTank in _enemyTanks)
+            {
+                var healthBarPosition3D = enemyTank.Position + Vector3.Up * 150f;
+                var projectedPosition = GraphicsDevice.Viewport.Project(healthBarPosition3D, _camera.Projection, _camera.View, Matrix.Identity);
+                if (projectedPosition.Z < 1)
+                {
+                    var healthPercentage = enemyTank.Vida / enemyTank.MaxVida;
+                    _hud.DrawHealthBar(new Vector2(projectedPosition.X, projectedPosition.Y), healthPercentage, 100, 10);
+                }
+            }
             _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, _tank.TipoProyectilActual, _playerHealth, _playerMaxHealth, _enemyCount, gameTime);
         }
         
         if (_hasLost)
         {
             _hud.DrawMensaje("PERDISTE", Color.Red);
-            return;
         }
 
         if (_hasWon)
         {
             _hud.DrawMensaje("GANASTE", Color.Green);
         }
+        _hud.End();
     }
 
     public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int indiceSeleccionado)

@@ -144,12 +144,32 @@ public class HUD
         ProjectileType currentProjectile, float playerHealth, float playerMaxHealth, int enemyCount, GameTime gameTime)
     {
         var vp = _graphicsDevice.Viewport;
-        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
         
         DrawInfo(fireCooldown, fireCooldownMax, currentProjectile, playerHealth, playerMaxHealth, enemyCount);
         DrawClockSpritesTopCenter(matchTimeSeconds);
+    }
 
+    public void Begin()
+    {
+        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+    }
+
+    public void End()
+    {
         _spriteBatch.End();
+    }
+
+    public void DrawHealthBar(Vector2 position, float healthPercentage, int width, int height)
+    {
+        var backgroundColor = new Color(0.8f, 0.1f, 0.1f, 0.8f);
+        var foregroundColor = Color.Green;
+
+        var backgroundRect = new Rectangle((int)position.X - width / 2, (int)position.Y, width, height);
+        _spriteBatch.Draw(_pixel, backgroundRect, backgroundColor);
+
+        var foregroundWidth = (int)(width * healthPercentage);
+        var foregroundRect = new Rectangle((int)position.X - width / 2, (int)position.Y, foregroundWidth, height);
+        _spriteBatch.Draw(_pixel, foregroundRect, foregroundColor);
     }
 
     private void DrawBar(Rectangle rect, float r, float g, float b, float a)
@@ -174,10 +194,8 @@ public class HUD
         var pantalla = _graphicsDevice.Viewport;
         var medida = _menuFont.MeasureString(mensaje);
         var centroPantalla = new Vector2(pantalla.Width / 2f, pantalla.Height / 2f);
-
-        _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
+        
         _spriteBatch.Draw(_pixel, destinationRectangle: new Rectangle(0, 0, pantalla.Width, pantalla.Height), color: new Color(0, 0, 0, 0.4f));
         _spriteBatch.DrawString(_menuFont, mensaje, centroPantalla, color, 0f, medida / 2f, 5f, SpriteEffects.None, 0f);
-        _spriteBatch.End();
     }
 }
