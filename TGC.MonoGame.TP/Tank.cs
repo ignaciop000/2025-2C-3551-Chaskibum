@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
@@ -126,12 +127,39 @@ namespace TGC.MonoGame.TP
         public float FireCooldown;
 
         public Texture2D Texture;
+
+        private const int MaxImpacts = 5;
+        public struct ImpactLocal
+        {
+            public Vector3 Local;   // posición en espacio local del hueso
+            public float   Radius;  // en unidades del modelo (luego escala)
+            public int     BoneIndex; // hueso dueño (ej: hull)
+        }
+        public readonly List<ImpactLocal> ImpactsLocal = new();
+        private const float ImpactRadius = 15f;
         
         public Tank(Vector3 initialPosition, float initialRotation = 0f, float scale = 1f)
         {
             _lastPos = Position = initialPosition;
             Rotation = initialRotation;
             Scale = scale;
+        }
+
+        public void AddImpact(Vector3 worldImpactPosition, int boneIndex)
+        {
+            // Obtené matrices absolutas actuales
+            var absBones = new Matrix[Model.Bones.Count];
+            Model.CopyAbsoluteBoneTransformsTo(absBones);
+
+            // WORLD del hueso actual
+            var boneWorld = absBones[boneIndex] * _world;
+
+            // Local = world * inverse(boneWorld)
+            var inv = Matrix.Invert(boneWorld);
+            var local = Vector3.Transform(worldImpactPosition, inv);
+
+            // Guardar local + radio + hueso
+            ImpactsLocal.Add(new ImpactLocal { Local = local, Radius = ImpactRadius, BoneIndex = boneIndex });
         }
         
         /// <summary>
@@ -825,6 +853,18 @@ namespace TGC.MonoGame.TP
             
             var absBones = new Matrix[Model.Bones.Count];
             Model.CopyAbsoluteBoneTransformsTo(absBones);
+
+            var impactPointsArray = new Vector4[MaxImpacts];
+            var used = Math.Min(ImpactsLocal.Count, MaxImpacts);
+            for (int i = 0; i < used; i++)
+            {
+                var imp = ImpactsLocal[i];
+                var boneWorld = absBones[imp.BoneIndex] * _world;
+                var worldPos = Vector3.Transform(imp.Local, boneWorld);
+                impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
+            }
+
+            _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
     
             foreach (var mesh in Model.Meshes)
             {

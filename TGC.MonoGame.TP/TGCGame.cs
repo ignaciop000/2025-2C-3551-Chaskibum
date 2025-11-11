@@ -10,7 +10,6 @@
 // - Modo God [MATEO]
 // - Verificar iluminación Blinn-Phong sobre todos los vehículos, elementos del entorno y terreno [MATEO]
 // - Mejorar IA tanques: deben disparar al jugador (y este debe perder vida) [AGUS]
-// - Deformación tanques [NACHO]
 // - Animación ruedas con Texture Scrolling [SANTI]
 
 // FINALMENTE [TODOS]

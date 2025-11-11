@@ -113,6 +113,7 @@ public class Menu
                 fx.Parameters["View"]?.SetValue(view);
                 fx.Parameters["Projection"]?.SetValue(proj);
                 fx.Parameters["ModelTexture"]?.SetValue(texture);
+                fx.Parameters["ImpactPoints"]?.SetValue(new Vector4[5]);
                 part.Effect = fx;
             }
 

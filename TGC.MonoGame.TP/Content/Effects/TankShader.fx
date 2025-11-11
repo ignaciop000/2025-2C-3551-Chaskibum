@@ -11,6 +11,8 @@ float4x4 World;
 float4x4 View;
 float4x4 Projection;
 
+uniform float4 ImpactPoints[10];
+
 // Texturas del T90
 texture ModelTexture;
 sampler TextureSampler = sampler_state
@@ -37,11 +39,43 @@ struct VertexShaderOutput
     float3 WorldPos : TEXCOORD2;
 };
 
+void ApplyDeformation(inout float4 worldPosition, float4 impact) 
+{
+    float3 impactPos = impact.xyz;
+    float impactRadius = impact.w;
+    float displacementAmount = 10.0f;
+
+    if (impactRadius > 0.0)
+    {
+        float3 delta = impactPos - worldPosition.xyz;
+        float dist = length(delta);
+
+        [branch]
+        if (dist > 0.0001 && dist < impactRadius)
+        {
+            float deformationFactor = (1.0 - (dist / impactRadius));
+            float displacement = deformationFactor * impactRadius * 0.5f;
+            worldPosition.xyz += normalize(delta) * displacement;
+        }
+    }
+}
+
 VertexShaderOutput MainVS(in VertexShaderInput input)
 {
 	VertexShaderOutput output = (VertexShaderOutput)0;
     
     float4 worldPosition = mul(input.Position, World);
+    ApplyDeformation(worldPosition, ImpactPoints[0]); 
+    ApplyDeformation(worldPosition, ImpactPoints[1]); 
+    ApplyDeformation(worldPosition, ImpactPoints[2]); 
+    ApplyDeformation(worldPosition, ImpactPoints[3]); 
+    ApplyDeformation(worldPosition, ImpactPoints[4]); 
+    ApplyDeformation(worldPosition, ImpactPoints[5]); 
+    ApplyDeformation(worldPosition, ImpactPoints[6]); 
+    ApplyDeformation(worldPosition, ImpactPoints[7]); 
+    ApplyDeformation(worldPosition, ImpactPoints[8]); 
+    ApplyDeformation(worldPosition, ImpactPoints[9]);
+
     float4 viewPosition = mul(worldPosition, View);	
     output.Position = mul(viewPosition, Projection);
 

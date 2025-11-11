@@ -3,10 +3,20 @@ using BepuPhysics;
 
 namespace TGC.MonoGame.TP;
 
-public struct ImpactoDinamico(BodyHandle impactador, BodyHandle impactado)
+public struct ImpactoDinamico
 {
-    public BodyHandle Impactador = impactador;
-    public BodyHandle Impactado = impactado;
+    public BodyHandle Impactador;
+    public BodyHandle Impactado;
+    public System.Numerics.Vector3 PosA;
+    public System.Numerics.Vector3 PosB;
+
+    public ImpactoDinamico(BodyHandle impactador, BodyHandle impactado, System.Numerics.Vector3 posA, System.Numerics.Vector3 posB)
+    {
+        Impactador = impactador;
+        Impactado = impactado;
+        PosA = posA;
+        PosB = posB;
+    }
 }
 
 public struct ImpactoEstatico(BodyHandle impactador, StaticHandle impactado)
@@ -32,9 +42,9 @@ public class CollisionHandler
         ImpactosEstaticos.Add(new ImpactoEstatico(impactador, impactado));
     }
     
-    public void AgregarImpactoDinamico(BodyHandle impactador, BodyHandle impactado)
+    public void AgregarImpactoDinamico(BodyHandle impactador, BodyHandle impactado, System.Numerics.Vector3 posA, System.Numerics.Vector3 posB)
     {
-        ImpactosDinamicos.Add(new ImpactoDinamico(impactador, impactado));
+        ImpactosDinamicos.Add(new ImpactoDinamico(impactador, impactado, posA, posB));
     }
 
     public void HandleCollisions()
@@ -48,39 +58,44 @@ public class CollisionHandler
 
         foreach (var impacto in ImpactosDinamicos)
         {
-            HandleDynamicCollision(impacto.Impactador, impacto.Impactado);
+            HandleDynamicCollision(impacto);
         }
         
         ImpactosDinamicos.Clear();
     }
 
     
-    private void HandleDynamicCollision(BodyHandle a, BodyHandle b)
+    private void HandleDynamicCollision(ImpactoDinamico impacto)
     {
+        var a = impacto.Impactador;
+        var b = impacto.Impactado;
+
         if (HandleToProjectile.TryGetValue(a, out var projA)) // Si a es proyectil
         {
-            if (HandleToTank.ContainsKey(b)) // Y b es tanque
+            if (HandleToTank.TryGetValue(b, out var tankB)) // Y b es tanque
             {
-                var tank = HandleToTank[b];
-
-                if (tank == projA.TanqueDisparador) return;
-                
-                tank.RecibirAtaque(projA.Damage);
-                projA.Kill();
+                if (tankB != projA.TanqueDisparador)
+                {
+                    var contactPoint = new Microsoft.Xna.Framework.Vector3(impacto.PosA.X, impacto.PosA.Y, impacto.PosA.Z);
+                    tankB.AddImpact(contactPoint, 0);//0 es el body que puede abollarse
+                    tankB.RecibirAtaque(projA.Damage);
+                    projA.Kill();
+                }
                 return;
             }
         }
         
         if (HandleToProjectile.TryGetValue(b, out var projB)) // Si b es proyectil
         {
-            if (HandleToTank.ContainsKey(a)) // Y a es tanque
+            if (HandleToTank.TryGetValue(a, out var tankA)) // Y a es tanque
             {
-                var tank = HandleToTank[a];
-
-                if (tank == projB.TanqueDisparador) return;
-                
-                tank.RecibirAtaque(projB.Damage);
-                projB.Kill();
+                if (tankA != projB.TanqueDisparador)
+                {
+                    var contactPoint = new Microsoft.Xna.Framework.Vector3(impacto.PosB.X, impacto.PosB.Y, impacto.PosB.Z);
+                    tankA.AddImpact(contactPoint, 0); //0 es el body que puede abollarse
+                    tankA.RecibirAtaque(projB.Damage);
+                    projB.Kill();
+                }
                 return;
             }
         }
