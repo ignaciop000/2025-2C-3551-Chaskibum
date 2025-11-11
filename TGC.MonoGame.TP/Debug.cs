@@ -19,6 +19,7 @@ public class Debug
     //private SpriteBatch _spriteBatch;
     //private SpriteFont _debugFont;
     private List<Tank> _tanks;
+    private List<Projectile> _projectiles;
     private bool _showTerrainMeshDebug;
     //private bool _showTankTelemetry = false;
     private GraphicsDevice _graphicsDevice;
@@ -43,11 +44,12 @@ public class Debug
     private bool _physDbgReady;
 
     public void LoadContent(ContentManager content, string contentEffectsFolder, string contentSpriteFolder,
-        GraphicsDevice graphicsDevice, List<Tank> tanques, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
+        GraphicsDevice graphicsDevice, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
         Gizmos gizmos)
     {
         
-        _tanks = new List<Tank>(tanques);
+        _tanks = new List<Tank>();
+        _projectiles = new List<Projectile>();
         _simulation = simulation;
         _terrain = terrain;
         _graphicsDevice = graphicsDevice;
@@ -222,6 +224,29 @@ public class Debug
                 }
             }
         }
+        
+        if (_projectiles != null)
+        {
+            foreach (var projectile in _projectiles)
+            {
+                if (projectile.IsDead) continue;
+
+                var bodyHandleProyectile = projectile.Body;
+                if (_simulation == null || bodyHandleProyectile.Value < 0) continue;
+
+                var bodyProyectile = _simulation.Bodies.GetBodyReference(bodyHandleProyectile);
+                var bodyPoseProyectile = bodyProyectile.Pose;
+                var posProyectile = new Vector3(bodyPoseProyectile.Position.X, bodyPoseProyectile.Position.Y, bodyPoseProyectile.Position.Z);
+                
+                var shapeIndex = bodyProyectile.Collidable.Shape;
+                if (shapeIndex.Type == default(Sphere).TypeId)
+                {
+                    var sphere = _simulation.Shapes.GetShape<Sphere>(shapeIndex.Index);
+                    var worldMatrix = Matrix.CreateScale(sphere.Radius * 2f) * Matrix.CreateTranslation(posProyectile);
+                    Gizmos.DrawCube(worldMatrix, Color.Red);
+                }
+            }
+        }
 
 
         Gizmos.Draw();
@@ -358,5 +383,10 @@ public class Debug
     public void actualizarTanks(List<Tank> tanks)
     {
         _tanks = tanks;
+    }
+
+    public void actualizarProyectiles(List<Projectile> projectiles)
+    {
+        _projectiles = projectiles;
     }
 }

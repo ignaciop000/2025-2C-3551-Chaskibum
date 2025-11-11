@@ -1,7 +1,6 @@
 ﻿// ARREGLOS
 // - Separar en clases distintas TanqueJugador y TanqueEnemigo (ambas heredan de Tanque) [AGUS]
 // - Los tanques no deben spawnear donde hay obstaculos + no deben spawnear volando [AGUS]
-// - Que se vea el debug de los proyectiles [NACHO]
 // - Bajar volumenes altos [SANTI]
 // - Arreglar el árbol raro [SANTI]
 // - Cielo y niebla [SANTI]
@@ -330,7 +329,6 @@ public class TGCGame : Game
             ContentFolderEffects, 
             ContentFolderSpriteFonts, 
             GraphicsDevice, 
-            _tanks, 
             _orbitCamera,
             _simulation, 
             _terrain,
@@ -550,6 +548,8 @@ public class TGCGame : Game
         }
         
         _debug.Update(keyboardState, _kbPrev, deltaTime, _orbitCamera);
+        _debug.actualizarTanks(_tanks);
+        _debug.actualizarProyectiles(_projectiles);
 
         // Actualizar cámara para seguir al tanque
         if (_tank != null)
@@ -716,8 +716,6 @@ public class TGCGame : Game
         }
         
         _tanks.AddRange(_enemyTanks);
-        
-        _debug.actualizarTanks(_tanks);
         
         var tankMap = new Dictionary<BodyHandle, Tank>();
 
