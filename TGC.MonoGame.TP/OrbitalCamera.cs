@@ -56,8 +56,9 @@ namespace TGC.MonoGame.TP
             UpdatePosition();
         }
 
-        public override void Update(GameTime gameTime)
+        public override void Update(GameTime gameTime, Point screenCenter)
         {
+            
             var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             var mouseState = Mouse.GetState();
             var currentMousePosition = mouseState.Position.ToVector2();
@@ -68,7 +69,8 @@ namespace TGC.MonoGame.TP
                 if (!_isMouseControlActive)
                 {
                     _isMouseControlActive = true;
-                    _lastMousePosition = currentMousePosition;
+                    Mouse.SetPosition(screenCenter.X, screenCenter.Y);
+                    _lastMousePosition = screenCenter.ToVector2();
                 }
                 else
                 {
@@ -86,13 +88,15 @@ namespace TGC.MonoGame.TP
                     _pitch = MathHelper.Clamp(_pitch, -89f, 89f);
                     
                     UpdatePosition();
+                    
+                    // Recentrar el mouse para el próximo frame
+                    Mouse.SetPosition(screenCenter.X, screenCenter.Y);
+                    _lastMousePosition = screenCenter.ToVector2();
                 }
-                _lastMousePosition = currentMousePosition;
             }
             else
             {
                 _isMouseControlActive = false;
-                _lastMousePosition = currentMousePosition;
             }
             
             // Control de zoom con la rueda del mouse

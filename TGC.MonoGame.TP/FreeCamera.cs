@@ -43,7 +43,7 @@ namespace  TGC.MonoGame.TP
         }
 
         /// <inheritdoc />
-        public override void Update(GameTime gameTime)
+        public override void Update(GameTime gameTime, Point screenCenter)
         {
             var elapsedTime = (float) gameTime.ElapsedGameTime.TotalSeconds;
             _changed = false;
@@ -63,28 +63,28 @@ namespace  TGC.MonoGame.TP
             var keyboardState = Keyboard.GetState();
 
             var currentMovementSpeed = MovementSpeed;
-            if (keyboardState.IsKeyDown(Keys.LeftShift))
+            if (keyboardState.IsKeyDown(Keys.LeftShift) || keyboardState.IsKeyDown(Keys.RightShift))   
                 currentMovementSpeed *= 3f;
 
-            if (keyboardState.IsKeyDown(Keys.A) || keyboardState.IsKeyDown(Keys.Left))
+            if (keyboardState.IsKeyDown(Keys.Left))
             {
                 Position += -RightDirection * currentMovementSpeed * elapsedTime;
                 _changed = true;
             }
 
-            if (keyboardState.IsKeyDown(Keys.D) || keyboardState.IsKeyDown(Keys.Right))
+            if (keyboardState.IsKeyDown(Keys.Right))
             {
                 Position += RightDirection * currentMovementSpeed * elapsedTime;
                 _changed = true;
             }
 
-            if (keyboardState.IsKeyDown(Keys.W) || keyboardState.IsKeyDown(Keys.Up))
+            if (keyboardState.IsKeyDown(Keys.Up))
             {
                 Position += FrontDirection * currentMovementSpeed * elapsedTime;
                 _changed = true;
             }
 
-            if (keyboardState.IsKeyDown(Keys.S) || keyboardState.IsKeyDown(Keys.Down))
+            if (keyboardState.IsKeyDown(Keys.Down))
             {
                 Position += -FrontDirection * currentMovementSpeed * elapsedTime;
                 _changed = true;
@@ -107,34 +107,31 @@ namespace  TGC.MonoGame.TP
         private void ProcessMouseMovement(float elapsedTime)
         {
             var mouseState = Mouse.GetState();
+            
+            var mouseDelta = mouseState.Position.ToVector2() - _pastMousePosition;
+            mouseDelta *= MouseSensitivity * elapsedTime;
 
-            if (mouseState.RightButton.Equals(ButtonState.Pressed))
+            _yaw += mouseDelta.X;
+            _pitch -= mouseDelta.Y;
+
+            if (_pitch > 89.0f)
+                _pitch = 89.0f;
+            if (_pitch < -89.0f)
+                _pitch = -89.0f;
+
+            _changed = true;
+            UpdateCameraVectors();
+
+            if (_lockMouse)
             {
-                var mouseDelta = mouseState.Position.ToVector2() - _pastMousePosition;
-                mouseDelta *= MouseSensitivity * elapsedTime;
-
-                _yaw += mouseDelta.X;
-                _pitch -= mouseDelta.Y;
-
-                if (_pitch > 89.0f)
-                    _pitch = 89.0f;
-                if (_pitch < -89.0f)
-                    _pitch = -89.0f;
-
-                _changed = true;
-                UpdateCameraVectors();
-
-                if (_lockMouse)
-                {
-                    Mouse.SetPosition(_screenCenter.X, _screenCenter.Y);
-                    Mouse.SetCursor(MouseCursor.Crosshair);
-                }
-                else
-                {
-                    Mouse.SetCursor(MouseCursor.Arrow);
-                }
+                Mouse.SetPosition(_screenCenter.X, _screenCenter.Y);
+                Mouse.SetCursor(MouseCursor.Crosshair);
             }
-
+            else
+            {
+                Mouse.SetCursor(MouseCursor.Arrow);
+            }
+            
             _pastMousePosition = Mouse.GetState().Position.ToVector2();
         }
 

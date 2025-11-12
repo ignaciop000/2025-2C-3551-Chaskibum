@@ -92,7 +92,8 @@ namespace TGC.MonoGame.TP
         ///     By default it does not perform any action.
         /// </summary>
         /// <param name="gameTime">Holds the time state of a <see cref="Game" />.</param>
-        public abstract void Update(GameTime gameTime);
+        /// <param name="screenCenter">.</param>
+        public abstract void Update(GameTime gameTime, Point screenCenter);
         
         public abstract void StartShake(float amplitude, float f, float rotational);
     }

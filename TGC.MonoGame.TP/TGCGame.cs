@@ -22,12 +22,10 @@
 // - A veces algunos proyectiles rebotan en el piso
 // - Ver si se solucionó el bug del suicidio
 // - Error de BEPU de que un valor es nan o infinito
-// - Error de index out of boundaries en GetHeightAtPosition llamado desde TGCGame
 
 // OPCIONALES [EL QUE QUIERA]
 // - Hacer volumen configurable
 // - Imagen tutorial [SANTI]
-// - Textura terreno con normales
 // - Que los cambios en el menú sean no solo skin, si no tmb tamaño, vida, daño base, velocidad
 // - Crear algún sistema de partículas que muestren humo, fuego, chispas, etc.
 // - Delineado tanques ocultos
@@ -64,11 +62,11 @@ public class TGCGame : Game
     private BoundingFrustum _boundingFrustum;
     
     public const string ContentFolder3D = "Models/";
-    public const string ContentFolderEffects = "Effects/";
+    private const string ContentFolderEffects = "Effects/";
     public const string ContentFolderMusic = "Music/";
     public const string ContentFolderSounds = "Sounds/";
-    public const string ContentFolderSpriteFonts = "SpriteFonts/";
-    public const string ContentFolderTextures = "Textures/";
+    private const string ContentFolderSpriteFonts = "SpriteFonts/";
+    private const string ContentFolderTextures = "Textures/";
 
     private enum GameState { MainMenu, Playing }
     private GameState _state = GameState.MainMenu;
@@ -78,12 +76,14 @@ public class TGCGame : Game
     private RenderTarget2D _shadowMapRenderTarget;
     
     private TargetCamera _targetLightCamera;
-    private const int ShadowmapSize = 2048;
+    private const int ShadowmapSize = 3072;
     
     private Camera _camera;                 // Cámara activa
     private OrbitCamera _orbitCamera;       // Cámara que sigue al tanque
-    private const float LightCameraFarPlaneDistance = 10000f;
+    private const float LightCameraFarPlaneDistance = 8000f;
     private const float LightCameraNearPlaneDistance = 1f;
+    private double _elapsedTime;
+    private Point _screenCenter;
     
     private Effect _terrainEffect;          //Shader Terreno
     private Effect _effect;                 //Shader Basico
@@ -132,9 +132,11 @@ public class TGCGame : Game
     private float _playerHealth = 100f;
     private float _playerMaxHealth = 100f;
 
+    private Vector3 _offset;
+
     private List<TankEntry> _tankEntries = new();   
     
-    private static readonly Random _random = new Random();
+    private static readonly Random Random = new Random();
     
     private Debug _debug;
     private HUD _hud;
@@ -157,7 +159,7 @@ public class TGCGame : Game
         _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100; 
         _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
         // Para que el juego sea pantalla completa se puede usar Graphics IsFullScreen.
-        
+        //_graphics.IsFullScreen = true;
         // Carpeta raíz donde va a estar toda la Media.
         Content.RootDirectory = "Content";
         
@@ -188,7 +190,10 @@ public class TGCGame : Game
         );
         // Seteo la cámara inicial como la orbital
         _camera = _orbitCamera;
-
+        _screenCenter = new Point(
+            GraphicsDevice.Viewport.Width / 2,
+            GraphicsDevice.Viewport.Height / 2);
+        _offset = new Vector3(100f, 7000f, 100f);
         _collisionHandler = new CollisionHandler();
         _bodyProperties = new CollidableProperty<TankBodyProperties>(); //BEPU
         _callbacks = new TankCallbacks() { Properties = _bodyProperties };
@@ -198,9 +203,8 @@ public class TGCGame : Game
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1)); //TODO
 
         _tank = new Tank(new Vector3(0, 0, 0), 0f, 0.1f);
-        
         _tanks = [_tank];
-
+        
         _debug = new Debug();
         _menu = new Menu();
         _hud = new HUD(GraphicsDevice);
@@ -235,7 +239,7 @@ public class TGCGame : Game
         
         // Cargar shader específico para tanques
         _tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
-        _tankShader.Parameters["Ka"].SetValue(1f);
+        _tankShader.Parameters["Ka"]?.SetValue(1f);
         
         // Cargar shader específico para el World Border
         _worldBorderEffect = Content.Load<Effect>(ContentFolderEffects + "WorldBorderShader");
@@ -324,12 +328,12 @@ public class TGCGame : Game
         var colorMap = _terrain.LoadColorMap(spawnMap);
         
         _positionGenerator = new PositionGenerator();
-        var modelos = _trees.GetModelosConPorcentaje(0.50) // Arboles
-            .Concat(_rocks.GetModelosConPorcentaje(0.30)) // Rocas
-            .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
+        var modelos = _trees.GetModelosConPorcentaje(0.45) // Arboles
+            .Concat(_rocks.GetModelosConPorcentaje(0.3)) // Rocas
+            .Concat(_houses.GetModelosConPorcentaje(0.1)) // Casas
             .Concat(_lightPoles.GetModelosConPorcentaje(0.15))
             .ToList();
-        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa);
+        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa, 500);
 
         // Genero otros puntos para los arbustos
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
@@ -377,7 +381,7 @@ public class TGCGame : Game
         }
         
         _shadowMapRenderTarget = new RenderTarget2D(GraphicsDevice, ShadowmapSize, ShadowmapSize, false,
-            SurfaceFormat.Color, DepthFormat.Depth24, 0, RenderTargetUsage.PlatformContents);
+            SurfaceFormat.Single, DepthFormat.Depth24, 0, RenderTargetUsage.PlatformContents);
 
         _terrain.LightPosition = _lightPosition;
         _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
@@ -421,6 +425,7 @@ public class TGCGame : Game
 
         if (_state == GameState.MainMenu)
         {
+            _tank._effect.CurrentTechnique = _tank._effect.Techniques["MenuDrawing"];
             _menu.Update(keyboardState,_kbPrev, gameTime, this, _tankEntries);
             _kbPrev = keyboardState;
             _mousePrev = mouseState;
@@ -443,8 +448,8 @@ public class TGCGame : Game
         {
             if (_matchTimeSeconds <= 0)
             {
-                _tankShader.Parameters["Ka"].SetValue(1f);
                 _state = GameState.MainMenu;
+                _tank._effect.CurrentTechnique = _tank._effect.Techniques["MenuDrawing"];
                 _hasLost = false;
                 _hasWon = false;
                 _tank.VolverAlCentro();
@@ -452,6 +457,18 @@ public class TGCGame : Game
         }
         else
         {
+            if (mouseState.RightButton == ButtonState.Pressed || _camera != _orbitCamera)
+            {
+                IsMouseVisible = false;
+            }else{
+                IsMouseVisible = true;
+            }
+
+            if (_camera != _orbitCamera && mouseState.RightButton == ButtonState.Pressed)
+            {
+                _orbitCamera.Update(gameTime, _screenCenter);
+            }
+            
             if (keyboardState.IsKeyUp(Keys.N) && _kbPrev.IsKeyDown(Keys.N))
             {
                 _usarNormalMapping = !_usarNormalMapping;
@@ -525,46 +542,57 @@ public class TGCGame : Game
             
             if (Keyboard.GetState().IsKeyDown(Keys.L))
             {
-                _lightPosition += new Vector3(0, 100, 0);
-                Console.WriteLine(_lightPosition);
+                _offset += new Vector3(0, 100, 0);
+                Console.WriteLine(_offset);
             }
         
             if (Keyboard.GetState().IsKeyDown(Keys.K))
             {
-                _lightPosition -= new Vector3(0, 100, 0);
-                Console.WriteLine(_lightPosition);
+                _offset -= new Vector3(0, 100, 0);
+                Console.WriteLine(_offset);
             }
             if (Keyboard.GetState().IsKeyDown(Keys.O))
             {
-                _lightPosition += new Vector3(100, 0, 0);
-                Console.WriteLine(_lightPosition);
+                _offset += new Vector3(100, 0, 0);
+                Console.WriteLine(_offset);
             }
         
             if (Keyboard.GetState().IsKeyDown(Keys.P))
             {
-                _lightPosition -= new Vector3(100, 0, 0);
-                Console.WriteLine(_lightPosition);
+                _offset -= new Vector3(100, 0, 0);
+                Console.WriteLine(_offset);
             }
             if (Keyboard.GetState().IsKeyDown(Keys.U))
             {
-                _lightPosition += new Vector3(0, 0, 100);
-                Console.WriteLine(_lightPosition);
+                _offset += new Vector3(0, 0, 100);
+                Console.WriteLine(_offset);
             }
         
             if (Keyboard.GetState().IsKeyDown(Keys.I))
             {
-                _lightPosition -= new Vector3(0, 0, 100);
-                Console.WriteLine(_lightPosition);
+                _offset -= new Vector3(0, 0, 100);
+                Console.WriteLine(_offset);
             }
-            _targetLightCamera.Position = _lightPosition;
-            _terrain.LightPosition = _lightPosition;
+            var nuevaPos = new Vector3(_orbitCamera.Position.X, 0 , _orbitCamera.Position.Z) + _offset;
+            _lightPosition = nuevaPos;
+            _targetLightCamera.Position = nuevaPos;
+            _terrain.LightPosition = nuevaPos;
             
             var forward = Microsoft.Xna.Framework.Vector3.Normalize(_orbitCamera.FrontDirection);
-            _targetLightCamera.TargetPosition = _tank.Position + forward * 1100;
+            _targetLightCamera.TargetPosition = _orbitCamera.Position + forward * 2300;
             _targetLightCamera.BuildView();
             _terrain.EyePosition = _camera.Position;
             
             _boundingFrustum= new BoundingFrustum(_orbitCamera.View * _orbitCamera.Projection) ;
+            _elapsedTime += gameTime.ElapsedGameTime.TotalSeconds;
+
+            // Si pasó 1 segundo
+           /* if (_elapsedTime >= 1.0)
+            {
+                Console.WriteLine("offset: " + _offset);
+                _elapsedTime = 0;
+            }*/
+            
         }
         
         _tank?.Update(gameTime, keyboardState);
@@ -599,7 +627,7 @@ public class TGCGame : Game
             _orbitCamera.SetTarget(new Vector3(_tank.Position.X, alturaTerreno + 50f, _tank.Position.Z));
 
             // Actualizar la cámara (maneja el input del mouse)
-            _camera.Update(gameTime);
+            _camera.Update(gameTime, _screenCenter);
             _orbitCamera.ConstrainAboveTerrain(_terrain, clearance: 50f, samples: 16);
             _orbitCamera.ConstrainInsideWorldBorder(_worldBorder);
             
@@ -639,31 +667,41 @@ public class TGCGame : Game
         if (_terrainEffect == null || _terrain == null)
             return;
         
-        _effect.Parameters["View"].SetValue(_camera.View);
-        _effect.Parameters["Projection"].SetValue(_camera.Projection);
+        _effect.Parameters["View"]?.SetValue(_camera.View);
+        _effect.Parameters["Projection"]?.SetValue(_camera.Projection);
         _effect.Parameters["eyePosition"]?.SetValue(_camera.Position);
+       
+        _debug.Draw(_camera, _orbitCamera, _targetLightCamera , Gizmos, gameTime, _terrain);
         
         //_terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
         DibujarTerreno();    
         
-        _tankShader.Parameters["lightPosition"].SetValue(_lightPosition);
-        _tankShader.Parameters["eyePosition"].SetValue(_camera.Position);
+        _tankShader.Parameters["lightPosition"]?.SetValue(_lightPosition);
+        _tankShader.Parameters["eyePosition"]?.SetValue(_camera.Position);
         if (_state != GameState.MainMenu)
         {
             foreach (var enemyTank in _enemyTanks)
             {
-               enemyTank.Draw(_camera);
+               enemyTank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera);
             }
         }
-        _tank.Draw(_camera);
+        _tank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera);
 
         DibujarElementos();
 
         _worldBorder.Draw(_camera.View, _camera.Projection);
 
-        _debug.Draw(_camera, _orbitCamera, _targetLightCamera , Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime, _terrain);
+        _imGuiRenderer.BeforeLayout(gameTime);
         
-        if (!_hasLost && !_hasWon)
+        ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 60), ImGuiCond.Always);
+        ImGui.Begin("Performance");
+        ImGui.TextWrapped($"Application average {1000f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
+        ImGui.End();
+
+        _imGuiRenderer.AfterLayout();
+        
+        if (_state != GameState.MainMenu && !_hasLost && !_hasWon)
         {
             _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, _tank.TipoProyectilActual, _playerHealth, _playerMaxHealth, _enemyCount, gameTime);
         }
@@ -690,7 +728,8 @@ public class TGCGame : Game
         StartGameplayMusic();
         _tank.Texture = _tankEntries[indiceSeleccionado].Texture;
         _state = GameState.Playing;
-        _tankShader.Parameters["Ka"].SetValue(0.2f);
+        _tank._effect.CurrentTechnique = _tank._effect.Techniques["BasicDrawing"];
+        _tank._effect.Parameters["Ka"]?.SetValue(0.2f);
     }
 
     /// <summary>
@@ -723,7 +762,7 @@ public class TGCGame : Game
             
             enemyTank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
                 _bodyProperties, _terrain);
-            int index = _random.Next(_tankEntries.Count); // índice aleatorio entre 0 y Count-1
+            int index = Random.Next(_tankEntries.Count); // índice aleatorio entre 0 y Count-1
             enemyTank.Texture = _tankEntries[index].Texture;
             var enemyController = new TankController(enemyTank, 20, 200, 2, 100, 200f);
             _enemyTanks.Add(enemyTank);
@@ -793,18 +832,25 @@ public class TGCGame : Game
             GraphicsDevice.DepthStencilState = DepthStencilState.Default;
             // Set the render target as our shadow map, we are drawing the depth into this texture
             GraphicsDevice.SetRenderTarget(_shadowMapRenderTarget);
-            GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.Black, 1f, 0);
-
+            GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.White, 1f, 0);
+            
             _shadowEffect.CurrentTechnique = _shadowEffect.Techniques["DepthPass"];
+            
+            
+            foreach (var enemyTank in _enemyTanks)
+            {
+                DrawTankShadow(enemyTank);
+            }
+            DrawTankShadow(_tank);
             
             foreach (var instance in _allInstances)
             {
                 var model =  instance.Model;
                 var modelMeshesBaseTransforms = new Matrix[model.Bones.Count];
                 model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
-                var worlds = instance._worlds;
-                if(instance._texturas.Length > 0)
-                    _shadowEffect.Parameters["ModelTexture"]?.SetValue(instance._texturas[0]);
+                var worlds = instance.Worlds;
+                if(instance.Texturas.Length > 0)
+                    _shadowEffect.Parameters["ModelTexture"]?.SetValue(instance.Texturas[0]);
                 
                 foreach (var world in worlds)
                 {
@@ -829,11 +875,6 @@ public class TGCGame : Game
 
             _trees.DrawSombra(_boundingFrustum, _shadowEffect, _targetLightCamera);
             
-            foreach (var enemyTank in _enemyTanks)
-            {
-                DrawTankShadow(enemyTank);
-            }
-            DrawTankShadow(_tank);
         }
 
     private void DrawTankShadow(Tank tank)
@@ -859,12 +900,15 @@ public class TGCGame : Game
 
     private void DibujarTerreno()
     {
-        _terrainEffect.CurrentTechnique = _terrainEffect.Techniques["RenderTerrain"];
         if (_dibujarSombras)
         {
             _terrainEffect.CurrentTechnique = _terrainEffect.Techniques["DrawShadowedPCF"];
             _terrainEffect.Parameters["shadowMap"]?.SetValue(_shadowMapRenderTarget);
             _terrainEffect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * ShadowmapSize);
+        }
+        else
+        {
+            _terrainEffect.CurrentTechnique = _terrainEffect.Techniques["RenderTerrain"];
         }
         _terrainEffect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         _terrainEffect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
@@ -881,9 +925,7 @@ public class TGCGame : Game
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
         _houses.Draw(_effect, _boundingFrustum, "Casa", _usarNormalMapping);
         
-        GraphicsDevice.BlendState = BlendState.AlphaBlend;
         _trees.Draw(_effect, _boundingFrustum, "Arbol", _usarNormalMapping);
-        GraphicsDevice.BlendState = BlendState.Opaque;
         
         _bushes.Draw(_effect,_boundingFrustum, "Arbusto", _usarNormalMapping);
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;

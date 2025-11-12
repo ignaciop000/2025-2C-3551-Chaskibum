@@ -16,8 +16,8 @@ float3 lightPosition;
 
 float2 shadowMapSize;
 
-static const float modulatedEpsilon = 0.000041200182749889791011810302734375;
-static const float maxEpsilon = 0.000023200045689009130001068115234375;
+static const float modulatedEpsilon = 0.00000041200182749889791011810302734375;
+static const float maxEpsilon = 0.00000023200045689009130001068115234375;
 
 float4x4 View;
 float4x4 Projection;
@@ -216,22 +216,22 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
 	
     float notInShadow = 0.0;
     float2 texelSize = 1.0 / shadowMapSize;
-    for (int x = -1; x <= 1; x++)
-        for (int y = -1; y <= 1; y++)
+    for (int x = 0; x <= 1; x++)
+        for (int y = 0; y <= 1; y++)
         {
             float pcfDepth = tex2D(shadowMapSampler, shadowMapTextureCoordinates + float2(x, y) * texelSize).r + inclinationBias;
-            notInShadow += step(lightSpacePosition.z, pcfDepth) / 9.0;
+            notInShadow += step(lightSpacePosition.z, pcfDepth) / 4.0;
         }
 	
     float NdotL = saturate(dot(normal, lightDirection));
     float3 diffuseLight = 0.8 * color.rgb * NdotL;  
     
     float NdotH = dot(normal, halfVector);
-    float3 specularLight = 0.05 * float3(1,1,1) * pow(saturate(NdotH),1.1);
+    float3 specularLight = 0.10 * float3(1,1,1) * pow(saturate(NdotH),24);
 
     float4 baseColor = float4(saturate(float3(1,1,1) * 0.2 + diffuseLight) * color.rgb + specularLight, color.a);
 	
-    baseColor.rgb *= 0.5 + 0.5 * (1.0 - notInShadow);
+    baseColor.rgb *= 0.5 + 0.5 * notInShadow;
 	return baseColor;
 }
 

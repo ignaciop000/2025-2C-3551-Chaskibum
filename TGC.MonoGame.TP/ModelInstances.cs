@@ -14,11 +14,11 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
 {
     public Model Model;
     private BoundingBox _box;
-    public readonly List<Matrix> _worlds = [];
+    public readonly List<Matrix> Worlds = [];
     public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
     private float _altura;
-    public Texture2D[] _texturas;
+    public Texture2D[] Texturas;
     public bool UsaNormalMapping;
     private Texture2D[] _normalMaps;
     
@@ -36,12 +36,12 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
                        Matrix.CreateFromYawPitchRoll(MathHelper.ToRadians(yawInDegrees), 0f, 0f) * 
                        Matrix.CreateTranslation(position.X, position.Y, position.Z);
 
-        _worlds.Add(world);
+        Worlds.Add(world);
     }
     
     public void CrearObjetos(float altura, float escalaMin, float escalaMax, bool usaNormalMapping, Texture2D[] normalMaps)
     {
-        _texturas = new Texture2D[2];
+        Texturas = new Texture2D[2];
         UsaNormalMapping = usaNormalMapping;
         _normalMaps = normalMaps;
         foreach (var posicion in Positions)
@@ -71,7 +71,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
                         Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
                         Matrix.CreateTranslation(posicion.X, altura + alturaMapa, posicion.Y);
             }
-            _worlds.Add(world);
+            Worlds.Add(world);
         }
 
         // Me guardo la altura para luego escalar correctamente el RigidBody
@@ -82,7 +82,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     {
         List<StaticHandle> handles = [];
         
-        foreach (var world in _worlds)
+        foreach (var world in Worlds)
         {
             world.Decompose(out var scale, out var rotation, out var translation);
 
@@ -151,13 +151,13 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         // Cargar textura si se proporciona
         if (!string.IsNullOrEmpty(texturaPath))
         {
-            _texturas[0] = content.Load<Texture2D>(ContentFolder3D + texturaPath);
+            Texturas[0] = content.Load<Texture2D>(ContentFolder3D + texturaPath);
         }
         
         // Cargar segunda textura si se proporciona (para hojas)
         if (!string.IsNullOrEmpty(textura2Path))
         {
-            _texturas[1] = content.Load<Texture2D>(ContentFolder3D + textura2Path);
+            Texturas[1] = content.Load<Texture2D>(ContentFolder3D + textura2Path);
         }
         if(rutaRelativa.Contains("tree"))
         foreach (var mesh in Model.Meshes)
@@ -178,9 +178,9 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         effect.Parameters["UseTexture"]?.SetValue(true);
         if(texto.Equals("Poste de luz"))
             effect.Parameters["UseTexture"]?.SetValue(false);
-        effect.Parameters["ModelTexture"].SetValue(_texturas[0]);
+        effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
 
-        foreach (var world in _worlds)
+        foreach (var world in Worlds)
         {
             //Continuar si no esta dentro del frustum
             if (!EsVisible(world, boundingFrustum))
@@ -218,7 +218,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         var index = Handles.IndexOf(handle);
         simulation.Statics.Remove(handle);
         Handles.Remove(handle);
-        _worlds.RemoveAt(index);
+        Worlds.RemoveAt(index);
     }
 
     private float NextFloat(float min, float max)
@@ -242,7 +242,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         if (UsaNormalMapping)
         {
             effect.CurrentTechnique = effect.Techniques["NormalMapping"];
-            effect.Parameters["NormalTexture"].SetValue(_normalMaps[0]);
+            effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[0]);
         }
         else
         {
@@ -254,23 +254,23 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     {
         if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
         {
-            effect.Parameters["ModelTexture"].SetValue(_texturas[1]);
+            effect.Parameters["ModelTexture"]?.SetValue(Texturas[1]);
             if(mesh.Name.Contains("Plane") && UsaNormalMapping && usarNormalMapping)
-                effect.Parameters["NormalTexture"].SetValue(_normalMaps[0]);
+                effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[0]);
         }
         else if(mesh.Name.Contains("Trunk") || mesh.Name.Contains("Branch"))
         {
-            effect.Parameters["ModelTexture"].SetValue(_texturas[0]);
+            effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
             if (UsaNormalMapping && usarNormalMapping)
             {
                 effect.CurrentTechnique = effect.Techniques["NormalMapping"];
-                effect.Parameters["NormalTexture"].SetValue(_normalMaps[1]);
+                effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[1]);
             }
         }
         else
         {
             effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"];
-            effect.Parameters["ModelTexture"].SetValue(_texturas[0]);
+            effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
         }
     }
 }

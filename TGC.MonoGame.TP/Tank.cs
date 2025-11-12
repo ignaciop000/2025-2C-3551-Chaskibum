@@ -811,7 +811,7 @@ namespace TGC.MonoGame.TP
             Gizmos.Draw();
         }
         
-        public void Draw(Camera camera)
+        public void Draw(Camera camera, RenderTarget2D shadowMapRenderTarget, int shadowmapSize, TargetCamera targetLightCamera)
         {
             if (Model == null || _effect == null || IsDead) return;
 
@@ -829,24 +829,26 @@ namespace TGC.MonoGame.TP
             
             var absBones = new Matrix[Model.Bones.Count];
             Model.CopyAbsoluteBoneTransformsTo(absBones);
-    
+            
+            _effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
+            _effect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * shadowmapSize);
+            _effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
             foreach (var mesh in Model.Meshes)
             {
-                var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
+                foreach (var part in mesh.MeshParts)
+                    part.Effect = _effect;
+                
                 _effect.Parameters["ModelTexture"]?.SetValue(Texture);
                 if (mesh.Name.Contains("Treadmill"))
                 {
                     _effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);
                 }
-
-                foreach (var part in mesh.MeshParts)
-                {
-                    
-                    part.Effect = _effect;
-                    _effect.Parameters["World"]?.SetValue(worldPerMesh);
-                    _effect.Parameters["View"]?.SetValue(camera.View);
-                    _effect.Parameters["Projection"]?.SetValue(camera.Projection);
-                }
+                var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
+                
+                _effect.Parameters["WorldViewProjection"]?.SetValue(worldPerMesh * camera.View * camera.Projection);
+                _effect.Parameters["World"]?.SetValue(worldPerMesh);
+                _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
+                
                 mesh.Draw();
             }
         }

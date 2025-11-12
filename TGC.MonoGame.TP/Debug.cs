@@ -72,13 +72,13 @@ public class Debug
         _boundingFrustum= new BoundingFrustum(camera.View * camera.Projection) ;
     }
 
-    public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime, Terrain terrain)
+    public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos gizmos, GameTime gameTime, Terrain terrain)
     {
         if (_showTerrainMeshDebug)
         {
-            DebugEffect.Parameters["View"].SetValue(camera.View);
-            DebugEffect.Parameters["Projection"].SetValue(camera.Projection);
-            DebugEffect.Parameters["World"].SetValue(Matrix.Identity);
+            DebugEffect.Parameters["View"]?.SetValue(camera.View);
+            DebugEffect.Parameters["Projection"]?.SetValue(camera.Projection);
+            DebugEffect.Parameters["World"]?.SetValue(Matrix.Identity);
 
             var oldRS = _graphicsDevice.RasterizerState;
             _graphicsDevice.RasterizerState = new RasterizerState
@@ -94,8 +94,8 @@ public class Debug
             //DrawPhysicsMeshDebug(DebugEffect, camera.View, camera.Projection);
 
             // Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
-            DebugEffect.Parameters["View"].SetValue(camera.View);
-            DebugEffect.Parameters["Projection"].SetValue(camera.Projection);
+            DebugEffect.Parameters["View"]?.SetValue(camera.View);
+            DebugEffect.Parameters["Projection"]?.SetValue(camera.Projection);
 
             var oldRS2 = _graphicsDevice.RasterizerState;
             _graphicsDevice.RasterizerState = new RasterizerState
@@ -126,7 +126,7 @@ public class Debug
                         Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
                         transformation;
                         
-                    DebugEffect.Parameters["World"].SetValue(worldMatrix);
+                    DebugEffect.Parameters["World"]?.SetValue(worldMatrix);
                     
                     var halfExtents = new Vector3(shape.Width / 2f, shape.Height / 2f, shape.Length / 2f);
                     var localBox = new BoundingBox(-halfExtents, halfExtents);
@@ -151,24 +151,11 @@ public class Debug
                 }
             }
             gizmos.DrawFrustum(orbitCamera.View * orbitCamera.Projection, Color.Yellow);
-            //gizmos.DrawFrustum(targetLightCamera.View * targetLightCamera.Projection, Color.Green);
+            gizmos.DrawFrustum(targetLightCamera.View * targetLightCamera.Projection, Color.Green);
             gizmos.Draw();
-            
-            _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
-            _spriteBatch.Draw(shadowMapRenderTarget, new Rectangle(20, 150, _graphicsDevice.Viewport.Width/5, _graphicsDevice.Viewport.Width/5), Color.White);
-            _spriteBatch.End();
             
             _graphicsDevice.RasterizerState = oldRS2;
         }
-        imGuiRenderer.BeforeLayout(gameTime);
-        
-        ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
-        ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 60), ImGuiCond.Always);
-        ImGui.Begin("Performance");
-        ImGui.TextWrapped($"Application average {1000f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
-        ImGui.End();
-
-        imGuiRenderer.AfterLayout();
     }
 
     private void DrawCollider()
@@ -179,6 +166,9 @@ public class Debug
             tank.DrawDebug();
             foreach (var bodyHandle in tank.BodyHandles)
             {
+                if(!_simulation.Bodies.BodyExists(bodyHandle))
+                    continue;
+                
                 if (_simulation == null || bodyHandle.Value < 0) return;
 
                 var body = _simulation.Bodies.GetBodyReference(bodyHandle);
