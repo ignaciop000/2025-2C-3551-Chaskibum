@@ -579,7 +579,7 @@ public class TGCGame : Game
             _terrain.LightPosition = nuevaPos;
             
             var forward = Microsoft.Xna.Framework.Vector3.Normalize(_orbitCamera.FrontDirection);
-            _targetLightCamera.TargetPosition = _orbitCamera.Position + forward * 2300;
+            _targetLightCamera.TargetPosition = _orbitCamera.Position + forward * 2000;
             _targetLightCamera.BuildView();
             _terrain.EyePosition = _camera.Position;
             
