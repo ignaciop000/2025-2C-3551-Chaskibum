@@ -21,6 +21,8 @@ public class Terrain
     public StaticHandle Handle;
     public Vector3 LightPosition;
     public Vector3 EyePosition;
+    private PositionGenerator _positionGenerator;
+    public Color[,] ColorMap;
     
     /// <summary>
     /// Datos del mapa de altura (Heightmap) utilizados para representar la topografía de un terreno.
@@ -39,13 +41,15 @@ public class Terrain
     /// Representa una clase para modelar y renderizar un terreno en base a un mapa de alturas.
     /// Contiene funcionalidad para cargar un mapa de alturas, mapas de textura y generar la estructura del terreno.
     public Terrain(GraphicsDevice graphicsDevice, Texture2D heightMap, Texture2D colorMap,
-        Texture2D diffuseMap, Texture2D diffuseMap2, Texture2D normalMap, Effect effect, Simulation simulation, float scaleXZ, Vector3 eyePos)
+        Texture2D diffuseMap, Texture2D diffuseMap2, Texture2D normalMap, Effect effect,
+        Simulation simulation, float scaleXZ, Vector3 eyePos, PositionGenerator positionGenerator, 
+        Texture2D spawnMap, Pasto pasto)
     {
         Chunks = [];
         //Shader
         _effect = effect;
+        ColorMap = LoadColorMap(spawnMap);
         // cargo el heightmap
-        LoadHeightmap(graphicsDevice, heightMap, scaleXZ, 1, Vector3.Zero, simulation);
         // textura con el color Map
         _colorMapTexture = colorMap;
         // diffuse maps auxiliares
@@ -54,6 +58,8 @@ public class Terrain
         _normalMap = normalMap;
         LightPosition =  new Vector3(1000, 1000, 1000);
         EyePosition = eyePos;
+        _positionGenerator = positionGenerator;
+        LoadHeightmap(graphicsDevice, heightMap, scaleXZ, 1, Vector3.Zero, simulation, pasto);
     }
 
     /// Genera la estructura del terreno cargando un mapa de alturas y creando los vértices necesarios.
@@ -64,7 +70,7 @@ public class Terrain
     /// <param name="center">El punto central del terreno en coordenadas tridimensionales.</param>
     /// <param name="simulation">La simulación de física donde se agregará el mesh de colisión.</param>
     private void LoadHeightmap(GraphicsDevice graphicsDevice, Texture2D heightmap, float scaleXZ, float scaleY,
-        Vector3 center, Simulation simulation)
+        Vector3 center, Simulation simulation, Pasto pasto)
     {
         
         ScaleXz = scaleXZ;
@@ -75,9 +81,13 @@ public class Terrain
         HeightmapData = LoadHeightMap(heightmap);
         
         var width = HeightmapData.GetLength(0);
+        
         int chunkSize = 64;
         var length = HeightmapData.GetLength(1);
-
+        
+        
+        Console.WriteLine("width: " + width );
+        Console.WriteLine("length: " + length);
         // Ajuste del centro
         center.X = center.X * scaleXZ - width / 2f * scaleXZ;
         center.Y = center.Y * scaleY;
@@ -93,8 +103,6 @@ public class Terrain
                 
                 var localVertices = new VertexPositionNormalTexture[localWidth * localLength];
                 var localIndices = new int[(localWidth - 1) * (localLength - 1) * 6];
-                
-               
                 
                 // Generar vértices
                 for (int i = 0; i < localWidth; i++)
@@ -169,11 +177,42 @@ public class Terrain
                     max = Vector3.Max(max, v.Position);
                 }
                 
+                var grassPoints = _positionGenerator.GenerarPuntosPasto( 
+                    50f, 
+                    ColorMap, 
+                    scaleXZ, 
+                    chunkX, 
+                    chunkZ, 
+                    localWidth,
+                    localLength,
+                    center,
+                    width,
+                    length,
+                    30
+                );
+                
+                var random = new Random();
+                var instances = new InstanceData[grassPoints.Count];
+                
+                for (int i = 0; i < instances.Length; i++)
+                {
+                    var posX = grassPoints[i].X;
+                    var posZ = grassPoints[i].Y;
+                    var posY = GetHeightAtPosition(posX, posZ);
+                    instances[i].Position = new Vector3(posX, posY + 6, posZ);
+                    instances[i].Scale = random.Next(11,16); 
+                    instances[i].RotationY = random.Next(0,2);
+                }
+                
+                var instanceBuffer = pasto.Models[0].GenerarInstanceBuffer(instances, graphicsDevice);
+                instanceBuffer.SetData(instances);
+                
                 var chunk = new TerrainChunk
                 {
                     VertexBuffer = _vbChunk,
                     IndexBuffer = _ibChunk,
-                    BoundingBox = new BoundingBox(min, max)
+                    BoundingBox = new BoundingBox(min, max),
+                    InstanceBuffer = instanceBuffer
                 };
                 
                 Chunks.Add(chunk);
@@ -293,7 +332,7 @@ public class Terrain
     /// <param name="world">Matriz de transformación para coordenadas del mundo.</param>
     /// <param name="view">Matriz de vista de la cámara para determinar cómo se observa la escena.</param>
     /// <param name="projection">Matriz de proyección utilizada para la perspectiva 3D.</param>
-    public void Draw(Matrix world, Matrix view, Matrix projection, BoundingFrustum boundingFrustum)
+    public void Draw(Matrix world, Matrix view, Matrix projection, BoundingFrustum boundingFrustum, Pasto pasto)
     {
         var graphicsDevice = _effect.GraphicsDevice;
         
@@ -314,6 +353,7 @@ public class Terrain
         {
             if (boundingFrustum.Intersects(chunk.BoundingBox))
             {
+                pasto.DrawPasto(graphicsDevice,view,projection, chunk.InstanceBuffer);
                 graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
                 graphicsDevice.Indices = chunk.IndexBuffer;
 
@@ -449,5 +489,6 @@ public class Terrain
         public VertexBuffer VertexBuffer;
         public IndexBuffer IndexBuffer;
         public BoundingBox BoundingBox;
+        public VertexBuffer InstanceBuffer;
     }
 }

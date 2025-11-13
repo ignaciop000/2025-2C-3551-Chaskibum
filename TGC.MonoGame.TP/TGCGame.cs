@@ -7,7 +7,6 @@
 // - Cielo y niebla [SANTI]
 
 // NUEVAS TAREAS
-// - Terminar Shadow Map [MATEO]
 // - Modo God [MATEO]
 // - Mejorar IA tanques: deben disparar al jugador (y este debe perder vida) [AGUS]
 // - Deformación tanques [NACHO]
@@ -113,6 +112,7 @@ public class TGCGame : Game
     List<ModelInstances> _allInstances;
 
     private Effect _tankShader;
+    private Effect _pastoShader;
     // Proyectiles
     private readonly List<Projectile> _projectiles = [];
     private MouseState _mousePrev;
@@ -122,6 +122,7 @@ public class TGCGame : Game
     private Trees _trees;
     private Bushes _bushes;
     private LightPoles _lightPoles;
+    private Pasto _pasto;
     
     private float _matchTimeSeconds;
     private bool _hasLost;
@@ -214,6 +215,7 @@ public class TGCGame : Game
         _targetLightCamera = new TargetCamera(1f, _lightPosition, new Vector3(1300,0,0));
         _targetLightCamera.BuildProjection(1f, LightCameraNearPlaneDistance, LightCameraFarPlaneDistance,
             MathHelper.Pi / 5);
+        _positionGenerator = new PositionGenerator();
         base.Initialize();
     }
 
@@ -236,7 +238,7 @@ public class TGCGame : Game
         _effect.Parameters["Ks"]?.SetValue(0.2f);
         _effect.Parameters["shininess"]?.SetValue(4f);
         
-        
+        _pastoShader = Content.Load<Effect>(ContentFolderEffects + "Pasto");
         // Cargar shader específico para tanques
         _tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
         _tankShader.Parameters["Ka"]?.SetValue(1f);
@@ -265,6 +267,11 @@ public class TGCGame : Game
         var normalMapTree2Leaves = Content.Load<Texture2D>(ContentFolder3D + "tree2/TexturesCom_Branches0018_1_alphamasked_Snor");
         var normalMapTree2Bark = Content.Load<Texture2D>(ContentFolder3D + "tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor");
         var normalMapTreeLeaves = Content.Load<Texture2D>(ContentFolder3D + "tree/Tree.fbm/DB2X2_L01_Nor");
+        
+        _pasto = new Pasto(_simulation, GraphicsDevice);
+        _pasto.CargarModelos(_pastoShader, Content);
+        _pasto.Models[0]._effect = _pastoShader;
+        
         _terrain = new Terrain(GraphicsDevice, 
             terrainHeigthmap, 
             terrainColorMap, 
@@ -274,11 +281,15 @@ public class TGCGame : Game
             _terrainEffect,
             _simulation,
             EscalaMapa,
-            _camera.Position
+            _camera.Position,
+            _positionGenerator,
+            spawnMap,
+            _pasto
             );
         
         // Registrar el handle del terreno en el CollisionHandler para excluirlo de sonidos
         CollisionHandler.TerrainHandle = _terrain.Handle;
+        
         
         var tankT90 = Content.Load<Model>(ContentFolder3D + "t90/T90");
         var hullATexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
@@ -308,17 +319,19 @@ public class TGCGame : Game
 
         _playerController = new TankController(_tank, 20, 200, 2, 100, 200f);
 
-        _trees = new Trees(_terrain, _simulation);
-        _houses = new Houses(_terrain, _simulation);
-        _rocks = new Rocks(_terrain, _simulation);
-        _bushes = new Bushes(_terrain, _simulation);
-        _lightPoles =  new LightPoles(_terrain, _simulation);
+        _trees = new Trees(_simulation);
+        _houses = new Houses(_simulation);
+        _rocks = new Rocks(_simulation);
+        _bushes = new Bushes(_simulation);
+        _lightPoles =  new LightPoles(_simulation);
+        
         
         _houses.SetPlacementRules(5f,  false); // ≤ 5°, NO se inclinan
         _trees.SetPlacementRules(20f,  true);  // ≤ 20°, se inclinan
         _bushes.SetPlacementRules(25f, true);  // ≤ 25°, se inclinan
         _rocks.SetPlacementRules(null, true);  // sin restricción, se inclinan
         _lightPoles.SetPlacementRules(10f, true);
+        _pasto.SetPlacementRules(30, true);
 
         // Generacion de posiciones de modelos
 
@@ -327,29 +340,30 @@ public class TGCGame : Game
 
         var colorMap = _terrain.LoadColorMap(spawnMap);
         
-        _positionGenerator = new PositionGenerator();
-        var modelos = _trees.GetModelosConPorcentaje(0.45) // Arboles
+        var modelos = _trees.GetModelosConPorcentaje(0.55) // Arboles
             .Concat(_rocks.GetModelosConPorcentaje(0.3)) // Rocas
             .Concat(_houses.GetModelosConPorcentaje(0.1)) // Casas
-            .Concat(_lightPoles.GetModelosConPorcentaje(0.15))
+            .Concat(_lightPoles.GetModelosConPorcentaje(0.1))
             .ToList();
         _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa, 500);
 
         // Genero otros puntos para los arbustos
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
         _positionGenerator.AgregarPosiciones(arbustos, colorMap, EscalaMapa, 450);
-
-        _trees.CrearObjetos( normalMapTree2Leaves, normalMapTree2Bark, normalMapTreeLeaves);
-        _rocks.CrearObjetos(normalMapRock);
-        _houses.CrearObjetos(normalMapHouse);
-        _bushes.CrearObjetos();
-        _lightPoles.CrearObjetos();
+            
+        _trees.CrearObjetos(normalMapTree2Leaves, normalMapTree2Bark, normalMapTreeLeaves, _terrain);
+        _rocks.CrearObjetos(normalMapRock, _terrain);
+        _houses.CrearObjetos(normalMapHouse, _terrain);
+        _bushes.CrearObjetos(_terrain);
+        _lightPoles.CrearObjetos(_terrain);
+        _pasto.CrearObjetos(_terrain);
         
         _trees.CargarModelos(treeShader, Content);
         _houses.CargarModelos(_effect, Content);
         _rocks.CargarModelos(_effect, Content);
         _bushes.CargarModelos(_effect, Content);
         _lightPoles.CargarModelos(_effect, Content);
+        
         
         _worldBorder = new WorldBorder(GraphicsDevice, _worldBorderEffect, _simulation, anchoMapa, largoMapa);
         
@@ -913,7 +927,7 @@ public class TGCGame : Game
         _terrainEffect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         _terrainEffect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
         
-        _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection, _boundingFrustum);
+        _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection, _boundingFrustum, _pasto);
     }
 
     private void DibujarElementos()
@@ -927,7 +941,7 @@ public class TGCGame : Game
         
         _trees.Draw(_effect, _boundingFrustum, "Arbol", _usarNormalMapping);
         
-        _bushes.Draw(_effect,_boundingFrustum, "Arbusto", _usarNormalMapping);
+        //_bushes.Draw(_effect,_boundingFrustum, "Arbusto", _usarNormalMapping);
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
         
         _lightPoles.Draw(_effect, _boundingFrustum, "Poste de luz", _usarNormalMapping);

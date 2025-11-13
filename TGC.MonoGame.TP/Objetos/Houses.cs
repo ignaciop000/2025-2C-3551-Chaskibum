@@ -7,51 +7,47 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Bushes(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
+public class Houses(Simulation simulation) : ModelGroup(Colors, simulation)
 {
-    private static readonly List<Color> Colors = [Color.White];
+    private static readonly List<Color> Colors =
+    [
+        Color.White // house
+    ];
     
-    public void CrearObjetos()
+    public void CrearObjetos(Texture2D normalMap, Terrain terrain)
     {
-        var parametros = new (float, float, float, bool, Texture2D[])[]
+        var normalMaps = new[] { normalMap };
+        var parametros = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (-15f, 1f, 2f, false, null) // Bush
+            (0f, 34f, 34f, true, normalMaps)  // house
         };
 
-        base.CrearObjetos(parametros);
+        base.CrearObjetos(parametros, terrain);
         
         var parametrosRigidBodies = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (ancho, alto, profundidad, yawEnGrados)
-            (20f, 10f, 20f, 0f) // Bush
+            (3.75f, 4.5f, 3.25f, 0f) // house
         };
         
         CrearRigidBodies(parametrosRigidBodies);
     }
-    
+
     public void CargarModelos(Effect efecto, ContentManager content)
     {
         var paths = new[]
         {
-            "/bush/IVY_FBX" // Bush
+            "/house/City_House_2_BI"
         };
         
         var texturas = new[]
         {
-            "/bush/tex/leaf01_D" // Textura de hojas para el arbusto
+            "/house/city_house_2_Col", // Textura de color para la casa
         };
         
         base.CargarModelos(efecto, content, paths, texturas);
     }
-    
-    public override void OnCollisionWithTank(StaticHandle handle)
-    {
-        // Rompe el objeto
-        var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
-        model?.DestruirInstancia(handle);
-    }
-    
 }

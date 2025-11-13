@@ -8,11 +8,12 @@ namespace TGC.MonoGame.TP;
 public class PositionGenerator()
 {
     private readonly Random _random = new();
+    private int _pastoGenerado = 0;
     
     public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, Color[,] colorMap, float escalaMap, float distanciaMinima = 550)
     {
         // Generar posiciones
-        List<Vector2> posiciones = GenerarPuntos(distanciaMinima, colorMap, escalaMap);
+        List<Vector2> posiciones = GenerarPuntos(distanciaMinima, colorMap, escalaMap,20);
         int total = posiciones.Count;
         int modelosCount = modelos.Count;
 
@@ -66,7 +67,8 @@ public class PositionGenerator()
         int mapWidth = colorMap.GetLength(0);
         int mapHeight = colorMap.GetLength(1);
 
-            while (attempts > 0)
+        var currentAttempts = attempts;
+            while (currentAttempts > 0)
             {
                 int pointX = _random.Next(0, mapWidth);
                 int pointY = _random.Next(0, mapHeight);
@@ -74,20 +76,81 @@ public class PositionGenerator()
 
                 var x = ((pointX - mapWidth / 2f) * escalaMap)/2;
                 var y = ((pointY - mapHeight / 2f) * escalaMap)/2;
-                var noEsCalle = color.R < 150;
-                
-                Vector2 newPoint = new Vector2(x, y);
-                
-                // Validar dentro del área y lejos de otros puntos
-                
-                if (points.All(p => Vector2.Distance(p, newPoint) >= minDist) && noEsCalle)
+                if (color.R < 150)
                 {
-                    points.Add(newPoint);
-                    attempts = 100;
+                    Vector2 newPoint = new Vector2(x, y);
+                    
+                    // Validar dentro del área y lejos de otros puntos
+                    
+                    if (points.All(p => Vector2.Distance(p, newPoint) >= minDist))
+                    {
+                        points.Add(newPoint);
+                        currentAttempts = attempts;
+                    }
                 }
-                attempts--;
+                
+                currentAttempts--;
             }
 
         return points;
     }
+    
+    // Generar posiciones aleatorias para el pasto
+    public List<Vector2> GenerarPuntosPasto(float minDist, Color[,] colorMap, float escalaMap, int chunkX, int chunkZ, 
+                                            int chunkWidth, int chunkLength, Vector3 center, int width, int length, int attempts = 100)
+    {
+        List<Vector2> points = [];
+
+        int mapWidth = colorMap.GetLength(0);
+        int mapHeight = colorMap.GetLength(1);
+        
+        var currentAttempts = attempts;
+        while (currentAttempts > 0)
+        {
+            int localX = _random.Next(0, chunkWidth);
+            int localZ = _random.Next(0, chunkLength);
+            
+            int globalX = chunkX + localX;
+            int globalZ = chunkZ + localZ;
+            
+            if (globalX >= mapWidth || globalZ >= mapHeight)
+            {
+                currentAttempts--;
+                continue;
+            }
+            
+            int colorX = (int)(globalX * (mapWidth - 1) / (float)(width - 1));
+            int colorZ = (int)(globalZ * (mapHeight - 1) / (float)(length - 1));
+
+            colorX = Math.Min(colorX, mapWidth - 1);
+            colorZ = Math.Min(colorZ, mapHeight - 1);
+
+            var color = colorMap[colorX, colorZ];
+
+
+            
+            if (color.R < 150)
+            {
+                var x = center.X + globalX * escalaMap;
+                var z = center.Z + globalZ * escalaMap;
+                
+                Vector2 newPoint = new Vector2(x, z);
+                    
+                // Validar dentro del área y lejos de otros puntos
+                    
+                if (points.All(p => Vector2.Distance(p, newPoint) >= minDist))
+                {
+                    points.Add(newPoint);
+                    _pastoGenerado++;
+                    
+                    currentAttempts = attempts;
+                }
+            }
+                
+            currentAttempts--;
+        }
+        Console.WriteLine("Se crearon " + points.Count + " posiciones");
+        return points;
+    }
+    
 }

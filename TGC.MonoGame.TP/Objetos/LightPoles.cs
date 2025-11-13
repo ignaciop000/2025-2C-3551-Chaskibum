@@ -7,47 +7,45 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Houses(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
+public class LightPoles(Simulation simulation) : ModelGroup(Colors, simulation)
 {
-    private static readonly List<Color> Colors =
-    [
-        Color.White // house
-    ];
+    private static readonly List<Color> Colors = [Color.White];
     
-    public void CrearObjetos(Texture2D normalMap)
+    public void CrearObjetos(Terrain terrain)
     {
-        var normalMaps = new[] { normalMap };
-        var parametros = new[]
+        var parametros = new (float, float, float, bool, Texture2D[])[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0f, 34f, 34f, true, normalMaps)  // house
+            (0f, 0.25f, 0.25f, false, null) // SimpleStreetLight
         };
 
-        base.CrearObjetos(parametros);
+        base.CrearObjetos(parametros, terrain);
         
         var parametrosRigidBodies = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (ancho, alto, profundidad, yawEnGrados)
-            (3.75f, 4.5f, 3.25f, 0f) // house
+            (7f, 400f, 7f, 0f) // SimpleStreetLight
         };
         
         CrearRigidBodies(parametrosRigidBodies);
     }
-
+    
     public void CargarModelos(Effect efecto, ContentManager content)
     {
         var paths = new[]
         {
-            "/house/City_House_2_BI"
+            "/LightPole/SimpleStreetLight" // SimpleStreetLight
         };
         
-        var texturas = new[]
-        {
-            "/house/city_house_2_Col", // Textura de color para la casa
-        };
-        
-        base.CargarModelos(efecto, content, paths, texturas);
+        base.CargarModelos(efecto, content, paths);
+    }
+    
+    public override void OnCollisionWithTank(StaticHandle handle)
+    {
+        // Rompe el objeto
+        var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
+        model?.DestruirInstancia(handle);
     }
 }

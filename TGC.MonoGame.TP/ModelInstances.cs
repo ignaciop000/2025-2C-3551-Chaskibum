@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices.ObjectiveC;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
@@ -10,7 +11,7 @@ using TGC.MonoGame.TP.Viewer.Gizmos;
 
 namespace TGC.MonoGame.TP;
 
-public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
+public class ModelInstances(Color color , Simulation simulation)
 {
     public Model Model;
     private BoundingBox _box;
@@ -18,9 +19,16 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
     private float _altura;
-    public Texture2D[] Texturas;
+    public Texture2D[] Texturas = new Texture2D[2];
     public bool UsaNormalMapping;
     private Texture2D[] _normalMaps;
+    //para el pasto
+    private VertexBuffer _vertexBuffer;
+    private IndexBuffer _indexBuffer;
+    private int _primitiveCount;
+    public List<Vector2> PosicionesPasto = [];
+    private VertexDeclaration InstanceVertexDeclaration;
+    public Effect _effect;
     
     public List<Vector2> Positions { get; set; } = [];
 
@@ -38,10 +46,15 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
 
         Worlds.Add(world);
     }
-    
-    public void CrearObjetos(float altura, float escalaMin, float escalaMax, bool usaNormalMapping, Texture2D[] normalMaps)
+
+    public void CrearPasto(float altura, float escalaMin, float escalaMax, bool usaNormalMapping,
+        Texture2D[] normalMaps)
     {
-        Texturas = new Texture2D[2];
+        
+    }
+    
+    public void CrearObjetos(float altura, float escalaMin, float escalaMax, bool usaNormalMapping, Texture2D[] normalMaps, Terrain terrain)
+    {
         UsaNormalMapping = usaNormalMapping;
         _normalMaps = normalMaps;
         foreach (var posicion in Positions)
@@ -133,6 +146,43 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         
     }
     
+    public VertexBuffer GenerarInstanceBuffer(InstanceData[] instances, GraphicsDevice graphicsDevice)
+    {
+         return new VertexBuffer(graphicsDevice, InstanceVertexDeclaration, instances.Length, BufferUsage.WriteOnly);
+    }
+    
+    public void CargarModeloPasto(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath, GraphicsDevice graphicsDevice)
+    {
+        _effect = efecto;
+        Model = content.Load<Model>(ContentFolder3D + rutaRelativa);
+        if (!string.IsNullOrEmpty(texturaPath))
+        {
+            Texturas[0] = content.Load<Texture2D>(ContentFolder3D + texturaPath);
+        }
+        var mesh = Model.Meshes[0]; 
+        var part = mesh.MeshParts[0];
+
+        _vertexBuffer = part.VertexBuffer;
+
+        _indexBuffer = part.IndexBuffer;
+
+        _primitiveCount = part.PrimitiveCount;
+        
+        
+        VertexElement[] instanceElements = new VertexElement[]
+        {
+            new VertexElement(0, VertexElementFormat.Vector3, VertexElementUsage.Position, 1), // posición
+            new VertexElement(12, VertexElementFormat.Single, VertexElementUsage.TextureCoordinate, 1), // rotacion
+            new VertexElement(16, VertexElementFormat.Single, VertexElementUsage.TextureCoordinate, 2), // escala
+        };
+        
+        InstanceVertexDeclaration = new VertexDeclaration(instanceElements);
+        
+        
+        //_box = BoundingVolumesExtensions.CreateAABBFrom(Model);
+        
+    }
+    
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath)
     {
         CargarModelo(rutaRelativa, efecto, content, texturaPath, null, 0);
@@ -170,6 +220,39 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         }
     }
 
+    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer)
+    {
+        graphicsDevice.BlendState = BlendState.AlphaBlend;
+        graphicsDevice.RasterizerState = RasterizerState.CullNone;
+        // Configurar buffers
+        graphicsDevice.SetVertexBuffers(
+            new VertexBufferBinding(_vertexBuffer),
+            new VertexBufferBinding(instanceBuffer, 0, 1)
+        );
+        graphicsDevice.Indices = _indexBuffer;
+
+        // Configurar parámetros del effect
+        _effect.Parameters["World"].SetValue(Matrix.Identity);
+        _effect.Parameters["View"].SetValue(view);
+        _effect.Parameters["Projection"].SetValue(projection);
+        _effect.Parameters["ModelTexture"].SetValue(Texturas[0]);
+
+        // Dibujar con instancing
+        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            graphicsDevice.DrawInstancedPrimitives(
+                PrimitiveType.TriangleList,
+                0,
+                0,
+                _primitiveCount,
+                instanceBuffer.VertexCount
+            );
+        }
+        graphicsDevice.BlendState = BlendState.Opaque;
+        graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+    }
+    
     public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping)
     {
         // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
@@ -275,3 +358,9 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     }
 }
 
+public struct InstanceData
+{
+    public Vector3 Position;
+    public float RotationY;
+    public float Scale;
+}

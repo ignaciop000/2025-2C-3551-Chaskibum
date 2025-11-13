@@ -7,26 +7,26 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
+public class Bushes(Simulation simulation) : ModelGroup(Colors, simulation)
 {
     private static readonly List<Color> Colors = [Color.White];
     
-    public void CrearObjetos()
+    public void CrearObjetos(Terrain terrain)
     {
         var parametros = new (float, float, float, bool, Texture2D[])[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0f, 0.25f, 0.25f, false, null) // SimpleStreetLight
+            (-15f, 1f, 2f, false, null) // Bush
         };
 
-        base.CrearObjetos(parametros);
+        base.CrearObjetos(parametros, terrain);
         
         var parametrosRigidBodies = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (ancho, alto, profundidad, yawEnGrados)
-            (7f, 400f, 7f, 0f) // SimpleStreetLight
+            (20f, 10f, 20f, 0f) // Bush
         };
         
         CrearRigidBodies(parametrosRigidBodies);
@@ -36,10 +36,15 @@ public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Col
     {
         var paths = new[]
         {
-            "/LightPole/SimpleStreetLight" // SimpleStreetLight
+            "/bush/IVY_FBX" // Bush
         };
         
-        base.CargarModelos(efecto, content, paths);
+        var texturas = new[]
+        {
+            "/bush/tex/leaf01_D" // Textura de hojas para el arbusto
+        };
+        
+        base.CargarModelos(efecto, content, paths, texturas);
     }
     
     public override void OnCollisionWithTank(StaticHandle handle)
@@ -48,4 +53,5 @@ public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Col
         var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
         model?.DestruirInstancia(handle);
     }
+    
 }

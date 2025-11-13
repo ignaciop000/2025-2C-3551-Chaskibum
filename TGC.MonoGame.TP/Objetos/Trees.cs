@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
+public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
 {
     private static readonly List<Color> Colors =
     [
@@ -16,7 +16,7 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         //Color.White  // Tree 3
     ];
     
-    public void CrearObjetos(Texture2D normalMapTree2Leaves, Texture2D normalMapTree2Bark, Texture2D normalMapTreeLeaves)
+    public void CrearObjetos(Texture2D normalMapTree2Leaves, Texture2D normalMapTree2Bark, Texture2D normalMapTreeLeaves, Terrain terrain)
     {
         var normalMapsTree1 = new[]{normalMapTreeLeaves};
         var normalMapsTree2 = new[]{normalMapTree2Leaves, normalMapTree2Bark};
@@ -29,7 +29,7 @@ public class Trees(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
             //(0f, 10f, 25f, false, null) // Tree 3
         };
 
-        base.CrearObjetos(parametros);
+        base.CrearObjetos(parametros, terrain);
         
         var parametrosRigidBodies = new[]
         { 

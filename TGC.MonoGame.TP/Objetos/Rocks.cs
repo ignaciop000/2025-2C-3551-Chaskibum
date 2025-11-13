@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Rocks(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
+public class Rocks(Simulation simulation) : ModelGroup(Colors, simulation)
 {
     private static readonly List<Color> Colors =
     [
@@ -23,7 +23,7 @@ public class Rocks(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
         Color.White  // Roca 9
     ];
 
-    public void CrearObjetos(Texture2D normalMap)
+    public void CrearObjetos(Texture2D normalMap, Terrain terrain)
     {
         var normalMaps = new[]{normalMap};
         var parametros = new[]
@@ -42,7 +42,7 @@ public class Rocks(Terrain terrain, Simulation simulation) : ModelGroup(Colors, 
             (5f, 0.1f, 0.2f, true, normalMaps)  // Roca 9
         };
 
-        base.CrearObjetos(parametros);
+        base.CrearObjetos(parametros, terrain);
         
         var parametrosRigidBodies = new[]
         { 
