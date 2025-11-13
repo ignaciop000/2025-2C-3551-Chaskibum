@@ -119,7 +119,8 @@ public abstract class Tank
 
     public Vector3 AimDirectionWorld { get; protected set; } = new(0, 0, 1);
 
-    protected float Vida = 100f;
+    public const float VidaMax = 100f;
+    public float Vida = VidaMax;
     public ProjectileType TipoProyectilActual = ProjectileTypes.Light;
     public float FireCooldown;
 

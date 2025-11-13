@@ -59,11 +59,11 @@ namespace TGC.MonoGame.TP;
 public class TGCGame : Game
 {
     //Debug
-    private Gizmos Gizmos { get; set;}
+    private Gizmos Gizmos { get; set; }
     private ImGuiRenderer _imGuiRenderer;
     private bool dibujar = true;
     private BoundingFrustum _boundingFrustum;
-    
+
     public const string ContentFolder3D = "Models/";
     public const string ContentFolderEffects = "Effects/";
     public const string ContentFolderMusic = "Music/";
@@ -71,39 +71,44 @@ public class TGCGame : Game
     public const string ContentFolderSpriteFonts = "SpriteFonts/";
     public const string ContentFolderTextures = "Textures/";
 
-    private enum GameState { MainMenu, Playing }
+    private enum GameState
+    {
+        MainMenu,
+        Playing
+    }
+
     private GameState _state = GameState.MainMenu;
-    
+
     private const float EscalaMapa = 30;
     private readonly GraphicsDeviceManager _graphics;
     private RenderTarget2D _shadowMapRenderTarget;
-    
+
     private TargetCamera _targetLightCamera;
     private const int ShadowmapSize = 4096;
-    
-    private Camera _camera;                 // Cámara activa
-    private OrbitCamera _orbitCamera;       // Cámara que sigue al tanque
+
+    private Camera _camera; // Cámara activa
+    private OrbitCamera _orbitCamera; // Cámara que sigue al tanque
     private const float LightCameraFarPlaneDistance = 20000f;
     private const float LightCameraNearPlaneDistance = 5f;
-    
-    private Effect _terrainEffect;          //Shader Terreno
-    private Effect _effect;                 //Shader Basico
+
+    private Effect _terrainEffect; //Shader Terreno
+    private Effect _effect; //Shader Basico
     private Effect _shadowEffect;
-    private Effect _worldBorderEffect;      //Shader WorldBorder
+    private Effect _worldBorderEffect; //Shader WorldBorder
     private Vector3 _lightPosition;
     private Simulation _simulation;
-    private CollidableProperty<TankBodyProperties> _bodyProperties;     // Propiedades por colisionable (tanques)
-    private TankCallbacks _callbacks;                                   // Callbacks de BEPU para fuerzas/colisiones
-    private CollisionHandler _collisionHandler;                         // Maneja eventos de colisión de juego
-    
-    private BufferPool BufferPool { get; set; }                         // Pool de buffers BEPU para performance
+    private CollidableProperty<TankBodyProperties> _bodyProperties; // Propiedades por colisionable (tanques)
+    private TankCallbacks _callbacks; // Callbacks de BEPU para fuerzas/colisiones
+    private CollisionHandler _collisionHandler; // Maneja eventos de colisión de juego
+
+    private BufferPool BufferPool { get; set; } // Pool de buffers BEPU para performance
 
     private PositionGenerator _positionGenerator;
     private Terrain _terrain;
     private WorldBorder _worldBorder;
-    
+
     private KeyboardState _kbPrev;
-    
+
     private TankController _playerController;
     private int _enemyCount;
 
@@ -112,6 +117,7 @@ public class TGCGame : Game
     private List<TankController> _enemyControllers;
 
     private Effect _tankShader;
+
     // Proyectiles
     private readonly List<Projectile> _projectiles = [];
     private MouseState _mousePrev;
@@ -121,14 +127,11 @@ public class TGCGame : Game
     private Trees _trees;
     private Bushes _bushes;
     private LightPoles _lightPoles;
-    
+
     private float _matchTimeSeconds;
     private bool _hasLost;
     private bool _hasWon;
     
-    private float _playerHealth = 100f;
-    private float _playerMaxHealth = 100f;
-
     private List<TankEntry> _tankEntries = new();   
     
     private static readonly Random _random = new Random();
@@ -615,7 +618,7 @@ public class TGCGame : Game
         _debug.Draw(_camera, _orbitCamera, Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime);
         if (!_hasLost && !_hasWon)
         {
-            _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, _tank.TipoProyectilActual, _playerHealth, _playerMaxHealth, _enemyCount, gameTime);
+            _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, _tank.TipoProyectilActual, _tank.Vida, Tank.VidaMax, _enemyCount, gameTime);
         }
         
         if (_hasLost)
