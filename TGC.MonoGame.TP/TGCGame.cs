@@ -194,7 +194,7 @@ public class TGCGame : Game
         _screenCenter = new Point(
             GraphicsDevice.Viewport.Width / 2,
             GraphicsDevice.Viewport.Height / 2);
-        _offset = new Vector3(100f, 7000f, 100f);
+        _offset = new Vector3(2400f, 4500f, -1200f);
         _collisionHandler = new CollisionHandler();
         _bodyProperties = new CollidableProperty<TankBodyProperties>(); //BEPU
         _callbacks = new TankCallbacks() { Properties = _bodyProperties };
@@ -214,7 +214,7 @@ public class TGCGame : Game
         _lightPosition = new Vector3(1300, 8000, 0);
         _targetLightCamera = new TargetCamera(1f, _lightPosition, new Vector3(1300,0,0));
         _targetLightCamera.BuildProjection(1f, LightCameraNearPlaneDistance, LightCameraFarPlaneDistance,
-            MathHelper.Pi / 5);
+            MathHelper.Pi / 4.5f);
         _positionGenerator = new PositionGenerator();
         base.Initialize();
     }
@@ -587,12 +587,15 @@ public class TGCGame : Game
                 _offset -= new Vector3(0, 0, 100);
                 Console.WriteLine(_offset);
             }
-            var nuevaPos = new Vector3(_orbitCamera.Position.X, 0 , _orbitCamera.Position.Z) + _offset;
+            
+            var forward = Microsoft.Xna.Framework.Vector3.Normalize(_orbitCamera.FrontDirection);
+            var targetPos = _orbitCamera.Position + forward * 2000;
+            var nuevaPos = new Vector3(targetPos.X, targetPos.Y , targetPos.Z) + _offset;
             _lightPosition = nuevaPos;
             _targetLightCamera.Position = nuevaPos;
             _terrain.LightPosition = nuevaPos;
             
-            var forward = Microsoft.Xna.Framework.Vector3.Normalize(_orbitCamera.FrontDirection);
+            
             _targetLightCamera.TargetPosition = _orbitCamera.Position + forward * 2000;
             _targetLightCamera.BuildView();
             _terrain.EyePosition = _camera.Position;
@@ -888,6 +891,7 @@ public class TGCGame : Game
             }
 
             _trees.DrawSombra(_boundingFrustum, _shadowEffect, _targetLightCamera);
+            _terrain.DrawPastoShadow(_boundingFrustum, GraphicsDevice, _targetLightCamera, _pasto);
             
         }
 

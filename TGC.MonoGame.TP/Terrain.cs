@@ -85,9 +85,6 @@ public class Terrain
         int chunkSize = 64;
         var length = HeightmapData.GetLength(1);
         
-        
-        Console.WriteLine("width: " + width );
-        Console.WriteLine("length: " + length);
         // Ajuste del centro
         center.X = center.X * scaleXZ - width / 2f * scaleXZ;
         center.Y = center.Y * scaleY;
@@ -482,6 +479,17 @@ public class Terrain
         dot = MathHelper.Clamp(dot, -1f, 1f);
         var radians = MathF.Acos(dot);
         return MathHelper.ToDegrees(radians);
+    }
+
+    public void DrawPastoShadow(BoundingFrustum boundingFrustum, GraphicsDevice graphicsDevice, TargetCamera targetLightCamera, Pasto pasto)
+    {
+        foreach (var chunk in Chunks)
+        {
+            if (boundingFrustum.Intersects(chunk.BoundingBox))
+            {
+                pasto.DrawPasto(graphicsDevice, targetLightCamera.View, targetLightCamera.Projection , chunk.InstanceBuffer);
+            }
+        }
     }
 
     public class TerrainChunk

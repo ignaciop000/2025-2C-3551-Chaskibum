@@ -151,7 +151,7 @@ public class Debug
                 }
             }
             gizmos.DrawFrustum(orbitCamera.View * orbitCamera.Projection, Color.Yellow);
-            gizmos.DrawFrustum(targetLightCamera.View * targetLightCamera.Projection, Color.Green);
+            gizmos.DrawFrustum(targetLightCamera.View * targetLightCamera.Projection, Color.Black);
             gizmos.Draw();
             
             _graphicsDevice.RasterizerState = oldRS2;
