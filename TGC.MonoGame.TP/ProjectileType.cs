@@ -10,6 +10,6 @@ public record ProjectileType(float Speed, float Mass, float Radius, float MaxCoo
 
 public static class ProjectileTypes
 {
-    public static readonly ProjectileType Light = new(500f, 2f, 0.85f, 1f);
-    public static readonly ProjectileType Heavy = new(400f, 5f, 1.15f, 3f);
+    public static readonly ProjectileType Light = new(500f, 0.5f, 0.85f, 1f);
+    public static readonly ProjectileType Heavy = new(400f, 1f, 1.15f, 3f);
 }

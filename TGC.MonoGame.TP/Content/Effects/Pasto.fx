@@ -10,6 +10,7 @@
 float4x4 World;           
 float4x4 View;
 float4x4 Projection;
+float Time; 
 
 texture ModelTexture;
 sampler TextureSampler = sampler_state
@@ -25,9 +26,12 @@ struct VSInput
 {
     float3 Position : POSITION0;   
     float2 TexCoord : TEXCOORD0;   
-    float3 InstancePos : POSITION1; 
-    float RotationY : TEXCOORD1;    
-    float Scale : TEXCOORD2;
+    float3 InstancePos : POSITION1;   
+    float Scale : TEXCOORD1;
+    float4 RotationRow0 : TEXCOORD2;
+    float4 RotationRow1 : TEXCOORD3;
+    float4 RotationRow2 : TEXCOORD4;
+    float4 RotationRow3 : TEXCOORD5;
 };
 
 struct VSOutput
@@ -39,15 +43,18 @@ struct VSOutput
 VSOutput VSMain(VSInput input)
 {
     VSOutput output;
-
-    float cosR = cos(input.RotationY);
-    float sinR = sin(input.RotationY);
     
-    float3 rotated = float3(
-        input.Position.x * cosR - input.Position.z * sinR,
-        input.Position.y,
-        input.Position.x * sinR + input.Position.z * cosR
+    float4x4 rotationMatrix = float4x4(
+            input.RotationRow0,
+            input.RotationRow1,
+            input.RotationRow2,
+            input.RotationRow3
     );
+        
+    float3 rotated = mul(input.Position, (float3x3)rotationMatrix);
+    float sway = sin(Time + input.InstancePos.x * 0.01 + input.InstancePos.z * 0.01);
+    
+    rotated.x += 1 * sway * 0.1 * input.Position.y * input.Position.y ;
     
     rotated *= input.Scale;
 
@@ -72,7 +79,6 @@ technique Instancing
 {
     pass P0
     {
-
         VertexShader = compile VS_SHADERMODEL VSMain();
         PixelShader = compile PS_SHADERMODEL PSMain();
     }

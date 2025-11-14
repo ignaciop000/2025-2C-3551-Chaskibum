@@ -175,7 +175,7 @@ public class Terrain
                 }
                 
                 var grassPoints = _positionGenerator.GenerarPuntosPasto( 
-                    50f, 
+                    100f, 
                     ColorMap, 
                     scaleXZ, 
                     chunkX, 
@@ -196,9 +196,9 @@ public class Terrain
                     var posX = grassPoints[i].X;
                     var posZ = grassPoints[i].Y;
                     var posY = GetHeightAtPosition(posX, posZ);
-                    instances[i].Position = new Vector3(posX, posY + 6, posZ);
+                    instances[i].Position = new Vector3(posX, posY, posZ);
                     instances[i].Scale = random.Next(11,16); 
-                    instances[i].RotationY = random.Next(0,2);
+                    instances[i].Rotation = GetRotationMatrix(GetNormalAtPosition(posX, posZ));
                 }
                 
                 var instanceBuffer = pasto.Models[0].GenerarInstanceBuffer(instances, graphicsDevice);
@@ -329,39 +329,40 @@ public class Terrain
     /// <param name="world">Matriz de transformación para coordenadas del mundo.</param>
     /// <param name="view">Matriz de vista de la cámara para determinar cómo se observa la escena.</param>
     /// <param name="projection">Matriz de proyección utilizada para la perspectiva 3D.</param>
-    public void Draw(Matrix world, Matrix view, Matrix projection, BoundingFrustum boundingFrustum, Pasto pasto)
-    {
-        var graphicsDevice = _effect.GraphicsDevice;
-        
-        _effect.Parameters["World"]?.SetValue(world);
-        _effect.Parameters["View"]?.SetValue(view);
-        _effect.Parameters["Projection"]?.SetValue(projection);
-        _effect.Parameters["texColorMap"]?.SetValue(_colorMapTexture);
-        _effect.Parameters["texDiffuseMap"]?.SetValue(_terrainTexture);
-        _effect.Parameters["texDiffuseMap2"]?.SetValue(_terrainTexture2);
-        _effect.Parameters["NormalTexture"]?.SetValue(_normalMap);
-        _effect.Parameters["lightPosition"]?.SetValue(LightPosition);
-        _effect.Parameters["eyePosition"]?.SetValue(EyePosition);
-
-        _effect.Parameters["WorldViewProjection"]?.SetValue(world * view * projection);
-        _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
-
-        foreach (var chunk in Chunks)
+        public void Draw(Matrix world, Matrix view, Matrix projection, BoundingFrustum boundingFrustum, Pasto pasto, float time)
         {
-            if (boundingFrustum.Intersects(chunk.BoundingBox))
-            {
-                pasto.DrawPasto(graphicsDevice,view,projection, chunk.InstanceBuffer);
-                graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
-                graphicsDevice.Indices = chunk.IndexBuffer;
+            var graphicsDevice = _effect.GraphicsDevice;
+            
+            _effect.Parameters["World"]?.SetValue(world);
+            _effect.Parameters["View"]?.SetValue(view);
+            _effect.Parameters["Projection"]?.SetValue(projection);
+            _effect.Parameters["texColorMap"]?.SetValue(_colorMapTexture);
+            _effect.Parameters["texDiffuseMap"]?.SetValue(_terrainTexture);
+            _effect.Parameters["texDiffuseMap2"]?.SetValue(_terrainTexture2);
+            _effect.Parameters["NormalTexture"]?.SetValue(_normalMap);
+            _effect.Parameters["lightPosition"]?.SetValue(LightPosition);
+            _effect.Parameters["eyePosition"]?.SetValue(EyePosition);
 
-                foreach (var pass in _effect.CurrentTechnique.Passes)
+            _effect.Parameters["WorldViewProjection"]?.SetValue(world * view * projection);
+            _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
+
+            foreach (var chunk in Chunks)
+            {
+                if (boundingFrustum.Intersects(chunk.BoundingBox))
                 {
-                    pass.Apply();
-                    graphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, chunk.IndexBuffer.IndexCount / 3);
+                    pasto.DrawPasto(graphicsDevice,view,projection, chunk.InstanceBuffer, time);
+                    
+                    graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
+                    graphicsDevice.Indices = chunk.IndexBuffer;
+
+                    foreach (var pass in _effect.CurrentTechnique.Passes)
+                    {
+                        pass.Apply();
+                        graphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, chunk.IndexBuffer.IndexCount / 3);
+                    }
                 }
             }
         }
-    }
 
     /// <summary>
     /// Obtiene la altura del terreno en una posición específica (X, Z)
@@ -471,6 +472,20 @@ public class Terrain
         
         return  Vector3.Normalize(Vector3.Cross(tangentZ, tangentX));
     }
+
+    public Matrix GetRotationMatrix(Vector3 normal)
+    {
+        var up = normal;
+        var reference = Math.Abs(up.Y) < 0.99f ? Vector3.Up : Vector3.Right;
+        var right = Vector3.Normalize(Vector3.Cross(reference, up));
+        var forward = Vector3.Cross(up, right);
+        return new Matrix(
+            right.X,   right.Y,   right.Z,   0,
+            up.X,      up.Y,      up.Z,      0,
+            forward.X, forward.Y, forward.Z, 0,
+            0,         0,         0,         1
+        );
+    }
     
     public float GetSlopeDegreesAt(float worldX, float worldZ)
     {
@@ -481,13 +496,13 @@ public class Terrain
         return MathHelper.ToDegrees(radians);
     }
 
-    public void DrawPastoShadow(BoundingFrustum boundingFrustum, GraphicsDevice graphicsDevice, TargetCamera targetLightCamera, Pasto pasto)
+    public void DrawPastoShadow(BoundingFrustum boundingFrustum, GraphicsDevice graphicsDevice, TargetCamera targetLightCamera, Pasto pasto, float time)
     {
         foreach (var chunk in Chunks)
         {
             if (boundingFrustum.Intersects(chunk.BoundingBox))
             {
-                pasto.DrawPasto(graphicsDevice, targetLightCamera.View, targetLightCamera.Projection , chunk.InstanceBuffer);
+                pasto.DrawPasto(graphicsDevice, targetLightCamera.View, targetLightCamera.Projection , chunk.InstanceBuffer, time);
             }
         }
     }

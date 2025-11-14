@@ -52,9 +52,5 @@ public class Pasto(Simulation simulation, GraphicsDevice graphicsDevice) : Model
         var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
         model?.DestruirInstancia(handle);
     }
-
-    public void AgregarPosicionesPasto(List<Vector2> posiciones)
-    {
-        
-    }
+    
 }

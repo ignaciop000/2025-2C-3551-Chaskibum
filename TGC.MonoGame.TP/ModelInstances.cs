@@ -172,9 +172,12 @@ public class ModelInstances(Color color , Simulation simulation)
         VertexElement[] instanceElements = new VertexElement[]
         {
             new VertexElement(0, VertexElementFormat.Vector3, VertexElementUsage.Position, 1), // posición
-            new VertexElement(12, VertexElementFormat.Single, VertexElementUsage.TextureCoordinate, 1), // rotacion
-            new VertexElement(16, VertexElementFormat.Single, VertexElementUsage.TextureCoordinate, 2), // escala
-        };
+            new VertexElement(12, VertexElementFormat.Single, VertexElementUsage.TextureCoordinate, 1), // Escala
+            new VertexElement(16, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 2), // Rotacion
+            new VertexElement(32, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 3),
+            new VertexElement(48, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 4),
+            new VertexElement(64, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 5),
+        }; 
         
         InstanceVertexDeclaration = new VertexDeclaration(instanceElements);
         
@@ -220,24 +223,23 @@ public class ModelInstances(Color color , Simulation simulation)
         }
     }
 
-    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer)
+    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float gameTime)
     {
         graphicsDevice.BlendState = BlendState.AlphaBlend;
         graphicsDevice.RasterizerState = RasterizerState.CullNone;
-        // Configurar buffers
+        
         graphicsDevice.SetVertexBuffers(
             new VertexBufferBinding(_vertexBuffer),
             new VertexBufferBinding(instanceBuffer, 0, 1)
         );
         graphicsDevice.Indices = _indexBuffer;
 
-        // Configurar parámetros del effect
         _effect.Parameters["World"].SetValue(Matrix.Identity);
         _effect.Parameters["View"].SetValue(view);
         _effect.Parameters["Projection"].SetValue(projection);
         _effect.Parameters["ModelTexture"].SetValue(Texturas[0]);
+        _effect.Parameters["Time"]?.SetValue(gameTime);
 
-        // Dibujar con instancing
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
         {
             pass.Apply();
@@ -250,7 +252,7 @@ public class ModelInstances(Color color , Simulation simulation)
             );
         }
         graphicsDevice.BlendState = BlendState.Opaque;
-        graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
+        graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;    
     }
     
     public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping)
@@ -361,6 +363,6 @@ public class ModelInstances(Color color , Simulation simulation)
 public struct InstanceData
 {
     public Vector3 Position;
-    public float RotationY;
     public float Scale;
+    public Matrix Rotation;
 }

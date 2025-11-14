@@ -116,7 +116,7 @@ float4 MainPS(VertexShaderOutput input) : COLOR
     float3 diffuseLight = 0.8 * float3(1,1,1) * NdotL;  
     
     float NdotH = dot(normal, halfVector);
-    float3 specularLight = 0.4 * float3(1,1,1) * pow(saturate(NdotH),32);
+    float3 specularLight = 0.3 * float3(1,1,1) * pow(saturate(NdotH),32);
     
     float4 finalColor = float4(saturate(float3(1,1,1) * Ka + diffuseLight) * color + specularLight, texColor.a);
     

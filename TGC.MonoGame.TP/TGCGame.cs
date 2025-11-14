@@ -75,13 +75,13 @@ public class TGCGame : Game
     private RenderTarget2D _shadowMapRenderTarget;
     
     private TargetCamera _targetLightCamera;
-    private const int ShadowmapSize = 3072;
+    private const int ShadowmapSize = 4096;
     
     private Camera _camera;                 // Cámara activa
     private OrbitCamera _orbitCamera;       // Cámara que sigue al tanque
-    private const float LightCameraFarPlaneDistance = 8000f;
+    private const float LightCameraFarPlaneDistance = 7500f;
     private const float LightCameraNearPlaneDistance = 1f;
-    private double _elapsedTime;
+    private float _elapsedTime;
     private Point _screenCenter;
     
     private Effect _terrainEffect;          //Shader Terreno
@@ -194,7 +194,7 @@ public class TGCGame : Game
         _screenCenter = new Point(
             GraphicsDevice.Viewport.Width / 2,
             GraphicsDevice.Viewport.Height / 2);
-        _offset = new Vector3(2400f, 4500f, -1200f);
+        _offset = new Vector3(2700f, 4600f, -2000f);
         _collisionHandler = new CollisionHandler();
         _bodyProperties = new CollidableProperty<TankBodyProperties>(); //BEPU
         _callbacks = new TankCallbacks() { Properties = _bodyProperties };
@@ -259,7 +259,7 @@ public class TGCGame : Game
         var terrainGrass = Content.Load<Texture2D>(ContentFolderTextures + "gras");
         // blend texture 2
         var terrainGround = Content.Load<Texture2D>(ContentFolderTextures + "ground");
-        //normal map pastp
+        //normal map piso
         var normalMap = Content.Load<Texture2D>(ContentFolderTextures + "normal");
         
         var normalMapRock = Content.Load<Texture2D>(ContentFolder3D + "rocks/Textures/Rock_Normal");
@@ -345,7 +345,7 @@ public class TGCGame : Game
             .Concat(_houses.GetModelosConPorcentaje(0.1)) // Casas
             .Concat(_lightPoles.GetModelosConPorcentaje(0.1))
             .ToList();
-        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa, 500);
+        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa, 450);
 
         // Genero otros puntos para los arbustos
         var arbustos = _bushes.GetModelosConPorcentaje(1.0);
@@ -409,7 +409,7 @@ public class TGCGame : Game
         _allInstances = new List<ModelInstances>();
         
         _allInstances.AddRange(_rocks.Models);
-        _allInstances.AddRange(_bushes.Models);
+        //_allInstances.AddRange(_bushes.Models);
         _allInstances.AddRange(_houses.Models);
         _allInstances.AddRange(_lightPoles.Models);
         
@@ -590,8 +590,8 @@ public class TGCGame : Game
             
             var forward = Microsoft.Xna.Framework.Vector3.Normalize(_orbitCamera.FrontDirection);
             var targetPos = _orbitCamera.Position + forward * 2000;
-            var nuevaPos = new Vector3(targetPos.X, targetPos.Y , targetPos.Z) + _offset;
-            _lightPosition = nuevaPos;
+            var nuevaPos = _tank.Position + _offset;
+            _lightPosition = new Vector3(nuevaPos.X, nuevaPos.Y, nuevaPos.Z);
             _targetLightCamera.Position = nuevaPos;
             _terrain.LightPosition = nuevaPos;
             
@@ -601,7 +601,7 @@ public class TGCGame : Game
             _terrain.EyePosition = _camera.Position;
             
             _boundingFrustum= new BoundingFrustum(_orbitCamera.View * _orbitCamera.Projection) ;
-            _elapsedTime += gameTime.ElapsedGameTime.TotalSeconds;
+            _elapsedTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             // Si pasó 1 segundo
            /* if (_elapsedTime >= 1.0)
@@ -891,7 +891,7 @@ public class TGCGame : Game
             }
 
             _trees.DrawSombra(_boundingFrustum, _shadowEffect, _targetLightCamera);
-            _terrain.DrawPastoShadow(_boundingFrustum, GraphicsDevice, _targetLightCamera, _pasto);
+            _terrain.DrawPastoShadow(_boundingFrustum, GraphicsDevice, _targetLightCamera, _pasto, _elapsedTime);
             
         }
 
@@ -921,8 +921,8 @@ public class TGCGame : Game
         if (_dibujarSombras)
         {
             _terrainEffect.CurrentTechnique = _terrainEffect.Techniques["DrawShadowedPCF"];
-            _terrainEffect.Parameters["shadowMap"]?.SetValue(_shadowMapRenderTarget);
-            _terrainEffect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * ShadowmapSize);
+            _terrainEffect.Parameters["shadowMap"].SetValue(_shadowMapRenderTarget);
+            _terrainEffect.Parameters["shadowMapSize"].SetValue(Vector2.One * ShadowmapSize);
         }
         else
         {
@@ -931,7 +931,7 @@ public class TGCGame : Game
         _terrainEffect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         _terrainEffect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
         
-        _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection, _boundingFrustum, _pasto);
+        _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection, _boundingFrustum, _pasto, _elapsedTime);
     }
 
     private void DibujarElementos()

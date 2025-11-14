@@ -13,7 +13,7 @@ public class PositionGenerator()
     public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, Color[,] colorMap, float escalaMap, float distanciaMinima = 550)
     {
         // Generar posiciones
-        List<Vector2> posiciones = GenerarPuntos(distanciaMinima, colorMap, escalaMap,20);
+        List<Vector2> posiciones = GenerarPuntos(distanciaMinima, colorMap, escalaMap,100);
         int total = posiciones.Count;
         int modelosCount = modelos.Count;
 
@@ -70,9 +70,9 @@ public class PositionGenerator()
         var currentAttempts = attempts;
             while (currentAttempts > 0)
             {
-                int pointX = _random.Next(0, mapWidth);
-                int pointY = _random.Next(0, mapHeight);
-                var color = colorMap[pointX, pointY];
+                float pointX = _random.NextSingle() * mapWidth;
+                float pointY = _random.NextSingle() * mapHeight;
+                var color = colorMap[(int)pointX , (int)pointY];
 
                 var x = ((pointX - mapWidth / 2f) * escalaMap)/2;
                 var y = ((pointY - mapHeight / 2f) * escalaMap)/2;
@@ -107,11 +107,11 @@ public class PositionGenerator()
         var currentAttempts = attempts;
         while (currentAttempts > 0)
         {
-            int localX = _random.Next(0, chunkWidth);
-            int localZ = _random.Next(0, chunkLength);
+            float localX = _random.NextSingle() * chunkWidth;
+            float localZ = _random.NextSingle() * chunkLength;
             
-            int globalX = chunkX + localX;
-            int globalZ = chunkZ + localZ;
+            float globalX = chunkX + localX;
+            float globalZ = chunkZ + localZ;
             
             if (globalX >= mapWidth || globalZ >= mapHeight)
             {
@@ -131,8 +131,8 @@ public class PositionGenerator()
             
             if (color.R < 150)
             {
-                var x = center.X + globalX * escalaMap;
-                var z = center.Z + globalZ * escalaMap;
+                float x = center.X + globalX * escalaMap;
+                float z = center.Z + globalZ * escalaMap;
                 
                 Vector2 newPoint = new Vector2(x, z);
                     

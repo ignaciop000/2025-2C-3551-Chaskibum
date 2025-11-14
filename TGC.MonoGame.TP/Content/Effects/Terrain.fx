@@ -210,24 +210,26 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
     float3 lightDirection = normalize(lightPosition - input.WorldSpacePosition.xyz);
     float3 viewDirection = normalize(eyePosition - input.WorldSpacePosition);
     float3 halfVector = normalize(lightDirection + viewDirection);
-    float3 normal = normalize(input.Normal.rgb);
+    float3 normalMap = getNormalFromMap(input.TextureCoordinates, input.WorldSpacePosition.xyz, normalize(input.Normal.xyz));
+    float3 normalTex = normalize(input.Normal.rgb);
+    float3 normal =  lerp(normalMap, normalTex, mapColor.r);
     
     float inclinationBias = max(modulatedEpsilon * (1.0 - dot(normal, lightDirection)), maxEpsilon);
 	
     float notInShadow = 0.0;
     float2 texelSize = 1.0 / shadowMapSize;
-    for (int x = 0; x <= 1; x++)
-        for (int y = 0; y <= 1; y++)
+    for (int x = -1; x <= 1; x++)
+        for (int y = -1; y <= 1; y++)
         {
             float pcfDepth = tex2D(shadowMapSampler, shadowMapTextureCoordinates + float2(x, y) * texelSize).r + inclinationBias;
-            notInShadow += step(lightSpacePosition.z, pcfDepth) / 4.0;
+            notInShadow += step(lightSpacePosition.z, pcfDepth) / 9.0;
         }
 	
     float NdotL = saturate(dot(normal, lightDirection));
     float3 diffuseLight = 0.8 * color.rgb * NdotL;  
     
     float NdotH = dot(normal, halfVector);
-    float3 specularLight = 0.10 * float3(1,1,1) * pow(saturate(NdotH),24);
+    float3 specularLight = 0.15 * float3(1,1,1) * pow(saturate(NdotH),24);
 
     float4 baseColor = float4(saturate(float3(1,1,1) * 0.2 + diffuseLight) * color.rgb + specularLight, color.a);
 	

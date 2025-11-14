@@ -97,11 +97,11 @@ public abstract class ModelGroup
         }
     }
     
-    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer)
+    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float time)
     {
         foreach (var model in Models)
         {
-            model.DrawPasto(graphicsDevice, view, projection, instanceBuffer);
+            model.DrawPasto(graphicsDevice, view, projection, instanceBuffer, time);
         }
     }
     
@@ -133,9 +133,5 @@ public abstract class ModelGroup
             m.AlignToTerrain = alignToTerrain;
         }
     }
-
-    public void AgregarPosicionesPasto(List<Vector2> posiciones)
-    {
-        Models[0].PosicionesPasto.AddRange(posiciones);
-    }
+    
 }
