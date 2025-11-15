@@ -58,7 +58,7 @@ public class Menu
             try
             {
                 MediaPlayer.IsRepeating = true;
-                MediaPlayer.Volume = 0.3f; // 30% del volumen
+                MediaPlayer.Volume = 0.3f;
                 MediaPlayer.Play(_menuMusic);
                 _musicStarted = true;
             }
