@@ -38,6 +38,7 @@ struct VSOutput
 {
     float4 Position : SV_POSITION;
     float2 TexCoord : TEXCOORD0;
+    float Scale: TEXCOORD1;
 };
 
 VSOutput VSMain(VSInput input)
@@ -52,12 +53,12 @@ VSOutput VSMain(VSInput input)
     );
         
     float3 rotated = mul(input.Position, (float3x3)rotationMatrix);
-    float sway = sin(Time + input.InstancePos.x * 0.01 + input.InstancePos.z * 0.01);
+    float sway = sin(Time * (2 / input.Scale) + input.InstancePos.x * 0.1 + input.InstancePos.z * 0.1) + 1;
     
-    rotated.x += 1 * sway * 0.1 * input.Position.y * input.Position.y ;
+    rotated.x += 1 * sway * 0.25 * input.Position.y ;
     
-    rotated *= input.Scale;
-
+    rotated.y *= input.Scale;
+    output.Scale = input.Scale;
     float3 worldPos = rotated + input.InstancePos;
 
     float4 posWorld = mul(float4(worldPos, 1.0), World);
@@ -72,6 +73,8 @@ float4 PSMain(VSOutput input) : SV_TARGET
 {
     float4 texColor = tex2D(TextureSampler, input.TexCoord);    
     clip(texColor.a - 0.8);
+    float gradient = (1 - input.TexCoord.y) * 1.8;
+    texColor.rgb = lerp(texColor.rgb * -0.3, texColor.rgb, gradient);
     return texColor;
 }
 

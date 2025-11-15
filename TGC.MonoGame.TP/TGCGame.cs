@@ -256,7 +256,7 @@ public class TGCGame : Game
         var spawnMap = Content.Load<Texture2D>(ContentFolderTextures + "heightmaps/spawnmap");
 
         // blend texture 1
-        var terrainGrass = Content.Load<Texture2D>(ContentFolderTextures + "gras");
+        var terrainGrass = Content.Load<Texture2D>(ContentFolderTextures + "grass");
         // blend texture 2
         var terrainGround = Content.Load<Texture2D>(ContentFolderTextures + "ground");
         //normal map piso

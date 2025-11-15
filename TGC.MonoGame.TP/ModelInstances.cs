@@ -237,7 +237,7 @@ public class ModelInstances(Color color , Simulation simulation)
         _effect.Parameters["World"].SetValue(Matrix.Identity);
         _effect.Parameters["View"].SetValue(view);
         _effect.Parameters["Projection"].SetValue(projection);
-        _effect.Parameters["ModelTexture"].SetValue(Texturas[0]);
+        _effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
         _effect.Parameters["Time"]?.SetValue(gameTime);
 
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)

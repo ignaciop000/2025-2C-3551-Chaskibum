@@ -175,7 +175,7 @@ public class Terrain
                 }
                 
                 var grassPoints = _positionGenerator.GenerarPuntosPasto( 
-                    100f, 
+                    50f, 
                     ColorMap, 
                     scaleXZ, 
                     chunkX, 
@@ -196,8 +196,8 @@ public class Terrain
                     var posX = grassPoints[i].X;
                     var posZ = grassPoints[i].Y;
                     var posY = GetHeightAtPosition(posX, posZ);
-                    instances[i].Position = new Vector3(posX, posY, posZ);
-                    instances[i].Scale = random.Next(11,16); 
+                    instances[i].Position = new Vector3(posX, posY-1, posZ);
+                    instances[i].Scale = random.NextSingle() * 1 + 1; 
                     instances[i].Rotation = GetRotationMatrix(GetNormalAtPosition(posX, posZ));
                 }
                 
@@ -479,12 +479,16 @@ public class Terrain
         var reference = Math.Abs(up.Y) < 0.99f ? Vector3.Up : Vector3.Right;
         var right = Vector3.Normalize(Vector3.Cross(reference, up));
         var forward = Vector3.Cross(up, right);
-        return new Matrix(
+        var orientation = new Matrix(
             right.X,   right.Y,   right.Z,   0,
             up.X,      up.Y,      up.Z,      0,
             forward.X, forward.Y, forward.Z, 0,
             0,         0,         0,         1
         );
+        var random = new Random();
+        var angle = random.NextSingle() * MathHelper.TwoPi; 
+        var rotationY = Matrix.CreateRotationY(angle);
+        return rotationY * orientation;
     }
     
     public float GetSlopeDegreesAt(float worldX, float worldZ)
