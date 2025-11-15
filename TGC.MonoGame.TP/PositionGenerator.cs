@@ -5,7 +5,7 @@ using Microsoft.Xna.Framework;
 
 namespace TGC.MonoGame.TP;
 
-public class PositionGenerator(float anchoMapa, float largoMapa)
+public class PositionGenerator()
 {
     private readonly Random _random = new();
     private int _pastoGenerado = 0;

@@ -220,10 +220,6 @@ public class TGCGame : Game
         _targetLightCamera = new TargetCamera(1f, _lightPosition, new Vector3(1300, 0, 0));
         _targetLightCamera.BuildProjection(1f, LightCameraNearPlaneDistance, LightCameraFarPlaneDistance,
             MathHelper.Pi / 4.5f);
-        var anchoMapa = (_terrain.HeightmapData.GetLength(0) - 1) * EscalaMapa; // Ancho terreno en mundo
-        var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa; // Largo terreno en mundo
-
-        _positionGenerator = new PositionGenerator(anchoMapa, largoMapa);
         base.Initialize();
     }
 
@@ -282,6 +278,7 @@ public class TGCGame : Game
         _pasto.CargarModelos(_pastoShader, Content);
         _pasto.Models[0]._effect = _pastoShader;
 
+        _positionGenerator = new PositionGenerator();
         _terrain = new Terrain(GraphicsDevice,
             terrainHeigthmap,
             terrainColorMap,
@@ -332,8 +329,6 @@ public class TGCGame : Game
 
         // Generacion de posiciones de modelos
 
-        var anchoMapa = (_terrain.HeightmapData.GetLength(0) - 1) * EscalaMapa; // Ancho terreno en mundo
-        var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa; // Largo terreno en mundo
 
         var colorMap = _terrain.LoadColorMap(spawnMap);
 
@@ -342,7 +337,7 @@ public class TGCGame : Game
             .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
             .Concat(_lightPoles.GetModelosConPorcentaje(0.15))
             .ToList();
-        _positionGenerator = new PositionGenerator(anchoMapa, largoMapa);
+
         _positionGenerator.GenerarPosicionesReservadas();
 
 
@@ -365,6 +360,8 @@ public class TGCGame : Game
         _bushes.CargarModelos(_effect, Content);
         _lightPoles.CargarModelos(_effect, Content);
 
+        var anchoMapa = (_terrain.HeightmapData.GetLength(0) - 1) * EscalaMapa; // Ancho terreno en mundo
+        var largoMapa = (_terrain.HeightmapData.GetLength(1) - 1) * EscalaMapa; // Largo terreno en mundo
 
         _worldBorder = new WorldBorder(GraphicsDevice, _worldBorderEffect, _simulation, anchoMapa, largoMapa);
 

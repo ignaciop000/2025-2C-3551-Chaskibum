@@ -93,7 +93,7 @@ void ApplyDeformation(inout float4 worldPosition, float4 impact)
 VertexShaderOutput MainVS(in VertexShaderInput input)
 {
 	VertexShaderOutput output = (VertexShaderOutput)0;
-    
+
     float4 worldPosition = mul(input.Position, World);
     ApplyDeformation(worldPosition, ImpactPoints[0]); 
     ApplyDeformation(worldPosition, ImpactPoints[1]); 
@@ -106,17 +106,13 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     ApplyDeformation(worldPosition, ImpactPoints[8]); 
     ApplyDeformation(worldPosition, ImpactPoints[9]);
 
-    float4 viewPosition = mul(worldPosition, View);	
-    output.Position = mul(viewPosition, Projection);
-
-	
-    output.Position = mul(input.Position, WorldViewProjection);
-    output.TextureCoordinate = input.TextureCoordinate;
-    output.WorldPos = mul(input.Position, World);
-    output.LightSpacePosition = mul(output.WorldPos, LightViewProjection);
-    output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld);
-
-    return output;
+        output.Position = mul(input.Position, WorldViewProjection);
+        output.TextureCoordinate = input.TextureCoordinate;
+        output.WorldPos = mul(input.Position, World);
+        output.LightSpacePosition = mul(output.WorldPos, LightViewProjection);
+        output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld);
+    
+        return output;
 }
 
 float4 MainPS(VertexShaderOutput input) : COLOR

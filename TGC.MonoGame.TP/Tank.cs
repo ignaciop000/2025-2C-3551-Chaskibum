@@ -236,10 +236,10 @@ public abstract class Tank
         Model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
         
         // Cargar texturas del T90
-        var hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
-        var hullBTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
-        var hullCTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
-        var treadmillsTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/treadmills");
+        hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
+        hullBTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
+        hullCTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
+        treadmillsTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/treadmills");
 
         // Look up shortcut references to the bones we are going to animate.
         _wheelBones = new ModelBone[16];
