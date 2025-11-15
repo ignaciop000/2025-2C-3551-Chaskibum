@@ -7,7 +7,8 @@
 	#define PS_SHADERMODEL ps_4_0_level_9_1
 #endif
 
-float4x4 WorldViewProjection;
+float4x4 View;
+float4x4 Projection;
 float4x4 LightViewProjection;
 float4x4 World;
 float4x4 InverseTransposeWorld;
@@ -106,13 +107,13 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     ApplyDeformation(worldPosition, ImpactPoints[8]); 
     ApplyDeformation(worldPosition, ImpactPoints[9]);
 
-        output.Position = mul(input.Position, WorldViewProjection);
-        output.TextureCoordinate = input.TextureCoordinate;
-        output.WorldPos = mul(input.Position, World);
-        output.LightSpacePosition = mul(output.WorldPos, LightViewProjection);
-        output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld);
+    output.Position = mul(mul(worldPosition, View), Projection);
+    output.TextureCoordinate = input.TextureCoordinate;
+    output.WorldPos = worldPosition;
+    output.LightSpacePosition = mul(output.WorldPos, LightViewProjection);
+    output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld);
     
-        return output;
+    return output;
 }
 
 float4 MainPS(VertexShaderOutput input) : COLOR
@@ -163,7 +164,7 @@ MenuVSOutput MenuVS(in VertexShaderInput input)
 {
 	MenuVSOutput output = (MenuVSOutput)0;
 	
-    output.Position = mul(input.Position, WorldViewProjection);
+    output.Position = mul(mul(mul(input.Position, World), View), Projection);
     output.TextureCoordinate = input.TextureCoordinate;
 
     return output;

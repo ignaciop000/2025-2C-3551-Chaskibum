@@ -109,20 +109,22 @@ public class Menu
         var boneTransforms = new Matrix[model.Bones.Count];
         model.CopyAbsoluteBoneTransformsTo(boneTransforms);
         var fx = effect.Clone();
+        fx.CurrentTechnique = fx.Techniques["MenuDrawing"];
 
         foreach (var mesh in model.Meshes)
         {
             var meshWorld = boneTransforms[mesh.ParentBone.Index] * world;
 
             fx.Parameters["World"]?.SetValue(meshWorld);
-            fx.Parameters["WorldViewProjection"].SetValue(meshWorld * view * proj);
+            fx.Parameters["View"]?.SetValue(view);
+            fx.Parameters["Projection"]?.SetValue(proj);
             fx.Parameters["ModelTexture"]?.SetValue(texture);
             if (mesh.Name.Contains("Treadmill"))
             {
                 fx.Parameters["ModelTexture"]?.SetValue(treadmillTexture);
             }
 
-            fx.Parameters["ImpactPoints"]?.SetValue(new Vector4[5]);
+            fx.Parameters["ImpactPoints"]?.SetValue(new Vector4[10]);
             foreach (var part in mesh.MeshParts)
                 part.Effect = fx;
             mesh.Draw();

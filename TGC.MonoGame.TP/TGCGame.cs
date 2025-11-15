@@ -749,9 +749,7 @@ public class TGCGame : Game
                             10);
                     }
                 }
-
-                _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown,
-                    _tank.TipoProyectilActual, _playerHealth, _playerMaxHealth, _enemyCount, gameTime);
+                
             }
 
             if (_hasLost)

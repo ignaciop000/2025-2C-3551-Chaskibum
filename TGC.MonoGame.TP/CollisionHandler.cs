@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using BepuPhysics;
 
 namespace TGC.MonoGame.TP;
@@ -66,6 +67,7 @@ public class CollisionHandler
     
     private void HandleDynamicCollision(ImpactoDinamico impacto)
     {
+        Console.WriteLine("Se registra Impacto Dinamico");
         var a = impacto.Impactador;
         var b = impacto.Impactado;
 
@@ -109,7 +111,7 @@ public class CollisionHandler
 
     private void HandleStaticCollision(BodyHandle impactador, StaticHandle impactado)
     {
-        // ¿El estático pertenece a un grupo conocido?
+        //Console.WriteLine("Se registra Impacto Estatico "+ impactador +" en "+impactado);
         if (!HandleToGroup.TryGetValue(impactado, out var group))
         {
             // Si no, entonces es "piso" u otro estático sin grupo.

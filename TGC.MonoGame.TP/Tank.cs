@@ -134,7 +134,7 @@ public abstract class Tank
     public float FireCooldown;
     public Texture2D Texture;
 
-    private const int MaxImpacts = 5;
+    private const int MaxImpacts = 10;
 
     public struct ImpactLocal
     {
@@ -160,7 +160,7 @@ public abstract class Tank
         Model.CopyAbsoluteBoneTransformsTo(absBones);
 
         // WORLD del hueso actual
-        var boneWorld = absBones[boneIndex] * _world;
+        var boneWorld = absBones[boneIndex] * World;
 
         // Local = world * inverse(boneWorld)
         var inv = Matrix.Invert(boneWorld);
@@ -834,6 +834,7 @@ public abstract class Tank
         var absBones = new Matrix[Model.Bones.Count];
         Model.CopyAbsoluteBoneTransformsTo(absBones);
 
+        _effect.CurrentTechnique = _effect.Techniques["BasicDrawing"];
         _effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
         _effect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * shadowmapSize);
         _effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
@@ -843,12 +844,15 @@ public abstract class Tank
         for (int i = 0; i < used; i++)
         {
             var imp = ImpactsLocal[i];
-            var boneWorld = absBones[imp.BoneIndex] * _world;
+            var boneWorld = absBones[imp.BoneIndex] * World;
             var worldPos = Vector3.Transform(imp.Local, boneWorld);
             impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
         }
 
         _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
+
+        _effect.Parameters["View"]?.SetValue(camera.View);
+        _effect.Parameters["Projection"]?.SetValue(camera.Projection);
 
         foreach (var mesh in Model.Meshes)
         {
@@ -861,9 +865,8 @@ public abstract class Tank
                 _effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);
             }
 
-            var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
-
-            _effect.Parameters["WorldViewProjection"]?.SetValue(worldPerMesh * camera.View * camera.Projection);
+            var worldPerMesh = absBones[mesh.ParentBone.Index] * World;
+            
             _effect.Parameters["World"]?.SetValue(worldPerMesh);
             _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
 
