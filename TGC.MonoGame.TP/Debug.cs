@@ -44,8 +44,6 @@ public class Debug
     private int _physDbgIndexCount;
     private bool _physDbgReady;
 
-    public void LoadContent(ContentManager content, string contentEffectsFolder,
-        GraphicsDevice graphicsDevice, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
     public void LoadContent(ContentManager content, string contentEffectsFolder, string contentSpriteFolder,
         GraphicsDevice graphicsDevice, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
         Gizmos gizmos)
@@ -77,7 +75,7 @@ public class Debug
         _boundingFrustum= new BoundingFrustum(camera.View * camera.Projection) ;
     }
 
-    public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos gizmos, GameTime gameTime, Terrain terrain)
+    public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime, Terrain terrain)
     {
         if (_showTerrainMeshDebug)
         {
@@ -158,6 +156,20 @@ public class Debug
             gizmos.DrawFrustum(orbitCamera.View * orbitCamera.Projection, Color.Yellow);
             gizmos.DrawFrustum(targetLightCamera.View * targetLightCamera.Projection, Color.Black);
             gizmos.Draw();
+            
+            _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
+            _spriteBatch.Draw(shadowMapRenderTarget, new Rectangle(20, 150, _graphicsDevice.Viewport.Width/5, _graphicsDevice.Viewport.Height/5), Color.White);
+            _spriteBatch.End();
+            
+            imGuiRenderer.BeforeLayout(gameTime);
+        
+            ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
+            ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 60), ImGuiCond.Always);
+            ImGui.Begin("Performance");
+            ImGui.TextWrapped($"Application average {1000f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
+            ImGui.End();
+
+            imGuiRenderer.AfterLayout();
             
             _graphicsDevice.RasterizerState = oldRS2;
         }

@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
 
 namespace TGC.MonoGame.TP;
 
-public class PositionGenerator()
+public class PositionGenerator(float anchoMapa, float largoMapa)
 {
     private readonly Random _random = new();
     private int _pastoGenerado = 0;
@@ -114,96 +115,41 @@ public class PositionGenerator()
             modelos[i].modelo.Positions = listasPorModelo[i];
     }
     
-    // Generar posiciones aleatorias que no se pisen
     private List<Vector2> GenerarPuntos(float minDist, Color[,] colorMap, float escalaMap, int attempts = 100)
-    private List<Vector2> GenerarPuntos(float minDist, int attempts = 100, float reservedMinDist = 350f)
     {
         List<Vector2> points = [];
-        List<Vector2> active = [];
 
-        double width = anchoMapa / 2;
-        double height = largoMapa / 2;
-        
-        float minDist2 = minDist * minDist;
-        float reservedMinDist2 = reservedMinDist * reservedMinDist;
-
-        // Semilla: usar (0,0) solo como centro de expansión, no como punto válido
-        active.Add(Vector2.Zero);
         int mapWidth = colorMap.GetLength(0);
         int mapHeight = colorMap.GetLength(1);
 
         var currentAttempts = attempts;
-            while (currentAttempts > 0)
+        while (currentAttempts > 0)
+        {
+            float pointX = _random.NextSingle() * mapWidth;
+            float pointY = _random.NextSingle() * mapHeight;
+            var color = colorMap[(int)pointX , (int)pointY];
+
+            var x = ((pointX - mapWidth / 2f) * escalaMap)/2;
+            var y = ((pointY - mapHeight / 2f) * escalaMap)/2;
+            if (color.R < 150)
             {
-                float pointX = _random.NextSingle() * mapWidth;
-                float pointY = _random.NextSingle() * mapHeight;
-                var color = colorMap[(int)pointX , (int)pointY];
-
-                var x = ((pointX - mapWidth / 2f) * escalaMap)/2;
-                var y = ((pointY - mapHeight / 2f) * escalaMap)/2;
-                if (color.R < 150)
-                {
-                    Vector2 newPoint = new Vector2(x, y);
+                Vector2 newPoint = new Vector2(x, y);
                     
-                    // Validar dentro del área y lejos de otros puntos
+                // Validar dentro del área y lejos de otros puntos
                     
-                    if (points.All(p => Vector2.Distance(p, newPoint) >= minDist))
-                    {
-                        points.Add(newPoint);
-                        currentAttempts = attempts;
-                    }
-                }
-                
-                currentAttempts--;
-            for (int i = 0; i < attempts; i++)
-            {
-                // Generar punto en un anillo entre [minDist, 6 * minDist]
-                double angle = _random.NextDouble() * Math.PI * 2.0;
-                double radius = minDist * (1 + 5 * Math.Pow(_random.NextDouble(), 1.5)); // tienden a estar más cerca
-                Vector2 newPoint = center + new Vector2(
-                    (float)(Math.Cos(angle) * radius),
-                    (float)(Math.Sin(angle) * radius)
-                );
-
-                // Offset de ruido
-                float maxOffset = minDist * 0.3f; // 30% de minDist
-                float offsetX = (float)(_random.NextDouble() - 0.5) * 2f * maxOffset;
-                float offsetY = (float)(_random.NextDouble() - 0.5) * 2f * maxOffset;
-                newPoint += new Vector2(offsetX, offsetY);
-
-                // Descarta temprano si está cerca de alguna reservada
-                if (ReservedPositions.Count > 0 &&
-                    AnyCloserThan(ReservedPositions, newPoint, reservedMinDist2))
+                if (points.All(p => Vector2.Distance(p, newPoint) >= minDist))
                 {
-                    continue;
+                    points.Add(newPoint);
+                    currentAttempts = attempts;
                 }
-
-                // Validar dentro del área
-                if (newPoint.X < -width || newPoint.X >= width || newPoint.Y < -height || newPoint.Y >= height)
-                    continue;
-
-                // Validar lejos de otros puntos
-                bool ok = true;
-                for (int p = 0; p < points.Count; p++)
-                {
-                    if (Vector2.DistanceSquared(points[p], newPoint) < minDist2)
-                    {
-                        ok = false;
-                        break;
-                    }
-                }
-
-                if (!ok)
-                    continue;
-
-                points.Add(newPoint);
-                active.Add(newPoint);
-                found = true;
-                break;
             }
+                
+            currentAttempts--;
+        }
 
         return points;
     }
+
     
     // Generar posiciones aleatorias para el pasto
     public List<Vector2> GenerarPuntosPasto(float minDist, Color[,] colorMap, float escalaMap, int chunkX, int chunkZ, 

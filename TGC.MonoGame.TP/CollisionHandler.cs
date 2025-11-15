@@ -33,6 +33,9 @@ public class CollisionHandler
     public static Dictionary<BodyHandle, Tank> HandleToTank;
     public static readonly List<ImpactoEstatico> ImpactosEstaticos = [];
     public static readonly List<ImpactoDinamico> ImpactosDinamicos = [];
+    
+    // Handle del terreno para excluirlo de los sonidos de colisión
+    public static StaticHandle TerrainHandle;
 
     public void AgregarImpactoEstatico(BodyHandle impactador, StaticHandle impactado)
     {

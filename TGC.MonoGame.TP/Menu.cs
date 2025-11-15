@@ -12,17 +12,22 @@ namespace TGC.MonoGame.TP;
 public class Menu
 {
     private readonly string[] _menuItems = ["Iniciar", "Opciones", "Salir"];
-    
-    private enum MenuState { Main, Options }
+
+    private enum MenuState
+    {
+        Main,
+        Options
+    }
+
     private MenuState _state = MenuState.Main;
-    
+
     private readonly int[] _matchMinutesOptions = { 3, 5, 10, 15 };
     private int _matchMinutesIndex = 1; // default: 5 min
 
     private int _enemyCount = 5; // default
     private const int EnemyMin = 1;
     private const int EnemyMax = 20;
-    
+
     private readonly string[] _optionsItems = ["Tiempo de partida", "Tanques enemigos", "Volver"];
     private int _optionsIndex = 0;
 
@@ -69,10 +74,10 @@ public class Menu
         }
 
         DrawMenuBackground();
-        
+
         if (_state == MenuState.Main)
             DrawMenuTankPreview(tankEntries, treadmillTexture);
-        
+
         if (_state == MenuState.Main)
             DrawMainMenu();
         else
@@ -98,35 +103,28 @@ public class Menu
         DrawModel(entry.Model, world, _previewView, _previewProj, entry.Texture, entry.effect, treadmillTexture);
     }
 
-    private void DrawModel(Model model, Matrix world, Matrix view, Matrix proj, Texture2D texture, Effect effect, Texture2D treadmillTexture)
+    private void DrawModel(Model model, Matrix world, Matrix view, Matrix proj, Texture2D texture, Effect effect,
+        Texture2D treadmillTexture)
     {
         var boneTransforms = new Matrix[model.Bones.Count];
         model.CopyAbsoluteBoneTransformsTo(boneTransforms);
         var fx = effect.Clone();
-        
+
         foreach (var mesh in model.Meshes)
         {
             var meshWorld = boneTransforms[mesh.ParentBone.Index] * world;
-            
-            foreach (var part in mesh.MeshParts)
-                part.Effect = fx;
-            
+
             fx.Parameters["World"]?.SetValue(meshWorld);
             fx.Parameters["WorldViewProjection"].SetValue(meshWorld * view * proj);
             fx.Parameters["ModelTexture"]?.SetValue(texture);
             if (mesh.Name.Contains("Treadmill"))
             {
                 fx.Parameters["ModelTexture"]?.SetValue(treadmillTexture);
-            {
-                var fx = effect.Clone();
-                fx.Parameters["World"]?.SetValue(meshWorld);
-                fx.Parameters["View"]?.SetValue(view);
-                fx.Parameters["Projection"]?.SetValue(proj);
-                fx.Parameters["ModelTexture"]?.SetValue(texture);
-                fx.Parameters["ImpactPoints"]?.SetValue(new Vector4[5]);
-                part.Effect = fx;
             }
-            
+
+            fx.Parameters["ImpactPoints"]?.SetValue(new Vector4[5]);
+            foreach (var part in mesh.MeshParts)
+                part.Effect = fx;
             mesh.Draw();
         }
     }
@@ -164,7 +162,7 @@ public class Menu
 
         return new Rectangle(x, y, w, h);
     }
-    
+
     private void DrawMainMenu()
     {
         var pantalla = _graphicsDevice.Viewport;
@@ -179,7 +177,8 @@ public class Menu
         var x = (pantalla.Width - drawW) / 2;
         var y2 = pantalla.Height * 0.05f;
 
-        _spriteBatch.Draw(_titleImage, destinationRectangle: new Rectangle(x, (int)y2, drawW, drawH), color: Color.White);
+        _spriteBatch.Draw(_titleImage, destinationRectangle: new Rectangle(x, (int)y2, drawW, drawH),
+            color: Color.White);
 
         // Items
         var y = pantalla.Height * 0.6f;
@@ -207,7 +206,7 @@ public class Menu
         _spriteBatch.DrawString(_menuFont, hint,
             new Vector2(pantalla.Width - hintSize.X - 20, pantalla.Height - hintSize.Y - 20),
             Color.DimGray);
-        
+
         _spriteBatch.End();
     }
 
@@ -229,7 +228,8 @@ public class Menu
         _spriteBatch.DrawString(_menuFont, title, new Vector2(panelX + (panelW - ts.X) / 2, panelY + 18), Color.White);
 
         var y = panelY + 80;
-        DrawOptionRow($"Tiempo de partida: {_matchMinutesOptions[_matchMinutesIndex]} min   (←/→)", 0, y, panelX, panelW);
+        DrawOptionRow($"Tiempo de partida: {_matchMinutesOptions[_matchMinutesIndex]} min   (←/→)", 0, y, panelX,
+            panelW);
         y += (int)_menuFont.LineSpacing + 20;
 
         DrawOptionRow($"Tanques enemigos: {_enemyCount}   (←/→)", 1, y, panelX, panelW);
@@ -244,7 +244,7 @@ public class Menu
     {
         var size = _menuFont.MeasureString(text);
         var x = panelX + (panelW - size.X) / 2;
-        
+
         if (_optionsIndex == rowIndex)
         {
             var pad = new Vector2(16, 8);
@@ -373,12 +373,13 @@ public class Menu
                 _optionsIndex = (_optionsIndex + 1) % _optionsItems.Length;
                 PlaySound(_moveSound);
             }
-            
+
             if (keyboardState.IsKeyDown(Keys.Left) && !kbPrev.IsKeyDown(Keys.Left))
             {
                 if (_optionsIndex == 0) // tiempo
                 {
-                    _matchMinutesIndex = (_matchMinutesIndex - 1 + _matchMinutesOptions.Length) % _matchMinutesOptions.Length;
+                    _matchMinutesIndex =
+                        (_matchMinutesIndex - 1 + _matchMinutesOptions.Length) % _matchMinutesOptions.Length;
                     PlaySound(_moveSound);
                 }
                 else if (_optionsIndex == 1) // enemigos
@@ -401,13 +402,13 @@ public class Menu
                     PlaySound(_moveSound);
                 }
             }
-            
+
             if (keyboardState.IsKeyDown(Keys.Enter) && !kbPrev.IsKeyDown(Keys.Enter))
             {
                 PlaySound(_selectSound);
                 _state = MenuState.Main;
             }
-            
+
             if (keyboardState.IsKeyDown(Keys.Escape) && !kbPrev.IsKeyDown(Keys.Escape))
             {
                 PlaySound(_selectSound);
@@ -416,7 +417,7 @@ public class Menu
         }
     }
 
-    // Métodos auxiliares para audio
+// Métodos auxiliares para audio
     private void PlaySound(SoundEffect sound)
     {
         try
@@ -437,6 +438,7 @@ public class Menu
             {
                 MediaPlayer.Stop();
             }
+
             _musicStarted = false;
         }
         catch

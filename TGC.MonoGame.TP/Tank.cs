@@ -23,34 +23,26 @@ public abstract class Tank
     protected Vector3 LastPos;
     private const float WheelRadius = 2.0f;
 
-        public Model Model;
-        public Effect _effect;
-        public Matrix _world;
     public Model Model;
-    private Effect _effect;
+    public Effect _effect;
+    public Matrix _world;
     public Matrix World;
 
-        private ModelBone[] _wheelBones;
-        private ModelBone _turretBone;
-        private ModelBone _cannonBone;
-        
-        private Texture2D hullATexture;
-        private Texture2D hullBTexture;
-        private Texture2D hullCTexture;
-        public Texture2D treadmillsTexture;
-        
-        private BodyHandle _body;
-        private BodyHandle _secBody;
-        private BodyHandle _turret;
-        private BodyHandle _barrel;
     private ModelBone[] _wheelBones;
     private ModelBone _turretBone;
     private ModelBone _cannonBone;
 
-    protected BodyHandle Body;
+    private Texture2D hullATexture;
+    private Texture2D hullBTexture;
+    private Texture2D hullCTexture;
+    public Texture2D treadmillsTexture;
+
+    private BodyHandle _body;
     private BodyHandle _secBody;
     private BodyHandle _turret;
     private BodyHandle _barrel;
+
+    protected BodyHandle Body;
 
     private Matrix[] _wheelTransforms;
     private Matrix _turretTransform;
@@ -65,7 +57,7 @@ public abstract class Tank
     private System.Numerics.Quaternion _fromBodyLocalToTurretBasisLocal;
     private System.Numerics.Vector3 _barrelLocalDirection;
 
-    private Gizmos Gizmos { get; set;}
+    private Gizmos Gizmos { get; set; }
 
     private Quaternion RotationQuaternion { get; set; } = Quaternion.Identity;
 
@@ -77,10 +69,10 @@ public abstract class Tank
     public Vector3 Position { get; private set; }
     private float Rotation { get; }
     private float Scale { get; }
-        
+
     public Buffer<ConstraintHandle> LeftMotors;
     public Buffer<ConstraintHandle> RightMotors;
-        
+
     // Parámetros de movimiento
     protected const float MaxSteer = 45f;
     protected const float MinSteer = -45f;
@@ -94,6 +86,7 @@ public abstract class Tank
     public QuickList<BodyHandle> BodyHandles;
 
     private TankDescription _tankDescription;
+
     // Recoil
     protected float RecoilTime;
     private const float RecoilDuration = 0.12f; // seg: cuánto dura el empujón
@@ -139,54 +132,44 @@ public abstract class Tank
     public float Vida = VidaMax;
     public ProjectileType TipoProyectilActual = ProjectileTypes.Light;
     public float FireCooldown;
-        public float Vida = 100f;
-        public float MaxVida = 100f;
-        public ProjectileType TipoProyectilActual = ProjectileTypes.Light;
-        public float FireCooldown;
-
     public Texture2D Texture;
-        public Texture2D Texture;
 
-        private const int MaxImpacts = 5;
-        public struct ImpactLocal
-        {
-            public Vector3 Local;   // posición en espacio local del hueso
-            public float   Radius;  // en unidades del modelo (luego escala)
-            public int     BoneIndex; // hueso dueño (ej: hull)
-        }
-        public readonly List<ImpactLocal> ImpactsLocal = new();
-        private const float ImpactRadius = 15f;
-        
-    protected Tank(Vector3 initialPosition, float initialRotation, float scale)
+    private const int MaxImpacts = 5;
+
+    public struct ImpactLocal
+    {
+        public Vector3 Local; // posición en espacio local del hueso
+        public float Radius; // en unidades del modelo (luego escala)
+        public int BoneIndex; // hueso dueño (ej: hull)
+    }
+
+    public readonly List<ImpactLocal> ImpactsLocal = new();
+    private const float ImpactRadius = 15f;
+
+    public Tank(Vector3 initialPosition, float initialRotation, float scale)
     {
         LastPos = Position = initialPosition;
         Rotation = initialRotation;
         Scale = scale;
     }
-        public Tank(Vector3 initialPosition, float initialRotation = 0f, float scale = 1f)
-        {
-            _lastPos = Position = initialPosition;
-            Rotation = initialRotation;
-            Scale = scale;
-        }
+    
+    public void AddImpact(Vector3 worldImpactPosition, int boneIndex)
+    {
+        // Obtené matrices absolutas actuales
+        var absBones = new Matrix[Model.Bones.Count];
+        Model.CopyAbsoluteBoneTransformsTo(absBones);
 
-        public void AddImpact(Vector3 worldImpactPosition, int boneIndex)
-        {
-            // Obtené matrices absolutas actuales
-            var absBones = new Matrix[Model.Bones.Count];
-            Model.CopyAbsoluteBoneTransformsTo(absBones);
+        // WORLD del hueso actual
+        var boneWorld = absBones[boneIndex] * _world;
 
-            // WORLD del hueso actual
-            var boneWorld = absBones[boneIndex] * _world;
+        // Local = world * inverse(boneWorld)
+        var inv = Matrix.Invert(boneWorld);
+        var local = Vector3.Transform(worldImpactPosition, inv);
 
-            // Local = world * inverse(boneWorld)
-            var inv = Matrix.Invert(boneWorld);
-            var local = Vector3.Transform(worldImpactPosition, inv);
+        // Guardar local + radio + hueso
+        ImpactsLocal.Add(new ImpactLocal { Local = local, Radius = ImpactRadius, BoneIndex = boneIndex });
+    }
 
-            // Guardar local + radio + hueso
-            ImpactsLocal.Add(new ImpactLocal { Local = local, Radius = ImpactRadius, BoneIndex = boneIndex });
-        }
-        
     /// <summary>
     /// Obtiene el angulo de yaw y pitch apartir de la direccion de mira
     /// </summary>
@@ -195,18 +178,18 @@ public abstract class Tank
         aimDirection = -aimDirection; // Se invierte pues los cálculos necesitan el vector que va hacia el cañón
         // Descomponemos el vector de puntería en dos ángulos: yaw de torreta y pitch de cañón.
         // Primero llevamos 'aimDirection' al sistema de referencia de la torreta (su "turret basis").
-        QuaternionEx.ConcatenateWithoutOverlap(QuaternionEx.Conjugate(simulation.Bodies[Body].Pose.Orientation), _fromBodyLocalToTurretBasisLocal, out var toTurretBasis);
+        QuaternionEx.ConcatenateWithoutOverlap(QuaternionEx.Conjugate(simulation.Bodies[Body].Pose.Orientation),
+            _fromBodyLocalToTurretBasisLocal, out var toTurretBasis);
         var aimdirection = new System.Numerics.Vector3(aimDirection.X, aimDirection.Y, aimDirection.Z);
         QuaternionEx.TransformWithoutOverlap(aimdirection, toTurretBasis, out var aimDirectionInTurretBasis);
-            
+
         var yaw = MathF.Atan2(aimDirectionInTurretBasis.X, -aimDirectionInTurretBasis.Z);
         var pitch = MathF.Asin(MathF.Max(-1f, MathF.Min(1f, -aimDirectionInTurretBasis.Y)));
         return (yaw, pitch);
     }
-        
+
     public void SetAim(Simulation simulation, float targetSwivelAngle, float targetPitchAngle)
     {
-            
         targetPitchAngle = Math.Clamp(targetPitchAngle, MinPitch, MaxPitch);
         var turretDescription = _turretServoDescription;
         turretDescription.TargetAngle = targetSwivelAngle;
@@ -214,9 +197,8 @@ public abstract class Tank
         var barrelDescription = _barrelServoDescription;
         barrelDescription.TargetAngle = targetPitchAngle;
         simulation.Solver.ApplyDescription(_barrelServo, barrelDescription);
-
     }
-        
+
     public void SetSpeed(Buffer<ConstraintHandle> motors, float speed, float maximumForce)
     {
         var motorDescription = new AngularAxisMotor //BEPU
@@ -225,43 +207,40 @@ public abstract class Tank
             Settings = new MotorSettings(maximumForce, 1e-6f),
             TargetVelocity = speed
         };
-            
+
         for (var i = 0; i < motors.Length; ++i)
         {
             Simulation.Solver.ApplyDescription(motors[i], motorDescription);
         }
     }
-        
-    public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, Simulation simulation, BufferPool bufferPool,
-        GraphicsDevice graphicsDevice,Gizmos gizmos, CollidableProperty<TankBodyProperties> properties, Terrain terrain = null)
+
+    public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, Simulation simulation,
+        BufferPool bufferPool,
+        GraphicsDevice graphicsDevice, Gizmos gizmos, CollidableProperty<TankBodyProperties> properties,
+        Terrain terrain = null)
     {
         //debug
         Gizmos = gizmos;
         Gizmos.LoadContent(graphicsDevice, new ContentManager(content.ServiceProvider, "Content"));
-            
+
         _effect = efecto;
         Simulation = simulation;
         Terrain = terrain;
-            
+
         // Inicializar sistema de audio
         Audio = new TankAudio();
         Audio.LoadContent(content);
-            
+
         BodyHandles = new QuickList<BodyHandle>(11, bufferPool);
         // Cargar modelo
         Model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
-            
-            // Cargar texturas del T90
-            hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
-            hullBTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
-            hullCTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
-            treadmillsTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/treadmills");
+        
         // Cargar texturas del T90
         var hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
         var hullBTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
         var hullCTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
         var treadmillsTexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/treadmills");
-                
+
         // Look up shortcut references to the bones we are going to animate.
         _wheelBones = new ModelBone[16];
 
@@ -274,7 +253,7 @@ public abstract class Tank
         _turretBone = Model.Bones["Turret"];
         _cannonBone = Model.Bones["Cannon"];
         _cannonBone.Parent = _turretBone;
-            
+
         // Store the original transform matrix for each animating bone.
         _wheelTransforms = new Matrix[16];
 
@@ -282,9 +261,10 @@ public abstract class Tank
         {
             _wheelTransforms[i] = _wheelBones[i].Transform;
         }
+
         _turretTransform = _turretBone.Transform;
         _cannonTransform = _cannonBone.Transform;
-            
+
 
         // Allocate the transform matrix array.
         _boneTransforms = new Matrix[Model.Bones.Count];
@@ -318,12 +298,13 @@ public abstract class Tank
 
         // Crear cuerpo físico
         CreatePhysicsBody(bufferPool, properties);
-            
+
         // Calcular matriz inicial del mundo
         UpdateWorldMatrix();
     }
-        
-    static ref SubgroupCollisionFilter CreatePart(Simulation simulation, in TankPartDescription part, RigidPose pose, CollidableProperty<TankBodyProperties> properties, ref QuickList<BodyHandle> bodyhandles, out BodyHandle handle)
+
+    static ref SubgroupCollisionFilter CreatePart(Simulation simulation, in TankPartDescription part, RigidPose pose,
+        CollidableProperty<TankBodyProperties> properties, ref QuickList<BodyHandle> bodyhandles, out BodyHandle handle)
     {
         RigidPose.MultiplyWithoutOverlap(part.Pose, pose, out var bodyPose);
         handle = simulation.Bodies.Add(BodyDescription.CreateDynamic(bodyPose, part.Inertia, part.Shape, 0.01f));
@@ -332,18 +313,24 @@ public abstract class Tank
         partProperties = new TankBodyProperties { Friction = part.Friction, TankPart = true };
         return ref partProperties.Filter;
     }
-        
-    static BodyHandle CreateWheel(Simulation simulation, CollidableProperty<TankBodyProperties> properties, in RigidPose tankPose, in RigidPose bodyLocalPose,
-        TypedIndex wheelShape, BodyInertia wheelInertia, float wheelFriction, BodyHandle bodyHandle, ref SubgroupCollisionFilter bodyFilter, ref SubgroupCollisionFilter secBodyFilter, System.Numerics.Vector3 bodyToWheelSuspension, float suspensionLength,
+
+    static BodyHandle CreateWheel(Simulation simulation, CollidableProperty<TankBodyProperties> properties,
+        in RigidPose tankPose, in RigidPose bodyLocalPose,
+        TypedIndex wheelShape, BodyInertia wheelInertia, float wheelFriction, BodyHandle bodyHandle,
+        ref SubgroupCollisionFilter bodyFilter, ref SubgroupCollisionFilter secBodyFilter,
+        System.Numerics.Vector3 bodyToWheelSuspension, float suspensionLength,
         in SpringSettings suspensionSettings, System.Numerics.Quaternion localWheelOrientation,
-        ref QuickList<BodyHandle> wheelHandles, ref QuickList<ConstraintHandle> constraints, ref QuickList<ConstraintHandle> motors, ref QuickList<BodyHandle> bodyhandles)
+        ref QuickList<BodyHandle> wheelHandles, ref QuickList<ConstraintHandle> constraints,
+        ref QuickList<ConstraintHandle> motors, ref QuickList<BodyHandle> bodyhandles)
     {
         RigidPose wheelPose;
         QuaternionEx.TransformUnitX(localWheelOrientation, out var suspensionDirection);
-        RigidPose.Transform(bodyToWheelSuspension + suspensionDirection * suspensionLength, tankPose, out wheelPose.Position);
+        RigidPose.Transform(bodyToWheelSuspension + suspensionDirection * suspensionLength, tankPose,
+            out wheelPose.Position);
         QuaternionEx.ConcatenateWithoutOverlap(localWheelOrientation, tankPose.Orientation, out wheelPose.Orientation);
-            
-        var wheelHandle = simulation.Bodies.Add(BodyDescription.CreateDynamic(wheelPose, wheelInertia, wheelShape, 0.01f));
+
+        var wheelHandle =
+            simulation.Bodies.Add(BodyDescription.CreateDynamic(wheelPose, wheelInertia, wheelShape, 0.01f));
         wheelHandles.AllocateUnsafely() = wheelHandle;
         bodyhandles.AllocateUnsafely() = wheelHandle;
 
@@ -371,7 +358,8 @@ public abstract class Tank
         QuaternionEx.TransformUnitY(localWheelOrientation, out var wheelRotationAxis);
         constraints.AllocateUnsafely() = simulation.Solver.Add(bodyHandle, wheelHandle, new AngularHinge
         {
-            LocalHingeAxisA = QuaternionEx.Transform(wheelRotationAxis, QuaternionEx.Conjugate(bodyLocalPose.Orientation)),
+            LocalHingeAxisA =
+                QuaternionEx.Transform(wheelRotationAxis, QuaternionEx.Conjugate(bodyLocalPose.Orientation)),
             LocalHingeAxisB = new System.Numerics.Vector3(0, 1, 0),
             SpringSettings = new SpringSettings(30, 1)
         });
@@ -387,13 +375,14 @@ public abstract class Tank
         motors.AllocateUnsafely() = motorHandle;
         constraints.AllocateUnsafely() = motorHandle;
         ref var wheelProperties = ref properties.Allocate(wheelHandle);
-        wheelProperties = new TankBodyProperties { Filter = new SubgroupCollisionFilter(bodyHandle.Value, 3), Friction = wheelFriction, TankPart = true };
+        wheelProperties = new TankBodyProperties
+            { Filter = new SubgroupCollisionFilter(bodyHandle.Value, 3), Friction = wheelFriction, TankPart = true };
         //The wheels don't need to be tested against the body or each other.
         SubgroupCollisionFilter.DisableCollision(ref wheelProperties.Filter, ref bodyFilter);
         SubgroupCollisionFilter.DisableCollision(ref wheelProperties.Filter, ref wheelProperties.Filter);
         SubgroupCollisionFilter.DisableCollision(ref wheelProperties.Filter, ref secBodyFilter);
-           
-                      
+
+
         return wheelHandle;
     }
 
@@ -417,9 +406,11 @@ public abstract class Tank
         {
             //Cuerpo del tanque
             Body = TankPartDescription.Create(1, new Box(36f, 5f, 60),
-                new RigidPose(new System.Numerics.Vector3(0, 0, 0), System.Numerics.Quaternion.Identity), 0.5f, Simulation.Shapes),
+                new RigidPose(new System.Numerics.Vector3(0, 0, 0), System.Numerics.Quaternion.Identity), 0.5f,
+                Simulation.Shapes),
             SecondaryBody = TankPartDescription.Create(0.1f, new Box(22f, 5f, 52.5f),
-                new RigidPose(new System.Numerics.Vector3(0, -5, 0), System.Numerics.Quaternion.Identity), 0.5f, Simulation.Shapes),
+                new RigidPose(new System.Numerics.Vector3(0, -5, 0), System.Numerics.Quaternion.Identity), 0.5f,
+                Simulation.Shapes),
             // Torreta, desplazado hacia arriba y adelante
             Turret = TankPartDescription.Create(1, new Cylinder(15f, 7f), new System.Numerics.Vector3(0f, 6f, 2.5f),
                 0.5f, Simulation.Shapes),
@@ -459,10 +450,10 @@ public abstract class Tank
         };
 
         var alturaTerreno = Terrain.GetHeightAtPosition(Position.X, Position.Z);
-            
+
         // Orienta el tanque para que “asiente” sobre la normal del terreno.
-        var orientationQuat = Terrain.CalculateRotation(Position, Rotation );
-            
+        var orientationQuat = Terrain.CalculateRotation(Position, Rotation);
+
         // Pose inicial
         var pose = new RigidPose(
             new System.Numerics.Vector3(Position.X, alturaTerreno + 25, Position.Z),
@@ -496,21 +487,25 @@ public abstract class Tank
         // Define subgrupos de colisión para evitar colisiones internas entre cuerpo-torreta y torreta-cañón.
         Matrix3x3.CreateFromQuaternion(_tankDescription.TurretBasis, out var turretBasis);
         // Convierte la base de la torreta (quaternion) a una matriz 3x3.
-            
+
         constraints.AllocateUnsafely() = Simulation.Solver.Add(Body, _secBody,
             new Weld
             {
                 LocalOffset = new System.Numerics.Vector3(0f, -5f, 2.5f),
                 LocalOrientation = System.Numerics.Quaternion.Identity,
-                SpringSettings = new SpringSettings(30f,1f)
+                SpringSettings = new SpringSettings(30f, 1f)
             }
         );
 
         // Convierte la base de la torreta (quaternion) a una matriz 3x3.
-        QuaternionEx.Transform(turretBasis.Y, QuaternionEx.Conjugate(_tankDescription.Body.Pose.Orientation), out var bodyLocalSwivelAxis);
-        QuaternionEx.Transform(turretBasis.Y, QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation), out var turretLocalSwivelAxis);
-        RigidPose.TransformByInverse(_tankDescription.TurretAnchor, _tankDescription.Body.Pose, out var bodyLocalTurretAnchor);
-        RigidPose.TransformByInverse(_tankDescription.TurretAnchor, _tankDescription.Turret.Pose, out var turretLocalTurretAnchor);
+        QuaternionEx.Transform(turretBasis.Y, QuaternionEx.Conjugate(_tankDescription.Body.Pose.Orientation),
+            out var bodyLocalSwivelAxis);
+        QuaternionEx.Transform(turretBasis.Y, QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation),
+            out var turretLocalSwivelAxis);
+        RigidPose.TransformByInverse(_tankDescription.TurretAnchor, _tankDescription.Body.Pose,
+            out var bodyLocalTurretAnchor);
+        RigidPose.TransformByInverse(_tankDescription.TurretAnchor, _tankDescription.Turret.Pose,
+            out var turretLocalTurretAnchor);
         // Calcula ejes locales de giro (swivel) y puntos de anclaje en los espacios locales de cuerpo y torreta.
 
         constraints.AllocateUnsafely() = Simulation.Solver.Add(Body, _turret,
@@ -523,18 +518,20 @@ public abstract class Tank
                 SpringSettings = new SpringSettings(30, 1)
             });
         // Agrega una bisagra (hinge) entre cuerpo y torreta, con ejes/offsets ya calculados.
-            
+
         Matrix3x3 turretSwivelBasis;
         turretSwivelBasis.Z = -turretBasis.Y;
         turretSwivelBasis.X = -turretBasis.Z;
         turretSwivelBasis.Y = turretBasis.X;
         // Construye una base ortonormal para medir el ángulo de la torreta (ejes perpendiculares a hinge).
-            
+
         QuaternionEx.CreateFromRotationMatrix(turretSwivelBasis, out var turretSwivelBasisQuaternion);
-        QuaternionEx.ConcatenateWithoutOverlap(turretSwivelBasisQuaternion, QuaternionEx.Conjugate(_tankDescription.Body.Pose.Orientation), out var bodyLocalTurretBasis);
-        QuaternionEx.ConcatenateWithoutOverlap(turretSwivelBasisQuaternion, QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation), out var turretLocalTurretBasis);
+        QuaternionEx.ConcatenateWithoutOverlap(turretSwivelBasisQuaternion,
+            QuaternionEx.Conjugate(_tankDescription.Body.Pose.Orientation), out var bodyLocalTurretBasis);
+        QuaternionEx.ConcatenateWithoutOverlap(turretSwivelBasisQuaternion,
+            QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation), out var turretLocalTurretBasis);
         // Convierte esa base a los espacios locales de cuerpo y torreta.
-            
+
         _turretServoDescription = new TwistServo
         {
             LocalBasisA = bodyLocalTurretBasis,
@@ -545,13 +542,17 @@ public abstract class Tank
         _turretServo = Simulation.Solver.Add(Body, _turret, _turretServoDescription);
         constraints.AllocateUnsafely() = _turretServo;
         // Crea y agrega un TwistServo para controlar el ángulo de la torreta (yaw), usando esa base de medida.
-            
-        QuaternionEx.Transform(turretBasis.X, QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation), out var turretLocalPitchAxis);
-        QuaternionEx.Transform(turretBasis.X, QuaternionEx.Conjugate(_tankDescription.Barrel.Pose.Orientation), out var barrelLocalPitchAxis);
-        RigidPose.TransformByInverse(_tankDescription.BarrelAnchor, _tankDescription.Turret.Pose, out var turretLocalBarrelAnchor);
-        RigidPose.TransformByInverse(_tankDescription.BarrelAnchor, _tankDescription.Barrel.Pose, out var barrelLocalBarrelAnchor);
+
+        QuaternionEx.Transform(turretBasis.X, QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation),
+            out var turretLocalPitchAxis);
+        QuaternionEx.Transform(turretBasis.X, QuaternionEx.Conjugate(_tankDescription.Barrel.Pose.Orientation),
+            out var barrelLocalPitchAxis);
+        RigidPose.TransformByInverse(_tankDescription.BarrelAnchor, _tankDescription.Turret.Pose,
+            out var turretLocalBarrelAnchor);
+        RigidPose.TransformByInverse(_tankDescription.BarrelAnchor, _tankDescription.Barrel.Pose,
+            out var barrelLocalBarrelAnchor);
         // Prepara ejes locales de pitch y puntos de anclaje para el cañón respecto a la torreta.
-            
+
         constraints.AllocateUnsafely() = Simulation.Solver.Add(_turret, _barrel,
             new Hinge
             {
@@ -568,12 +569,14 @@ public abstract class Tank
         barrelPitchBasis.X = -turretBasis.Z;
         barrelPitchBasis.Y = -turretBasis.Y;
         // Base ortonormal para medir el pitch del cañón.
-            
+
         QuaternionEx.CreateFromRotationMatrix(barrelPitchBasis, out var barrelPitchBasisQuaternion);
-        QuaternionEx.ConcatenateWithoutOverlap(barrelPitchBasisQuaternion, QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation), out var turretLocalBarrelBasis);
-        QuaternionEx.ConcatenateWithoutOverlap(barrelPitchBasisQuaternion, QuaternionEx.Conjugate(_tankDescription.Barrel.Pose.Orientation), out var barrelLocalBarrelBasis);
+        QuaternionEx.ConcatenateWithoutOverlap(barrelPitchBasisQuaternion,
+            QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation), out var turretLocalBarrelBasis);
+        QuaternionEx.ConcatenateWithoutOverlap(barrelPitchBasisQuaternion,
+            QuaternionEx.Conjugate(_tankDescription.Barrel.Pose.Orientation), out var barrelLocalBarrelBasis);
         // Bases convertidas a espacios locales.
-            
+
         _barrelServoDescription = new TwistServo
         {
             LocalBasisA = turretLocalBarrelBasis,
@@ -585,7 +588,7 @@ public abstract class Tank
         _barrelServo = Simulation.Solver.Add(_turret, _barrel, _barrelServoDescription);
         constraints.AllocateUnsafely() = _barrelServo;
         // Agrega el TwistServo que controla el pitch del cañón.
-            
+
         QuaternionEx.TransformUnitY(_tankDescription.WheelOrientation, out _);
         QuaternionEx.TransformUnitZ(_tankDescription.WheelOrientation, out var treadDirection);
         // Obtiene los ejes “rueda” (giro) y “oruga” (dirección de avance) en mundo local de rueda.
@@ -599,34 +602,41 @@ public abstract class Tank
             // Offset longitudinal de cada rueda a lo largo de la oruga.
             var verticalLift = 0f;
             var wheelShapeToUse = _tankDescription.WheelShape;
-            if (i == 0 )
+            if (i == 0)
             {
                 wheelOffsetFromTread += treadDirection * (_tankDescription.TreadSpacing / 4);
                 verticalLift = 3f;
                 wheelShapeToUse = _tankDescription.SmallerWheelShape;
-            }else if (i == _tankDescription.WheelCountPerTread - 1)
+            }
+            else if (i == _tankDescription.WheelCountPerTread - 1)
             {
                 verticalLift = 3f;
                 wheelShapeToUse = _tankDescription.SmallWheelShape;
             }
-                
-            var rightSuspensionOffset = _tankDescription.RightTreadOffset + wheelOffsetFromTread - _tankDescription.Body.Pose.Position;
-            var leftSuspensionOffset = _tankDescription.LeftTreadOffset + wheelOffsetFromTread - _tankDescription.Body.Pose.Position;
+
+            var rightSuspensionOffset = _tankDescription.RightTreadOffset + wheelOffsetFromTread -
+                                        _tankDescription.Body.Pose.Position;
+            var leftSuspensionOffset = _tankDescription.LeftTreadOffset + wheelOffsetFromTread -
+                                       _tankDescription.Body.Pose.Position;
 
             // Aplicar elevación en eje Y
             rightSuspensionOffset.Y += verticalLift;
             leftSuspensionOffset.Y += verticalLift;
-                
+
             var rightWheelHandle = CreateWheel(Simulation, properties, pose, _tankDescription.Body.Pose,
-                wheelShapeToUse, _tankDescription.WheelInertia, _tankDescription.WheelFriction, Body, ref properties[Body].Filter, ref properties[_secBody].Filter,
-                rightSuspensionOffset, _tankDescription.SuspensionLength, _tankDescription.SuspensionSettings, _tankDescription.WheelOrientation,
+                wheelShapeToUse, _tankDescription.WheelInertia, _tankDescription.WheelFriction, Body,
+                ref properties[Body].Filter, ref properties[_secBody].Filter,
+                rightSuspensionOffset, _tankDescription.SuspensionLength, _tankDescription.SuspensionSettings,
+                _tankDescription.WheelOrientation,
                 ref wheelHandles, ref constraints, ref rightMotors, ref BodyHandles);
-                
+
             // Crea una rueda derecha con suspensión, fricción y orientación definidos; guarda handles y constraints.
 
             var leftWheelHandle = CreateWheel(Simulation, properties, pose, _tankDescription.Body.Pose,
-                wheelShapeToUse, _tankDescription.WheelInertia, _tankDescription.WheelFriction, Body, ref properties[Body].Filter, ref properties[_secBody].Filter,
-                leftSuspensionOffset, _tankDescription.SuspensionLength, _tankDescription.SuspensionSettings, _tankDescription.WheelOrientation,
+                wheelShapeToUse, _tankDescription.WheelInertia, _tankDescription.WheelFriction, Body,
+                ref properties[Body].Filter, ref properties[_secBody].Filter,
+                leftSuspensionOffset, _tankDescription.SuspensionLength, _tankDescription.SuspensionSettings,
+                _tankDescription.WheelOrientation,
                 ref wheelHandles, ref constraints, ref leftMotors, ref BodyHandles);
             // Crea la rueda izquierda correspondiente.
 
@@ -634,25 +644,33 @@ public abstract class Tank
             {
                 // Conecta ruedas consecutivas de una misma oruga para compartir esfuerzo de tracción.
                 // Motor angular que busca velocidad relativa 0 (igualar giro, permitiendo algo de deriva).
-                var motorDescription = new AngularAxisMotor { LocalAxisA = new System.Numerics.Vector3(0, 1, 0), Settings = new MotorSettings(float.MaxValue, 1e-4f) };
-                constraints.AllocateUnsafely() = Simulation.Solver.Add(previousLeftWheelHandle, leftWheelHandle, motorDescription);
-                constraints.AllocateUnsafely() = Simulation.Solver.Add(previousRightWheelHandle, rightWheelHandle, motorDescription);
+                var motorDescription = new AngularAxisMotor
+                {
+                    LocalAxisA = new System.Numerics.Vector3(0, 1, 0),
+                    Settings = new MotorSettings(float.MaxValue, 1e-4f)
+                };
+                constraints.AllocateUnsafely() =
+                    Simulation.Solver.Add(previousLeftWheelHandle, leftWheelHandle, motorDescription);
+                constraints.AllocateUnsafely() =
+                    Simulation.Solver.Add(previousRightWheelHandle, rightWheelHandle, motorDescription);
             }
+
             previousLeftWheelHandle = leftWheelHandle;
             previousRightWheelHandle = rightWheelHandle;
-
         }
-            
+
         wheelHandles.Span.Slice(wheelHandles.Count);
         constraints.Span.Slice(constraints.Count);
         LeftMotors = leftMotors.Span.Slice(leftMotors.Count);
         RightMotors = rightMotors.Span.Slice(rightMotors.Count);
         // “Cierra” las QuickList exposando los spans finales (ajusta las vistas a su tamaño real).
 
-        QuaternionEx.ConcatenateWithoutOverlap(_tankDescription.Body.Pose.Orientation, QuaternionEx.Conjugate(_tankDescription.TurretBasis), out _fromBodyLocalToTurretBasisLocal);
+        QuaternionEx.ConcatenateWithoutOverlap(_tankDescription.Body.Pose.Orientation,
+            QuaternionEx.Conjugate(_tankDescription.TurretBasis), out _fromBodyLocalToTurretBasisLocal);
         // Guarda conversión de base local del cuerpo a la base de la torreta (útil para apuntado).
 
-        QuaternionEx.Transform(-turretBasis.Z, QuaternionEx.Conjugate(_tankDescription.Barrel.Pose.Orientation), out _barrelLocalDirection);
+        QuaternionEx.Transform(-turretBasis.Z, QuaternionEx.Conjugate(_tankDescription.Barrel.Pose.Orientation),
+            out _barrelLocalDirection);
         // Direccion “hacia adelante” del cañón en su espacio local (para raycasts/disparo).
 
         RotationQuaternion = orientationQuat;
@@ -663,11 +681,11 @@ public abstract class Tank
     {
         if (IsDead) return;
         // Leer las poses actuales del cuerpo, torreta y cañón desde la simulación
-        var bodyRef   = Simulation.Bodies.GetBodyReference(Body);
+        var bodyRef = Simulation.Bodies.GetBodyReference(Body);
         var turretRef = Simulation.Bodies.GetBodyReference(_turret);
         var barrelRef = Simulation.Bodies.GetBodyReference(_barrel);
 
-        var qBody   = bodyRef.Pose.Orientation;
+        var qBody = bodyRef.Pose.Orientation;
         var qBarrel = barrelRef.Pose.Orientation;
 
         // Dirección "forward" del cañón físico en MUNDO
@@ -680,8 +698,8 @@ public abstract class Tank
 
         // Yaw del tanque 
         var bodyFwd = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, -1), qBody);
-        var tankYaw = MathF.Atan2(bodyFwd.X, bodyFwd.Z) + MathF.PI; 
-            
+        var tankYaw = MathF.Atan2(bodyFwd.X, bodyFwd.Z) + MathF.PI;
+
         // Yaw de la torreta a partir del cañón físico
         var flat = new System.Numerics.Vector3(fwdWorldN.X, 0, fwdWorldN.Z);
         var flatLen2 = flat.LengthSquared();
@@ -701,13 +719,13 @@ public abstract class Tank
 
 
         // Asignar directo a los ángulos visuales
-            
+
         TurretRotation = swivel + (1 * (swivel - _previousSwivel));
-            
+
         _previousSwivel = swivel;
         CannonRotation = pitch - MathHelper.ToRadians(0f);
     }
-        
+
     protected void UpdateWheelSpinByDistance()
     {
         var delta = Position - LastPos;
@@ -721,15 +739,15 @@ public abstract class Tank
             var dir = Vector3.Normalize(delta);
             sign = MathF.Sign(Vector3.Dot(dir, forward));
         }
-            
-        WheelRotation += sign * (dist / (WheelRadius ));
+
+        WheelRotation += sign * (dist / (WheelRadius));
 
         if (WheelRotation > MathHelper.TwoPi) WheelRotation -= MathHelper.TwoPi;
         else if (WheelRotation < -MathHelper.TwoPi) WheelRotation += MathHelper.TwoPi;
 
         LastPos = Position;
     }
-    
+
     public void SyncFromPhysics()
     {
         if (IsDead) return;
@@ -744,14 +762,14 @@ public abstract class Tank
     protected void UpdateWorldMatrix()
     {
         if (IsDead) return;
-            
+
         // Sincronizar posición y rotación desde la física
         var pose = Simulation.Bodies.GetBodyReference(Body).Pose;
 
         Position = new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z);
         RotationQuaternion = new Quaternion(pose.Orientation.X, pose.Orientation.Y, pose.Orientation.Z,
             pose.Orientation.W);
-            
+
         // Construir offset visual en espacio local del modelo
         // Lo rotamos por la orientación del cuerpo para llevarlo al espacio mundo
         var localOffsetScaled = new Vector3(0f, VisualYOffset * Scale, VisualZOffset * Scale);
@@ -760,129 +778,99 @@ public abstract class Tank
 
         // Posición que usamos para dibujar el modelo
         var visualPosition = Position + offsetWorld;
-            
+
         // Construir la matriz del mundo
         World =
             Matrix.CreateScale(Scale) *
             Matrix.CreateFromQuaternion(RotationQuaternion) *
             Matrix.CreateTranslation(visualPosition);
     }
-    
+
     public void DrawDebug()
     {
         RigidPose pose = Simulation.Bodies.GetBodyReference(Body).Pose;
         var scale = Matrix.CreateScale(1f, 1f, 1f); // tamaño del cuerpo (Box)
         var rotation = Matrix.CreateFromQuaternion(pose.Orientation);
         var translation = Matrix.CreateTranslation(pose.Position);
-    
+
         var matriz = scale * rotation * translation;
         Gizmos.DrawCube(matriz, Color.Blue);
 
 
         var turretAnchor = Matrix.CreateTranslation(_tankDescription.TurretAnchor);
         var barrelAnchor = Matrix.CreateTranslation(_tankDescription.BarrelAnchor);
-        Gizmos.DrawCube(turretAnchor * matriz  , Color.Green);
+        Gizmos.DrawCube(turretAnchor * matriz, Color.Green);
         Gizmos.DrawCube(barrelAnchor * matriz, Color.Red);
-            
+
         Matrix[] boneTransforms = new Matrix[Model.Bones.Count];
         Model.CopyAbsoluteBoneTransformsTo(boneTransforms);
-            
+
         var boneWorldTransform = boneTransforms[_turretBone.Index] * World;
         var boneWorldPosition = boneWorldTransform.Translation;
-            
+
         var boneMatrix = Matrix.CreateScale(1f) * Matrix.CreateTranslation(boneWorldPosition);
         Gizmos.DrawCube(boneMatrix, Color.Orange);
-                
+
         Gizmos.Draw();
     }
-        
-        public void Draw(Camera camera, RenderTarget2D shadowMapRenderTarget, int shadowmapSize, TargetCamera targetLightCamera)
-        {
-            if (Model == null || _effect == null || IsDead) return;
+
+    public void Draw(Camera camera, RenderTarget2D shadowMapRenderTarget, int shadowmapSize,
+        TargetCamera targetLightCamera)
+    {
+        if (Model == null || _effect == null || IsDead) return;
 
         var wheelRotation = Matrix.CreateRotationX(WheelRotation);
         var turretRotation = Matrix.CreateRotationZ(TurretRotation);
         var cannonRotation = Matrix.CreateRotationX(CannonRotation);
-            
+
         for (int i = 0; i < 16; i++)
         {
-            _wheelBones[i].Transform = wheelRotation * _wheelTransforms[i]; 
+            _wheelBones[i].Transform = wheelRotation * _wheelTransforms[i];
         }
-            
+
         _turretBone.Transform = turretRotation * _turretTransform;
         _cannonBone.Transform = cannonRotation * _cannonTransform;
-            
-            var absBones = new Matrix[Model.Bones.Count];
-            Model.CopyAbsoluteBoneTransformsTo(absBones);
-            
-            _effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
-            _effect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * shadowmapSize);
-            _effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
 
-            var impactPointsArray = new Vector4[MaxImpacts];
-            var used = Math.Min(ImpactsLocal.Count, MaxImpacts);
-            for (int i = 0; i < used; i++)
-            {
-                var imp = ImpactsLocal[i];
-                var boneWorld = absBones[imp.BoneIndex] * _world;
-                var worldPos = Vector3.Transform(imp.Local, boneWorld);
-                impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
-            }
-
-            _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
-    
-            foreach (var mesh in Model.Meshes)
-            {
-                foreach (var part in mesh.MeshParts)
-                    part.Effect = _effect;
-                
-                _effect.Parameters["ModelTexture"]?.SetValue(Texture);
-                if (mesh.Name.Contains("Treadmill"))
-                {
-                    _effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);
-                }
-                var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
-                
-                _effect.Parameters["WorldViewProjection"]?.SetValue(worldPerMesh * camera.View * camera.Projection);
-                _effect.Parameters["World"]?.SetValue(worldPerMesh);
-                _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
-                
-                mesh.Draw();
-            }
-        }
-        
-        // Devuelve posición y dirección de la boca del cañón, tomando el hueso real del cañón
-        public (Vector3 pos, Vector3 dir) GetMuzzle(float muzzleOffsetLocal = 300.2f)
-        {
-            var turretRotation = Matrix.CreateRotationZ(TurretRotation);
-            var cannonRotation = Matrix.CreateRotationX(CannonRotation); // mismo eje/signo que Draw
-            _turretBone.Transform = turretRotation * _turretTransform;
-            _cannonBone.Transform = cannonRotation * _cannonTransform;
         var absBones = new Matrix[Model.Bones.Count];
         Model.CopyAbsoluteBoneTransformsTo(absBones);
-    
+
+        _effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
+        _effect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * shadowmapSize);
+        _effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
+
+        var impactPointsArray = new Vector4[MaxImpacts];
+        var used = Math.Min(ImpactsLocal.Count, MaxImpacts);
+        for (int i = 0; i < used; i++)
+        {
+            var imp = ImpactsLocal[i];
+            var boneWorld = absBones[imp.BoneIndex] * _world;
+            var worldPos = Vector3.Transform(imp.Local, boneWorld);
+            impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
+        }
+
+        _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
+
         foreach (var mesh in Model.Meshes)
         {
-            var worldPerMesh = absBones[mesh.ParentBone.Index] * World;
-
             foreach (var part in mesh.MeshParts)
-            {
-                    
                 part.Effect = _effect;
-                _effect.Parameters["World"]?.SetValue(worldPerMesh);
-                    
-                // CRÍTICO: Configurar View y Projection desde la cámara
-                _effect.Parameters["View"]?.SetValue(camera.View);
-                _effect.Parameters["Projection"]?.SetValue(camera.Projection);
-                if (Texture != null)
-                {
-                    _effect.Parameters["ModelTexture"]?.SetValue(Texture);
-                }
+
+            _effect.Parameters["ModelTexture"]?.SetValue(Texture);
+            if (mesh.Name.Contains("Treadmill"))
+            {
+                _effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);
             }
+
+            var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
+
+            _effect.Parameters["WorldViewProjection"]?.SetValue(worldPerMesh * camera.View * camera.Projection);
+            _effect.Parameters["World"]?.SetValue(worldPerMesh);
+            _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
+
             mesh.Draw();
         }
     }
-    
+
     // Devuelve posición y dirección de la boca del cañón, tomando el hueso real del cañón
     private (Vector3 pos, Vector3 dir) GetMuzzle(float muzzleOffsetLocal = 300.2f)
     {
@@ -890,7 +878,7 @@ public abstract class Tank
         var cannonRotation = Matrix.CreateRotationX(CannonRotation); // mismo eje/signo que Draw
         _turretBone.Transform = turretRotation * _turretTransform;
         _cannonBone.Transform = cannonRotation * _cannonTransform;
-            
+
         if (_boneTransforms == null || _boneTransforms.Length != Model.Bones.Count)
             _boneTransforms = new Matrix[Model.Bones.Count];
 
@@ -932,7 +920,7 @@ public abstract class Tank
             BrakeTime = BrakeDuration;
         }
     }
-    
+
     public void ApplyRecoilAndBrake(float dt, Simulation simulation)
     {
         if (IsDead) return;
@@ -950,16 +938,16 @@ public abstract class Tank
         if (BrakeTime > 0f)
         {
             var v = bodyRef.Velocity.Linear;
-            var drag = -v * (BrakeK * dt); 
+            var drag = -v * (BrakeK * dt);
             bodyRef.Velocity.Linear += drag;
             BrakeTime -= dt;
         }
     }
-        
+
     public void RecibirAtaque(float danio)
     {
         Vida -= danio;
-            
+
         if (Vida <= 0f)
             Kill();
     }
@@ -968,11 +956,11 @@ public abstract class Tank
     {
         if (IsDead) return;
         IsDead = true;
-            
+
         // Detener todos los sonidos del tanque
         Audio?.StopAll();
     }
-    
+
     protected virtual void ResetCooldown()
     {
         FireCooldown = TipoProyectilActual.MaxCooldown;
@@ -990,13 +978,13 @@ public abstract class Tank
 
         TriggerRecoil(
             dir,
-            projectileMass: TipoProyectilActual.Mass, 
-            muzzleSpeed: TipoProyectilActual.Speed, 
-            intensity: 1f, 
+            projectileMass: TipoProyectilActual.Mass,
+            muzzleSpeed: TipoProyectilActual.Speed,
+            intensity: 1f,
             withBrake: true);
 
         ResetCooldown();
-        
+
         Audio?.PlayShoot(TipoProyectilActual);
     }
 }
