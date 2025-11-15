@@ -1,14 +1,11 @@
 ﻿// ARREGLOS
 // - Los tanques no deben spawnear donde hay obstaculos + no deben spawnear volando [AGUS]
-// - Mostrar vida tanques enemigos [NACHO]
-// - Que se vea el debug de los proyectiles [NACHO]
 // - Bajar volumenes altos [SANTI]
 // - Cielo y niebla [SANTI]
 
 // NUEVAS TAREAS
 // - Modo God [MATEO]
 // - Mejorar IA tanques: deben disparar al jugador (y este debe perder vida) [AGUS]
-// - Deformación tanques [NACHO]
 // - Animación ruedas con Texture Scrolling [SANTI]
 
 // FINALMENTE [TODOS]
@@ -642,6 +639,8 @@ public class TGCGame : Game
         }
         
         _debug.Update(keyboardState, _kbPrev, deltaTime, _orbitCamera);
+        _debug.actualizarTanks(_tanks);
+        _debug.actualizarProyectiles(_projectiles);
 
         // Actualizar cámara para seguir al tanque
         if (_tank != null)
@@ -730,20 +729,35 @@ public class TGCGame : Game
         _imGuiRenderer.AfterLayout();
         
         if (_state != GameState.MainMenu && !_hasLost && !_hasWon)
+        _debug.Draw(_camera, _orbitCamera, Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime);
+        
+        _hud.Begin();
+        if (!_hasLost && !_hasWon)
         {
             _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, _tank.TipoProyectilActual, _tank.Vida, Tank.VidaMax, _enemyCount, gameTime);
+            foreach (var enemyTank in _enemyTanks)
+            {
+                var healthBarPosition3D = enemyTank.Position + Microsoft.Xna.Framework.Vector3.Up * 50f;
+                var projectedPosition = GraphicsDevice.Viewport.Project(healthBarPosition3D, _camera.Projection, _camera.View, Matrix.Identity);
+                if (projectedPosition.Z < 1) //Si esta visible
+                {
+                    var healthPercentage = enemyTank.Vida / enemyTank.MaxVida;
+                    _hud.DrawHealthBar(new Vector2(projectedPosition.X, projectedPosition.Y), healthPercentage, 100, 10);
+                }
+            }
+            _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, _tank.TipoProyectilActual, _playerHealth, _playerMaxHealth, _enemyCount, gameTime);
         }
         
         if (_hasLost)
         {
             _hud.DrawMensaje("PERDISTE", Color.Red);
-            return;
         }
 
         if (_hasWon)
         {
             _hud.DrawMensaje("GANASTE", Color.Green);
         }
+        _hud.End();
     }
 
     public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int indiceSeleccionado)

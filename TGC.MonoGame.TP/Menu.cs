@@ -117,6 +117,14 @@ public class Menu
             if (mesh.Name.Contains("Treadmill"))
             {
                 fx.Parameters["ModelTexture"]?.SetValue(treadmillTexture);
+            {
+                var fx = effect.Clone();
+                fx.Parameters["World"]?.SetValue(meshWorld);
+                fx.Parameters["View"]?.SetValue(view);
+                fx.Parameters["Projection"]?.SetValue(proj);
+                fx.Parameters["ModelTexture"]?.SetValue(texture);
+                fx.Parameters["ImpactPoints"]?.SetValue(new Vector4[5]);
+                part.Effect = fx;
             }
             
             mesh.Draw();

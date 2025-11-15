@@ -20,6 +20,7 @@ namespace TGC.MonoGame.TP
         private float _life;
 
         private BodyHandle _body;
+        public BodyHandle Body => _body;
         private XnaVector3 _pos;
         private readonly XnaQuaternion _rot = XnaQuaternion.Identity;
 
