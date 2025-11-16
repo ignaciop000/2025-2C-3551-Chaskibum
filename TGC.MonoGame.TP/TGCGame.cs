@@ -107,6 +107,10 @@ public class TGCGame : Game
     private TankController _playerController;
     private int _enemyCount;
 
+    private bool _slowmotion = false;
+    private bool _stopTime = false;
+    private bool _apuntar = true;
+
     private PlayerTank _tank;
     private List<EnemyTank> _enemyTanks;
     private List<TankController> _enemyControllers;
@@ -421,6 +425,13 @@ public class TGCGame : Game
     protected override void Update(GameTime gameTime)
     {
         var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        if (_slowmotion)
+        {
+            deltaTime /= 20;
+        }
+
+        if (_stopTime)
+            deltaTime = 0;
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
@@ -429,7 +440,18 @@ public class TGCGame : Game
         {
             Exit();
         }
-
+        if (keyboardState.IsKeyUp(Keys.R) && _kbPrev.IsKeyDown(Keys.R))
+        {
+            _slowmotion = !_slowmotion;
+        }
+        if (keyboardState.IsKeyUp(Keys.T) && _kbPrev.IsKeyDown(Keys.T))
+        {
+            _stopTime = !_stopTime;
+        }
+        if (keyboardState.IsKeyUp(Keys.Y) && _kbPrev.IsKeyDown(Keys.Y))
+        {
+            _apuntar = !_apuntar;
+        }
         // ------------------------------
         //  MODO MENU
         // ------------------------------
@@ -500,7 +522,8 @@ public class TGCGame : Game
             }
 
             _playerController.UpdateControls(keyboardState);
-            _tank.UpdateAim(mouseState, _camera, GraphicsDevice.Viewport);
+            if(_apuntar)
+                _tank.UpdateAim(mouseState, _camera, GraphicsDevice.Viewport);
             _playerController.UpdateMovementAndAim(_simulation, _tank.AimDirectionWorld);
 
             // click izquierdo: dispara
@@ -508,7 +531,7 @@ public class TGCGame : Game
                 && mouseState.LeftButton == ButtonState.Pressed
                 && _mousePrev.LeftButton == ButtonState.Released)
             {
-                _tank.Shoot(_simulation, _projectiles, _effect);
+                _tank.Shoot(_simulation, _projectiles, _effect, _bodyProperties);
 
                 var tipoProyectilActual = _tank.TipoProyectilActual;
                 var amplitude = 0.001f * tipoProyectilActual.Mass * tipoProyectilActual.Speed;
@@ -528,7 +551,7 @@ public class TGCGame : Game
                 }
 
                 var enemyController = _enemyControllers[i];
-                enemyTank.UpdateAI(_tank.Position, enemyController, _simulation, _projectiles, _effect);
+                enemyTank.UpdateAI(_tank.Position, enemyController, _simulation, _projectiles, _effect, _bodyProperties);
                 enemyTank.Update(gameTime);
             }
 

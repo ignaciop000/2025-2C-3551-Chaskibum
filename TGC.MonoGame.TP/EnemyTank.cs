@@ -43,7 +43,7 @@ public class EnemyTank(Vector3 initialPosition, float initialRotation = 0f, floa
         UpdateWorldMatrix();
     }
 
-    public void UpdateAI(Vector3 playerPosition, TankController tankController, Simulation sim, List<Projectile> projectiles, Effect projectileEffect)
+    public void UpdateAI(Vector3 playerPosition, TankController tankController, Simulation sim, List<Projectile> projectiles, Effect projectileEffect, CollidableProperty<TankBodyProperties> properties)
     {
         if (IsDead) return;
         
@@ -109,7 +109,7 @@ public class EnemyTank(Vector3 initialPosition, float initialRotation = 0f, floa
             tankController.BrakeRight = true;
             tankController.UpdateMovementAndAim(Simulation, AimDirectionWorld);
             
-            Shoot(sim, projectiles, projectileEffect);
+            Shoot(sim, projectiles, projectileEffect, properties);
 
             if (!WasBraking)
                 Audio?.PlayBrake();

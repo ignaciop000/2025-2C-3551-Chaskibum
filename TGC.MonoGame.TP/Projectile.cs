@@ -42,9 +42,10 @@ namespace TGC.MonoGame.TP
             XnaVector3 direction,
             ProjectileType type,
             Tank tank,
+            CollidableProperty<TankBodyProperties> properties,
             float lifeSeconds = 4f)
         {
-            Init(simulation, effect, spawnPos, direction, type.Speed, type.Radius, type.Mass, tank, lifeSeconds);
+            Init(simulation, effect, spawnPos, direction, type.Speed, type.Radius, type.Mass, tank, properties, lifeSeconds);
         }
         
         private void Init(
@@ -56,6 +57,7 @@ namespace TGC.MonoGame.TP
             float radius,
             float mass,
             Tank tank,
+            CollidableProperty<TankBodyProperties> properties,
             float lifeSeconds)
         {
             _simulation = simulation;
@@ -84,7 +86,9 @@ namespace TGC.MonoGame.TP
             );
             
             _body = _simulation.Bodies.Add(bodyDesc);
-            
+            ref var props = ref properties.Allocate(_body);
+            props = new TankBodyProperties { Friction = 0.5f, TankPart = false };
+            props.Filter = new SubgroupCollisionFilter(groupId: 99, subgroupId: 0);
             CollisionHandler.HandleToProjectile[_body] = this;
             
             _pos = spawnPos;

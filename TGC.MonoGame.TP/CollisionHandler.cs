@@ -67,7 +67,6 @@ public class CollisionHandler
     
     private void HandleDynamicCollision(ImpactoDinamico impacto)
     {
-        Console.WriteLine("Se registra Impacto Dinamico");
         var a = impacto.Impactador;
         var b = impacto.Impactado;
 
@@ -111,8 +110,8 @@ public class CollisionHandler
 
     private void HandleStaticCollision(BodyHandle impactador, StaticHandle impactado)
     {
-        //Console.WriteLine("Se registra Impacto Estatico "+ impactador +" en "+impactado);
-        if (!HandleToGroup.TryGetValue(impactado, out var group))
+        
+        if (!HandleToGroup.TryGetValue(impactado, out var group))// Si no, entonces es "piso" u otro estático sin grupo.
         {
             // Si no, entonces es "piso" u otro estático sin grupo.
             // Si el móvil era un proyectil, lo matamos.

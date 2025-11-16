@@ -969,22 +969,22 @@ public abstract class Tank
         FireCooldown = TipoProyectilActual.MaxCooldown;
     }
 
-    public void Shoot(Simulation simulation, List<Projectile> projectiles, Effect projectileEffect)
+    public void Shoot(Simulation simulation, List<Projectile> projectiles, Effect projectileEffect, CollidableProperty<TankBodyProperties> properties)
     {
         if (IsDead) return;
         if (FireCooldown > 0f) return;
 
         var (muzzle, dir) = GetMuzzle();
 
-        var proj = new Projectile(simulation, projectileEffect, muzzle, dir, TipoProyectilActual, this);
+        var proj = new Projectile(simulation, projectileEffect, muzzle, dir, TipoProyectilActual, this, properties);
         projectiles.Add(proj);
 
-        TriggerRecoil(
+        /*TriggerRecoil(
             dir,
             projectileMass: TipoProyectilActual.Mass,
             muzzleSpeed: TipoProyectilActual.Speed,
             intensity: 1f,
-            withBrake: true);
+            withBrake: true);*/
 
         ResetCooldown();
 

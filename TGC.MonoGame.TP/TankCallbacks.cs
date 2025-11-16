@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using BepuPhysics;
 using BepuPhysics.Collidables;
@@ -68,7 +69,7 @@ struct TankCallbacks : INarrowPhaseCallbacks
 
         for (int i = 0; i < manifold.Count; ++i)
         {
-            if (manifold.GetDepth(ref manifold, i) >= -1e-3f)
+            if (manifold.GetDepth(ref manifold, i) < 0f)
             {
                 if (pair.B.Mobility == CollidableMobility.Static) // Los Static van siempre después
                 {
