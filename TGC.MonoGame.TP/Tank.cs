@@ -964,6 +964,14 @@ public abstract class Tank
         Audio?.StopAll();
     }
 
+    public virtual void Reset()
+    {
+        IsDead = false;
+        Vida = VidaMax;
+        FireCooldown = 0f;
+        ImpactsLocal.Clear(); // Limpiar impactos al resetear el tanque
+    }
+
     protected virtual void ResetCooldown()
     {
         FireCooldown = TipoProyectilActual.MaxCooldown;

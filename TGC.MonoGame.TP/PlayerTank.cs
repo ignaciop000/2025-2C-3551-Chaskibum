@@ -123,6 +123,7 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
     
     public void Reset()
     {
+        base.Reset(); // Llamar al Reset de la clase base (Tank) para limpiar impactos
         IsDead = false;
         Vida = 100f;
         WasBraking = false;

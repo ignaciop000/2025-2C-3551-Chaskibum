@@ -110,8 +110,8 @@ public class CollisionHandler
 
     private void HandleStaticCollision(BodyHandle impactador, StaticHandle impactado)
     {
-        
-        if (!HandleToGroup.TryGetValue(impactado, out var group))// Si no, entonces es "piso" u otro estático sin grupo.
+        //Console.WriteLine("Se registra Impacto Estatico "+ impactador +" en "+impactado);
+        if (!HandleToGroup.TryGetValue(impactado, out var group))
         {
             // Si no, entonces es "piso" u otro estático sin grupo.
             // Si el móvil era un proyectil, lo matamos.

@@ -791,6 +791,7 @@ public class TGCGame : Game
 
     public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int indiceSeleccionado)
     {
+        _tank.Reset(); // Resetear el tanque del jugador al inicio de una nueva partida
         _matchTimeSeconds = (float)tiempoPartida.TotalSeconds;
         SpawnearTanks(cantidadEnemigos);
         _enemyCount = cantidadEnemigos;
