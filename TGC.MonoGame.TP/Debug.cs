@@ -19,6 +19,8 @@ public class Debug
     //private SpriteBatch _spriteBatch;
     //private SpriteFont _debugFont;
     private List<Tank> _tanks;
+    private List<Projectile> _projectiles;
+    public List<Tank> Tanks;
     private bool _showTerrainMeshDebug;
     //private bool _showTankTelemetry = false;
     private GraphicsDevice _graphicsDevice;
@@ -43,11 +45,12 @@ public class Debug
     private bool _physDbgReady;
 
     public void LoadContent(ContentManager content, string contentEffectsFolder, string contentSpriteFolder,
-        GraphicsDevice graphicsDevice, List<Tank> tanques, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
+        GraphicsDevice graphicsDevice, OrbitCamera orbitCamera, Simulation simulation, Terrain terrain,
         Gizmos gizmos)
     {
         
-        _tanks = new List<Tank>(tanques);
+        _tanks = new List<Tank>();
+        _projectiles = new List<Projectile>();
         _simulation = simulation;
         _terrain = terrain;
         _graphicsDevice = graphicsDevice;
@@ -72,13 +75,13 @@ public class Debug
         _boundingFrustum= new BoundingFrustum(camera.View * camera.Projection) ;
     }
 
-    public void Draw(Camera camera, OrbitCamera orbitCamera, Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime)
+    public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime, Terrain terrain)
     {
         if (_showTerrainMeshDebug)
         {
-            DebugEffect.Parameters["View"].SetValue(camera.View);
-            DebugEffect.Parameters["Projection"].SetValue(camera.Projection);
-            DebugEffect.Parameters["World"].SetValue(Matrix.Identity);
+            DebugEffect.Parameters["View"]?.SetValue(camera.View);
+            DebugEffect.Parameters["Projection"]?.SetValue(camera.Projection);
+            DebugEffect.Parameters["World"]?.SetValue(Matrix.Identity);
 
             var oldRS = _graphicsDevice.RasterizerState;
             _graphicsDevice.RasterizerState = new RasterizerState
@@ -86,15 +89,16 @@ public class Debug
 
             DrawCollider();
 
+            DrawChunks(terrain);
             _graphicsDevice.RasterizerState = oldRS;
 
             // --- DEBUG: ver el mesh físico del terreno ---
             //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); 
-            DrawPhysicsMeshDebug(DebugEffect, camera.View, camera.Projection);
+            //DrawPhysicsMeshDebug(DebugEffect, camera.View, camera.Projection);
 
             // Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
-            DebugEffect.Parameters["View"].SetValue(camera.View);
-            DebugEffect.Parameters["Projection"].SetValue(camera.Projection);
+            DebugEffect.Parameters["View"]?.SetValue(camera.View);
+            DebugEffect.Parameters["Projection"]?.SetValue(camera.Projection);
 
             var oldRS2 = _graphicsDevice.RasterizerState;
             _graphicsDevice.RasterizerState = new RasterizerState
@@ -125,7 +129,7 @@ public class Debug
                         Matrix.CreateScale(shape.Width, shape.Height, shape.Length) *
                         transformation;
                         
-                    DebugEffect.Parameters["World"].SetValue(worldMatrix);
+                    DebugEffect.Parameters["World"]?.SetValue(worldMatrix);
                     
                     var halfExtents = new Vector3(shape.Width / 2f, shape.Height / 2f, shape.Length / 2f);
                     var localBox = new BoundingBox(-halfExtents, halfExtents);
@@ -150,6 +154,7 @@ public class Debug
                 }
             }
             gizmos.DrawFrustum(orbitCamera.View * orbitCamera.Projection, Color.Yellow);
+            gizmos.DrawFrustum(targetLightCamera.View * targetLightCamera.Projection, Color.Black);
             gizmos.Draw();
             
             _spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.Opaque);
@@ -172,15 +177,21 @@ public class Debug
 
     private void DrawCollider()
     {
-        foreach (var tank in _tanks)
+        foreach (var tank in Tanks)
         {
             if (tank.IsDead) continue;
             tank.DrawDebug();
             foreach (var bodyHandle in tank.BodyHandles)
             {
+                if(!_simulation.Bodies.BodyExists(bodyHandle))
+                    continue;
+                
                 if (_simulation == null || bodyHandle.Value < 0) return;
 
+                if(!_simulation.Bodies.BodyExists(bodyHandle)) continue;
+                
                 var body = _simulation.Bodies.GetBodyReference(bodyHandle);
+                
                 var bodyPose = body.Pose;
 
                 // Convertir a MonoGame
@@ -219,6 +230,29 @@ public class Debug
                         Matrix.CreateTranslation(posMg);
 
                     Gizmos.DrawCylinder(worldMatrix, Color.Orange);
+                }
+            }
+        }
+        
+        if (_projectiles != null)
+        {
+            foreach (var projectile in _projectiles)
+            {
+                if (projectile.IsDead) continue;
+
+                var bodyHandleProyectile = projectile.Body;
+                if (_simulation == null || bodyHandleProyectile.Value < 0) continue;
+
+                var bodyProyectile = _simulation.Bodies.GetBodyReference(bodyHandleProyectile);
+                var bodyPoseProyectile = bodyProyectile.Pose;
+                var posProyectile = new Vector3(bodyPoseProyectile.Position.X, bodyPoseProyectile.Position.Y, bodyPoseProyectile.Position.Z);
+                
+                var shapeIndex = bodyProyectile.Collidable.Shape;
+                if (shapeIndex.Type == default(Sphere).TypeId)
+                {
+                    var sphere = _simulation.Shapes.GetShape<Sphere>(shapeIndex.Index);
+                    var worldMatrix = Matrix.CreateScale(sphere.Radius * 2f) * Matrix.CreateTranslation(posProyectile);
+                    Gizmos.DrawCube(worldMatrix, Color.Red);
                 }
             }
         }
@@ -358,5 +392,20 @@ public class Debug
     public void actualizarTanks(List<Tank> tanks)
     {
         _tanks = tanks;
+    }
+
+    private void DrawChunks(Terrain terrain)
+    {
+        foreach (var chunk in terrain.Chunks)
+        {
+            Vector3 origin = (chunk.BoundingBox.Min + chunk.BoundingBox.Max) / 2f;
+            Vector3 size = chunk.BoundingBox.Max - chunk.BoundingBox.Min;
+            Gizmos.DrawCube(origin, size);
+        }
+    }
+
+    public void actualizarProyectiles(List<Projectile> projectiles)
+    {
+        _projectiles = projectiles;
     }
 }

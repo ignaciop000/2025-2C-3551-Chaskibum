@@ -11,11 +11,13 @@ struct TankCallbacks : INarrowPhaseCallbacks
 {
     public CollidableProperty<TankBodyProperties> Properties;
     private SpinLock _lock;
+    private Simulation _simulation;
     
     private CollisionHandler _collisionHandler;
 
     public void Initialize(Simulation simulation)
     {
+        _simulation = simulation;
         Properties.Initialize(simulation);
     }
 
@@ -74,7 +76,9 @@ struct TankCallbacks : INarrowPhaseCallbacks
                 }
                 else
                 {
-                    AgregarImpactoDinamico(pair.A.BodyHandle, pair.B.BodyHandle);
+                    var poseA = _simulation.Bodies[pair.A.BodyHandle].Pose;
+                    var poseB = _simulation.Bodies[pair.B.BodyHandle].Pose;
+                    AgregarImpactoDinamico(pair.A.BodyHandle, pair.B.BodyHandle, poseA.Position, poseB.Position);
                 }
                 break;
             }
@@ -113,22 +117,22 @@ struct TankCallbacks : INarrowPhaseCallbacks
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AgregarImpactoDinamico(BodyHandle impactadorHandle, BodyHandle impactadoHandle)
+    private void AgregarImpactoDinamico(BodyHandle impactadorHandle, BodyHandle impactadoHandle, System.Numerics.Vector3 posA, System.Numerics.Vector3 posB)
     {
         bool lockTaken = false;
         _lock.Enter(ref lockTaken);
         try
         {
-            var impactosEstaticos = CollisionHandler.ImpactosDinamicos;
+            var impactosDinamicos = CollisionHandler.ImpactosDinamicos;
             // Evitar duplicados: si ya está registrado, no lo agregamos
-            for (int i = 0; i < impactosEstaticos.Count; ++i)
+            for (int i = 0; i < impactosDinamicos.Count; ++i)
             {
-                if (impactosEstaticos[i].Impactador.Value == impactadorHandle.Value)
+                if (impactosDinamicos[i].Impactador.Value == impactadorHandle.Value)
                     return;
             }
 
             // Guardamos el BodyHandle del proyectil
-            _collisionHandler.AgregarImpactoDinamico(impactadorHandle, impactadoHandle);
+            _collisionHandler.AgregarImpactoDinamico(impactadorHandle, impactadoHandle, posA, posB);
         }
         finally
         {

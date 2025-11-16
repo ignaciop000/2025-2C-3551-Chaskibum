@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuUtilities.Memory;
@@ -12,14 +13,16 @@ public class Terrain
     private readonly Effect _effect;
     public float ScaleXz = 1;
     public float ScaleY = 1;
-    private VertexBuffer _vbTerrain;
-    private IndexBuffer _ibTerrain;
+    public List<TerrainChunk> Chunks;
     private readonly Texture2D _colorMapTexture;
     private readonly Texture2D _terrainTexture;
     private readonly Texture2D _terrainTexture2;
+    private readonly Texture2D _normalMap;
     public StaticHandle Handle;
     public Vector3 LightPosition;
     public Vector3 EyePosition;
+    private PositionGenerator _positionGenerator;
+    public Color[,] ColorMap;
     
     /// <summary>
     /// Datos del mapa de altura (Heightmap) utilizados para representar la topografía de un terreno.
@@ -38,19 +41,25 @@ public class Terrain
     /// Representa una clase para modelar y renderizar un terreno en base a un mapa de alturas.
     /// Contiene funcionalidad para cargar un mapa de alturas, mapas de textura y generar la estructura del terreno.
     public Terrain(GraphicsDevice graphicsDevice, Texture2D heightMap, Texture2D colorMap,
-        Texture2D diffuseMap, Texture2D diffuseMap2, Effect effect, Simulation simulation, float scaleXZ, Vector3 eyePos)
+        Texture2D diffuseMap, Texture2D diffuseMap2, Texture2D normalMap, Effect effect,
+        Simulation simulation, float scaleXZ, Vector3 eyePos, PositionGenerator positionGenerator, 
+        Texture2D spawnMap, Pasto pasto)
     {
+        Chunks = [];
         //Shader
         _effect = effect;
+        ColorMap = LoadColorMap(spawnMap);
         // cargo el heightmap
-        LoadHeightmap(graphicsDevice, heightMap, scaleXZ, 1, Vector3.Zero, simulation);
         // textura con el color Map
         _colorMapTexture = colorMap;
         // diffuse maps auxiliares
         _terrainTexture = diffuseMap;
         _terrainTexture2 = diffuseMap2;
+        _normalMap = normalMap;
         LightPosition =  new Vector3(1000, 1000, 1000);
         EyePosition = eyePos;
+        _positionGenerator = positionGenerator;
+        LoadHeightmap(graphicsDevice, heightMap, scaleXZ, 1, Vector3.Zero, simulation, pasto);
     }
 
     /// Genera la estructura del terreno cargando un mapa de alturas y creando los vértices necesarios.
@@ -61,80 +70,152 @@ public class Terrain
     /// <param name="center">El punto central del terreno en coordenadas tridimensionales.</param>
     /// <param name="simulation">La simulación de física donde se agregará el mesh de colisión.</param>
     private void LoadHeightmap(GraphicsDevice graphicsDevice, Texture2D heightmap, float scaleXZ, float scaleY,
-        Vector3 center, Simulation simulation)
+        Vector3 center, Simulation simulation, Pasto pasto)
     {
+        
         ScaleXz = scaleXZ;
         ScaleY = scaleY;
         const float txScale = 1;
 
         //cargar heightmap
         HeightmapData = LoadHeightMap(heightmap);
-
+        
         var width = HeightmapData.GetLength(0);
+        
+        int chunkSize = 64;
         var length = HeightmapData.GetLength(1);
-
+        
         // Ajuste del centro
         center.X = center.X * scaleXZ - width / 2f * scaleXZ;
         center.Y = center.Y * scaleY;
         center.Z = center.Z * scaleXZ - length / 2f * scaleXZ;
         Center = center;
 
-        // Crear vértices únicos
-        var vertices = new VertexPositionNormalTexture[width * length];
-        for (int i = 0; i < width; i++)
+        for (int chunkX = 0; chunkX < width; chunkX += chunkSize)
         {
-            for (int j = 0; j < length; j++)
+            for (int chunkZ = 0; chunkZ < length; chunkZ += chunkSize)
             {
-                var pos = new Vector3(center.X + i * scaleXZ, center.Y + HeightmapData[i, j] * scaleY, center.Z + j * scaleXZ);
-                var tex = new Vector2(i / (float)(width - 1), j / (float)(length - 1)) * txScale;
-                vertices[i * length + j] = new VertexPositionNormalTexture(pos, Vector3.Zero, tex);
+                int localWidth = Math.Min(chunkSize + 1, width - chunkX);
+                int localLength = Math.Min(chunkSize + 1, width - chunkZ);
+                
+                var localVertices = new VertexPositionNormalTexture[localWidth * localLength];
+                var localIndices = new int[(localWidth - 1) * (localLength - 1) * 6];
+                
+                // Generar vértices
+                for (int i = 0; i < localWidth; i++)
+                {
+                    for (int j = 0; j < localLength; j++)
+                    {
+                        int globalX = chunkX + i;
+                        int globalZ = chunkZ + j;
+                        
+                        var pos = new Vector3(center.X + globalX * scaleXZ, 
+                                              center.Y + HeightmapData[globalX, globalZ] * scaleY, 
+                                              center.Z + globalZ * scaleXZ);
+                        
+                        var tex = new Vector2(globalX / (float)(width - 1), 
+                                                     globalZ / (float)(length - 1)) * txScale;
+                        localVertices[i * localLength + j] = new VertexPositionNormalTexture(pos, Vector3.Zero, tex);
+                    }
+                }
+                
+                // Generar índices y normales
+                int idx = 0;
+                for (int i = 0; i < localWidth - 1; i++)
+                {
+                    for (int j = 0; j < localLength - 1; j++)
+                    {
+                        int v1 = i * localLength + j;
+                        int v2 = i * localLength + (j + 1);
+                        int v3 = (i + 1) * localLength + j;
+                        int v4 = (i + 1) * localLength + (j + 1);
+
+                        // Triángulo 1: v1, v2, v4
+                        var n0 = Vector3.Normalize(Vector3.Cross(localVertices[v2].Position - localVertices[v1].Position, 
+                                                                        localVertices[v4].Position - localVertices[v1].Position));
+                        localVertices[v1].Normal += n0;
+                        localVertices[v2].Normal += n0;
+                        localVertices[v4].Normal += n0;
+
+                        localIndices[idx++] = v1;
+                        localIndices[idx++] = v4;
+                        localIndices[idx++] = v2;
+
+                        // Triángulo 2: v1, v4, v3
+                        var n1 = Vector3.Normalize(Vector3.Cross(localVertices[v4].Position - localVertices[v1].Position, 
+                                                                        localVertices[v3].Position - localVertices[v1].Position));
+                        localVertices[v1].Normal += n1;
+                        localVertices[v4].Normal += n1;
+                        localVertices[v3].Normal += n1;
+
+                        localIndices[idx++] = v1;
+                        localIndices[idx++] = v3;
+                        localIndices[idx++] = v4;
+                    }
+                }
+                
+                // Normalizar normales
+                for (int i = 0; i < localVertices.Length; i++)
+                    localVertices[i].Normal = Vector3.Normalize(localVertices[i].Normal);
+
+                // Crear buffers
+                var _vbChunk = new VertexBuffer(graphicsDevice, VertexPositionNormalTexture.VertexDeclaration, localVertices.Length, BufferUsage.WriteOnly);
+                _vbChunk.SetData(localVertices);
+
+                var _ibChunk = new IndexBuffer(graphicsDevice, IndexElementSize.ThirtyTwoBits, localIndices.Length, BufferUsage.WriteOnly);
+                _ibChunk.SetData(localIndices);
+                
+                // Calcular bounding box del chunk
+                var min = new Vector3(float.MaxValue);
+                var max = new Vector3(float.MinValue);
+                foreach (var v in localVertices)
+                {
+                    min = Vector3.Min(min, v.Position);
+                    max = Vector3.Max(max, v.Position);
+                }
+                
+                var grassPoints = _positionGenerator.GenerarPuntosPasto( 
+                    50f, 
+                    ColorMap, 
+                    scaleXZ, 
+                    chunkX, 
+                    chunkZ, 
+                    localWidth,
+                    localLength,
+                    center,
+                    width,
+                    length,
+                    30
+                );
+                
+                var random = new Random();
+                var instances = new InstanceData[grassPoints.Count];
+                
+                for (int i = 0; i < instances.Length; i++)
+                {
+                    var posX = grassPoints[i].X;
+                    var posZ = grassPoints[i].Y;
+                    var posY = GetHeightAtPosition(posX, posZ);
+                    instances[i].Position = new Vector3(posX, posY-1, posZ);
+                    instances[i].Scale = random.NextSingle() * 1 + 1; 
+                    instances[i].Rotation = GetRotationMatrix(GetNormalAtPosition(posX, posZ));
+                }
+                
+                var instanceBuffer = pasto.Models[0].GenerarInstanceBuffer(instances, graphicsDevice);
+                instanceBuffer.SetData(instances);
+                
+                var chunk = new TerrainChunk
+                {
+                    VertexBuffer = _vbChunk,
+                    IndexBuffer = _ibChunk,
+                    BoundingBox = new BoundingBox(min, max),
+                    InstanceBuffer = instanceBuffer
+                };
+                
+                Chunks.Add(chunk);
             }
         }
-
-        // Crear índices y calcular normales por triángulo
-        var indices = new int[(width - 1) * (length - 1) * 6];
-        int idx = 0;
-        for (int i = 0; i < width - 1; i++)
-        {
-            for (int j = 0; j < length - 1; j++)
-            {
-                int v1 = i * length + j;
-                int v2 = i * length + (j + 1);
-                int v3 = (i + 1) * length + j;
-                int v4 = (i + 1) * length + (j + 1);
-
-                // Triángulo 1: v1, v2, v4
-                var n0 = Vector3.Normalize(Vector3.Cross(vertices[v2].Position - vertices[v1].Position, vertices[v4].Position - vertices[v1].Position));
-                vertices[v1].Normal += n0;
-                vertices[v2].Normal += n0;
-                vertices[v4].Normal += n0;
-
-                indices[idx++] = v1;
-                indices[idx++] = v4;
-                indices[idx++] = v2;
-
-                // Triángulo 2: v1, v4, v3
-                var n1 = Vector3.Normalize(Vector3.Cross(vertices[v4].Position - vertices[v1].Position, vertices[v3].Position - vertices[v1].Position));
-                vertices[v1].Normal += n1;
-                vertices[v4].Normal += n1;
-                vertices[v3].Normal += n1;
-
-                indices[idx++] = v1;
-                indices[idx++] = v3;
-                indices[idx++] = v4;
-            }
-        }
-
-        // Normalizar normales
-        for (int i = 0; i < vertices.Length; i++)
-            vertices[i].Normal = Vector3.Normalize(vertices[i].Normal);
-
-        // Crear buffers
-        _vbTerrain = new VertexBuffer(graphicsDevice, VertexPositionNormalTexture.VertexDeclaration, vertices.Length, BufferUsage.WriteOnly);
-        _vbTerrain.SetData(vertices);
-
-        _ibTerrain = new IndexBuffer(graphicsDevice, IndexElementSize.ThirtyTwoBits, indices.Length, BufferUsage.WriteOnly);
-        _ibTerrain.SetData(indices);
+        Console.WriteLine($"Chunks generados: {Chunks.Count}");
 
         // Crear colisión física
         CreatePhysicsCollision(simulation);
@@ -222,38 +303,66 @@ public class Terrain
 
         return heightmap;
     }
+    
+    public Color[,] LoadColorMap(Texture2D texture)
+    {
+        var width = texture.Width;
+        var height = texture.Height;
+        var rawData = new Color[width * height];
+        texture.GetData(rawData);
+        var colorMap = new Color[width, height];
+
+        for (var i = 0; i < width; i++)
+        {
+            for (var j = 0; j < height; j++)
+            {
+                //(j, i) invertido para primero barrer filas y despues columnas
+                colorMap[i, j]  = rawData[j * texture.Width + i];
+            }
+        }
+
+        return colorMap;
+    }
 
     /// Dibuja el terreno en la pantalla utilizando los parámetros proporcionados para las matrices de transformación.
     /// Configura el efecto y los recursos necesarios para el renderizado, aplicando cada paso del shader.
     /// <param name="world">Matriz de transformación para coordenadas del mundo.</param>
     /// <param name="view">Matriz de vista de la cámara para determinar cómo se observa la escena.</param>
     /// <param name="projection">Matriz de proyección utilizada para la perspectiva 3D.</param>
-    public void Draw(Matrix world, Matrix view, Matrix projection)
-    {
-        var graphicsDevice = _effect.GraphicsDevice;
-        
-        _effect.Parameters["World"].SetValue(world);
-        _effect.Parameters["View"].SetValue(view);
-        _effect.Parameters["Projection"].SetValue(projection);
-        _effect.Parameters["texColorMap"].SetValue(_colorMapTexture);
-        _effect.Parameters["texDiffuseMap"].SetValue(_terrainTexture);
-        _effect.Parameters["texDiffuseMap2"].SetValue(_terrainTexture2);
-        _effect.Parameters["lightPosition"].SetValue(LightPosition);
-        _effect.Parameters["eyePosition"].SetValue(EyePosition);
-
-        _effect.Parameters["WorldViewProjection"].SetValue(world * view * projection);
-        _effect.Parameters["InverseTransposeWorld"].SetValue(Matrix.Transpose(Matrix.Invert(world)));
-
-        graphicsDevice.SetVertexBuffer(_vbTerrain);
-        graphicsDevice.Indices = _ibTerrain;
-
-        foreach (var pass in _effect.CurrentTechnique.Passes)
+        public void Draw(Matrix world, Matrix view, Matrix projection, BoundingFrustum boundingFrustum, Pasto pasto, float time)
         {
-            pass.Apply();
-            graphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, _ibTerrain.IndexCount / 3);
-        }
+            var graphicsDevice = _effect.GraphicsDevice;
+            
+            _effect.Parameters["World"]?.SetValue(world);
+            _effect.Parameters["View"]?.SetValue(view);
+            _effect.Parameters["Projection"]?.SetValue(projection);
+            _effect.Parameters["texColorMap"]?.SetValue(_colorMapTexture);
+            _effect.Parameters["texDiffuseMap"]?.SetValue(_terrainTexture);
+            _effect.Parameters["texDiffuseMap2"]?.SetValue(_terrainTexture2);
+            _effect.Parameters["NormalTexture"]?.SetValue(_normalMap);
+            _effect.Parameters["lightPosition"]?.SetValue(LightPosition);
+            _effect.Parameters["eyePosition"]?.SetValue(EyePosition);
 
-    }
+            _effect.Parameters["WorldViewProjection"]?.SetValue(world * view * projection);
+            _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
+
+            foreach (var chunk in Chunks)
+            {
+                if (boundingFrustum.Intersects(chunk.BoundingBox))
+                {
+                    pasto.DrawPasto(graphicsDevice,view,projection, chunk.InstanceBuffer, time);
+                    
+                    graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
+                    graphicsDevice.Indices = chunk.IndexBuffer;
+
+                    foreach (var pass in _effect.CurrentTechnique.Passes)
+                    {
+                        pass.Apply();
+                        graphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, chunk.IndexBuffer.IndexCount / 3);
+                    }
+                }
+            }
+        }
 
     /// <summary>
     /// Obtiene la altura del terreno en una posición específica (X, Z)
@@ -285,7 +394,18 @@ public class Terrain
         // Calcular factores de interpolación
         float fx = mapX - x1;
         float fz = mapZ - z1;
+        
+        int xMax = HeightmapData.GetLength(0);
+        int zMax = HeightmapData.GetLength(1);
 
+        bool indicesValidos =
+            x1 >= 0 && x1 < xMax &&
+            x2 >= 0 && x2 < xMax &&
+            z1 >= 0 && z1 < zMax &&
+            z2 >= 0 && z2 < zMax;
+
+        if (!indicesValidos)
+            return 0f;
         // Obtener alturas de las 4 esquinas
         float h11 = HeightmapData[x1, z1] * ScaleY;
         float h21 = HeightmapData[x2, z1] * ScaleY;
@@ -352,6 +472,24 @@ public class Terrain
         
         return  Vector3.Normalize(Vector3.Cross(tangentZ, tangentX));
     }
+
+    public Matrix GetRotationMatrix(Vector3 normal)
+    {
+        var up = normal;
+        var reference = Math.Abs(up.Y) < 0.99f ? Vector3.Up : Vector3.Right;
+        var right = Vector3.Normalize(Vector3.Cross(reference, up));
+        var forward = Vector3.Cross(up, right);
+        var orientation = new Matrix(
+            right.X,   right.Y,   right.Z,   0,
+            up.X,      up.Y,      up.Z,      0,
+            forward.X, forward.Y, forward.Z, 0,
+            0,         0,         0,         1
+        );
+        var random = new Random();
+        var angle = random.NextSingle() * MathHelper.TwoPi; 
+        var rotationY = Matrix.CreateRotationY(angle);
+        return rotationY * orientation;
+    }
     
     public float GetSlopeDegreesAt(float worldX, float worldZ)
     {
@@ -360,5 +498,24 @@ public class Terrain
         dot = MathHelper.Clamp(dot, -1f, 1f);
         var radians = MathF.Acos(dot);
         return MathHelper.ToDegrees(radians);
+    }
+
+    public void DrawPastoShadow(BoundingFrustum boundingFrustum, GraphicsDevice graphicsDevice, TargetCamera targetLightCamera, Pasto pasto, float time)
+    {
+        foreach (var chunk in Chunks)
+        {
+            if (boundingFrustum.Intersects(chunk.BoundingBox))
+            {
+                pasto.DrawPasto(graphicsDevice, targetLightCamera.View, targetLightCamera.Projection , chunk.InstanceBuffer, time);
+            }
+        }
+    }
+
+    public class TerrainChunk
+    {
+        public VertexBuffer VertexBuffer;
+        public IndexBuffer IndexBuffer;
+        public BoundingBox BoundingBox;
+        public VertexBuffer InstanceBuffer;
     }
 }

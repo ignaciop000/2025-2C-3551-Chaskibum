@@ -16,8 +16,8 @@ float3 lightPosition;
 
 float2 shadowMapSize;
 
-static const float modulatedEpsilon = 0.000041200182749889791011810302734375;
-static const float maxEpsilon = 0.000023200045689009130001068115234375;
+static const float modulatedEpsilon = 0.00000041200182749889791011810302734375;
+static const float maxEpsilon = 0.00000023200045689009130001068115234375;
 
 float4x4 View;
 float4x4 Projection;
@@ -31,8 +31,8 @@ texture texDiffuseMap;
 sampler2D diffuseMap = sampler_state
 {
     Texture = (texDiffuseMap);
-    ADDRESSU = MIRROR;
-    ADDRESSV = MIRROR;
+    ADDRESSU = WRAP;
+    ADDRESSV = WRAP;
     MINFILTER = LINEAR;
     MAGFILTER = LINEAR;
     MIPFILTER = LINEAR;
@@ -42,8 +42,8 @@ texture texDiffuseMap2;
 sampler2D diffuseMap2 = sampler_state
 {
     Texture = (texDiffuseMap2);
-    ADDRESSU = MIRROR;
-    ADDRESSV = MIRROR;
+    ADDRESSU = WRAP;
+    ADDRESSV = WRAP;
     MINFILTER = LINEAR;
     MAGFILTER = LINEAR;
     MIPFILTER = LINEAR;
@@ -72,7 +72,33 @@ sampler_state
 	AddressV = Clamp;
 };
 
+texture NormalTexture;
+sampler2D normalSampler = sampler_state
+{
+    Texture = (NormalTexture);
+    ADDRESSU = WRAP;
+    ADDRESSV = WRAP;
+    MINFILTER = LINEAR;
+    MAGFILTER = LINEAR;
+    MIPFILTER = LINEAR;
+};
 
+float3 getNormalFromMap(float2 textureCoordinates, float3 worldPosition, float3 worldNormal)
+{
+    float3 tangentNormal = tex2D(normalSampler, textureCoordinates * 50).xyz * 2.0 - 1.0;
+
+    float3 Q1 = ddx(worldPosition);
+    float3 Q2 = ddy(worldPosition);
+    float2 st1 = ddx(textureCoordinates);
+    float2 st2 = ddy(textureCoordinates);
+
+    worldNormal = normalize(worldNormal.xyz);
+    float3 T = normalize(Q1 * st2.y - Q2 * st1.y);
+    float3 B = -normalize(cross(worldNormal, T));
+    float3x3 TBN = float3x3(T, B, worldNormal);
+
+    return normalize(mul(tangentNormal, TBN));
+}
 //---------------STRUCTS---------------
 
 //input VS normal
@@ -171,12 +197,23 @@ ShadowedVertexShaderOutput MainVS(in ShadowedVertexShaderInput input)
 //pixel shader sombras
 float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
 {
+    float4 grassTex = tex2D(diffuseMap, input.TextureCoordinates * 50);
+    float4 dirtTex = tex2D(diffuseMap2, input.TextureCoordinates * 50);
+    
+    float3 mapColor = tex2D(colorMap, input.TextureCoordinates).rgb;
+	float4 color =  lerp(grassTex, dirtTex, mapColor.r);
+	
     float3 lightSpacePosition = input.LightSpacePosition.xyz / input.LightSpacePosition.w;
     float2 shadowMapTextureCoordinates = 0.5 * lightSpacePosition.xy + float2(0.5, 0.5);
     shadowMapTextureCoordinates.y = 1.0f - shadowMapTextureCoordinates.y;
-	
-    float3 normal = normalize(input.Normal.rgb);
+
     float3 lightDirection = normalize(lightPosition - input.WorldSpacePosition.xyz);
+    float3 viewDirection = normalize(eyePosition - input.WorldSpacePosition);
+    float3 halfVector = normalize(lightDirection + viewDirection);
+    float3 normalMap = getNormalFromMap(input.TextureCoordinates, input.WorldSpacePosition.xyz, normalize(input.Normal.xyz));
+    float3 normalTex = normalize(input.Normal.rgb);
+    float3 normal =  lerp(normalMap, normalTex, mapColor.r);
+    
     float inclinationBias = max(modulatedEpsilon * (1.0 - dot(normal, lightDirection)), maxEpsilon);
 	
     float notInShadow = 0.0;
@@ -188,25 +225,15 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
             notInShadow += step(lightSpacePosition.z, pcfDepth) / 9.0;
         }
 	
-	float4 grassTex = tex2D(diffuseMap, input.TextureCoordinates * 100);
-    float4 dirtTex = tex2D(diffuseMap2, input.TextureCoordinates * 100);
-    
-    
-    float3 mapColor = tex2D(colorMap, input.TextureCoordinates).rgb;
-	float4 color =  lerp(grassTex, dirtTex, mapColor.r);
-	
-    float3 viewDirection = normalize(eyePosition - input.WorldSpacePosition);
-    float3 halfVector = normalize(lightDirection + viewDirection);
-    
     float NdotL = saturate(dot(normal, lightDirection));
     float3 diffuseLight = 0.8 * color.rgb * NdotL;  
     
     float NdotH = dot(normal, halfVector);
-    float3 specularLight = 0.05 * float3(1,1,1) * pow(saturate(NdotH),1.1);
+    float3 specularLight = 0.15 * float3(1,1,1) * pow(saturate(NdotH),24);
 
     float4 baseColor = float4(saturate(float3(1,1,1) * 0.2 + diffuseLight) * color.rgb + specularLight, color.a);
 	
-    baseColor.rgb *= 0.5 + 0.5 * (1.0 - notInShadow);
+    baseColor.rgb *= 0.5 + 0.5 * notInShadow;
 	return baseColor;
 }
 

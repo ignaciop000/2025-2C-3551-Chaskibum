@@ -7,39 +7,43 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
+public class Pasto(Simulation simulation, GraphicsDevice graphicsDevice) : ModelGroup(Colors, simulation)
 {
+    
     private static readonly List<Color> Colors = [Color.White];
     
-    public void CrearObjetos()
+    public void CrearObjetos(Terrain terrain)
     {
-        var parametros = new[]
+        var parametros = new (float, float, float, bool, Texture2D[])[]
         { 
-            // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0f, 0.25f, 0.25f) // SimpleStreetLight
+            (0f, 0.25f, 0.25f, false, null) 
         };
 
-        base.CrearObjetos(parametros);
-        
+        base.CrearObjetos(parametros, terrain);
+        /*
         var parametrosRigidBodies = new[]
         { 
-            // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (ancho, alto, profundidad, yawEnGrados)
-            (7f, 400f, 7f, 0f) // SimpleStreetLight
+            (7f, 400f, 7f, 0f) 
         };
         
-        CrearRigidBodies(parametrosRigidBodies);
+        CrearRigidBodies(parametrosRigidBodies);*/
     }
     
     public void CargarModelos(Effect efecto, ContentManager content)
     {
         var paths = new[]
         {
-            "/LightPole/SimpleStreetLight" // SimpleStreetLight
+            "/pasto/pasto" 
         };
         
-        base.CargarModelos(efecto, content, paths);
+        var texturas = new[]
+        {
+            "/pasto/isolated-wild-grasses-png" // Textura de hojas para el arbusto
+        };
+        
+        base.CargarModelosPasto(efecto, content, paths, texturas, graphicsDevice);
     }
     
     public override void OnCollisionWithTank(StaticHandle handle)
@@ -48,4 +52,5 @@ public class LightPoles(Terrain terrain, Simulation simulation) : ModelGroup(Col
         var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
         model?.DestruirInstancia(handle);
     }
+    
 }

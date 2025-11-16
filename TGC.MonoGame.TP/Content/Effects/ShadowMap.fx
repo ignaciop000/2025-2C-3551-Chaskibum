@@ -8,15 +8,28 @@
 #endif
 
 float4x4 WorldViewProjection;
+bool checkInvisible = false;
+
+texture ModelTexture;
+sampler TextureSampler = sampler_state
+{
+    Texture = <ModelTexture>;
+    MinFilter = Linear;
+    MagFilter = Linear;
+    AddressU = Wrap;
+    AddressV = Wrap;
+};
 
 struct DepthPassVertexShaderInput
 {
 	float4 Position : POSITION0;
+	float2 TextureCoordinate : TEXCOORD0;
 };
 
 struct DepthPassVertexShaderOutput
 {
 	float4 Position : SV_POSITION;
+	float2 TextureCoordinate : TEXCOORD0;
 	float4 ScreenSpacePosition : TEXCOORD1;
 };
 
@@ -25,13 +38,20 @@ DepthPassVertexShaderOutput DepthVS(in DepthPassVertexShaderInput input)
 	DepthPassVertexShaderOutput output;
 	output.Position = mul(input.Position, WorldViewProjection);
 	output.ScreenSpacePosition = mul(input.Position, WorldViewProjection);
+	output.TextureCoordinate = input.TextureCoordinate;
+	
 	return output;
 }
 
 float4 DepthPS(in DepthPassVertexShaderOutput input) : COLOR
 {
+    float alpha = tex2D(TextureSampler, input.TextureCoordinate).a;
+    float checkInv = checkInvisible;
+    clip(alpha - 0.3 * checkInv);
+    
     float depth = input.ScreenSpacePosition.z / input.ScreenSpacePosition.w;
-    return float4(1, 1, 1, 1.0);
+    
+    return float4(depth, depth, depth, 1.0);
 }
 
 technique DepthPass

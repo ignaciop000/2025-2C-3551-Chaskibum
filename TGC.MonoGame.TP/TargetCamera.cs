@@ -66,7 +66,7 @@ namespace TGC.MonoGame.TP
         }
 
         /// <inheritdoc />
-        public override void Update(GameTime gameTime)
+        public override void Update(GameTime gameTime, Point screenCenter)
         {
             // This camera has no movement, once initialized with position and lookAt it is no longer updated automatically.
         }

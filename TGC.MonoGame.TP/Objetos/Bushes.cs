@@ -7,46 +7,51 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class Houses(Terrain terrain, Simulation simulation) : ModelGroup(Colors, terrain, simulation)
+public class Bushes(Simulation simulation) : ModelGroup(Colors, simulation)
 {
-    private static readonly List<Color> Colors =
-    [
-        Color.White // house
-    ];
+    private static readonly List<Color> Colors = [Color.White];
     
-    public void CrearObjetos()
+    public void CrearObjetos(Terrain terrain)
     {
-        var parametros = new[]
+        var parametros = new (float, float, float, bool, Texture2D[])[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
-            (0f, 34f, 34f)  // house
+            (-15f, 1f, 2f, false, null) // Bush
         };
 
-        base.CrearObjetos(parametros);
+        base.CrearObjetos(parametros, terrain);
         
         var parametrosRigidBodies = new[]
         { 
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (ancho, alto, profundidad, yawEnGrados)
-            (3.75f, 4.5f, 3.25f, 0f) // house
+            (20f, 10f, 20f, 0f) // Bush
         };
         
         CrearRigidBodies(parametrosRigidBodies);
     }
-
+    
     public void CargarModelos(Effect efecto, ContentManager content)
     {
         var paths = new[]
         {
-            "/house/City_House_2_BI"
+            "/bush/IVY_FBX" // Bush
         };
         
         var texturas = new[]
         {
-            "/house/city_house_2_Col", // Textura de color para la casa
+            "/bush/tex/leaf01_D" // Textura de hojas para el arbusto
         };
         
         base.CargarModelos(efecto, content, paths, texturas);
     }
+    
+    public override void OnCollisionWithTank(StaticHandle handle)
+    {
+        // Rompe el objeto
+        var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
+        model?.DestruirInstancia(handle);
+    }
+    
 }

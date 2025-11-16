@@ -31,6 +31,12 @@
 /processorParam:DebugMode=Auto
 /build:Effects/Gizmos.fx
 
+#begin Effects/Pasto.fx
+/importer:EffectImporter
+/processor:EffectProcessor
+/processorParam:DebugMode=Auto
+/build:Effects/Pasto.fx
+
 #begin Effects/ShadowMap.fx
 /importer:EffectImporter
 /processor:EffectProcessor
@@ -161,6 +167,18 @@
 /processorParam:TextureFormat=Color
 /build:Models/house/city_house_2_Col.jpg
 
+#begin Models/house/textures/city_house_2_Nor.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/house/textures/city_house_2_Nor.jpg;Models/house/city_house_2_Nor
+
 #begin Models/LightPole/SimpleStreetLight.fbx
 /importer:FbxImporter
 /processor:ModelProcessor
@@ -270,6 +288,37 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Models/panzer/PzVl_Tiger_I.dds;Models/panzer/PzVl_Tiger_I
+
+#begin Models/pasto/isolated-wild-grasses-png.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/pasto/isolated-wild-grasses-png.png;Models/pasto/isolated-wild-grasses-png
+
+#begin Models/pasto/pasto.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:ColorKeyColor=0,0,0,0
+/processorParam:ColorKeyEnabled=True
+/processorParam:DefaultEffect=BasicEffect
+/processorParam:GenerateMipmaps=True
+/processorParam:GenerateTangentFrames=False
+/processorParam:PremultiplyTextureAlpha=True
+/processorParam:PremultiplyVertexColors=True
+/processorParam:ResizeTexturesToPowerOfTwo=False
+/processorParam:RotationX=0
+/processorParam:RotationY=0
+/processorParam:RotationZ=0
+/processorParam:Scale=1
+/processorParam:SwapWindingOrder=False
+/processorParam:TextureFormat=Compressed
+/build:Models/pasto/pasto.fbx
 
 #begin Models/rocks/Rock0.fbx
 /importer:FbxImporter
@@ -461,6 +510,18 @@
 /processorParam:TextureFormat=Compressed
 /build:Models/rocks/Rock9.fbx
 
+#begin Models/rocks/Textures/Rock_Normal.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/rocks/Textures/Rock_Normal.png
+
 #begin Models/rocks/Textures/Rock1_Diffuse.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -593,7 +654,7 @@
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
 /processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
+/processorParam:GenerateMipmaps=True
 /processorParam:PremultiplyAlpha=True
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
@@ -605,7 +666,7 @@
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
 /processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
+/processorParam:GenerateMipmaps=True
 /processorParam:PremultiplyAlpha=True
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
@@ -617,24 +678,24 @@
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
 /processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
+/processorParam:GenerateMipmaps=True
 /processorParam:PremultiplyAlpha=True
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Models/t90/textures_mod/hullC.jpg
 
-#begin Models/t90/textures_mod/treadmills.png
+#begin Models/t90/textures_mod/treadmills.dds
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
 /processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
+/processorParam:GenerateMipmaps=True
 /processorParam:PremultiplyAlpha=True
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
-/build:Models/t90/textures_mod/treadmills.png
+/build:Models/t90/textures_mod/treadmills.dds
 
 #begin Models/tank/tank.fbx
 /importer:FbxImporter
@@ -678,6 +739,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Models/tree/Tree.fbm/bark_0021.jpg
+
+#begin Models/tree/Tree.fbm/DB2X2_L01_Nor.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/tree/Tree.fbm/DB2X2_L01_Nor.png;Models/tree/Tree.fbm/DB2X2_L01_Nor
 
 #begin Models/tree/Tree.fbm/DB2X2_L01.png
 /importer:TextureImporter
@@ -741,6 +814,18 @@
 /processorParam:TextureFormat=Color
 /build:Models/tree2/TexturesCom_Branches0018_1_alphamasked_S.png
 
+#begin Models/tree2/TexturesCom_Branches0018_1_alphamasked_Snor.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/tree2/TexturesCom_Branches0018_1_alphamasked_Snor.png;Models/tree2/TexturesCom_Branches0018_1_alphamasked_Snor
+
 #begin Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hz.jpg
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -752,6 +837,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hz.jpg
+
+#begin Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor.jpg;Models/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor
 
 #begin Models/tree3/BarkDecidious0107_M.jpg
 /importer:TextureImporter
@@ -875,6 +972,18 @@
 /processorParam:TextureFormat=Color
 /build:Textures/chaskibum.png
 
+#begin Textures/colo.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Textures/colo.png
+
 #begin Textures/fondo_info.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -898,6 +1007,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Textures/fondo_reloj.png
+
+#begin Textures/gras.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Textures/gras.jpg
 
 #begin Textures/grass.png
 /importer:TextureImporter
@@ -947,6 +1068,18 @@
 /processorParam:TextureFormat=Color
 /build:Textures/heightmaps/heightmap.jpg
 
+#begin Textures/heightmaps/spawnmap.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Textures/heightmaps/spawnmap.png;Textures/heightmaps/spawnmap
+
 #begin Textures/menu_bg.jpg
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -959,12 +1092,24 @@
 /processorParam:TextureFormat=Color
 /build:Textures/menu_bg.jpg
 
+#begin Textures/normal.jpg
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Textures/normal.jpg
+
 #begin Textures/proyectil1.png
 /importer:TextureImporter
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
 /processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
+/processorParam:GenerateMipmaps=True
 /processorParam:PremultiplyAlpha=True
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False
@@ -976,7 +1121,7 @@
 /processor:TextureProcessor
 /processorParam:ColorKeyColor=255,0,255,255
 /processorParam:ColorKeyEnabled=True
-/processorParam:GenerateMipmaps=False
+/processorParam:GenerateMipmaps=True
 /processorParam:PremultiplyAlpha=True
 /processorParam:ResizeToPowerOfTwo=False
 /processorParam:MakeSquare=False

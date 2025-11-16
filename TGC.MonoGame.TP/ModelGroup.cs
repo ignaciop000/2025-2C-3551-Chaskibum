@@ -13,20 +13,29 @@ public abstract class ModelGroup
 {
     public readonly List<ModelInstances> Models = [];
 
-    protected ModelGroup(List<Color> colors, Terrain terrain, Simulation simulation)
+    protected ModelGroup(List<Color> colors, Simulation simulation)
     {
         foreach (var color in colors)
         {
-            Models.Add(new ModelInstances(color, terrain, simulation));
+            Models.Add(new ModelInstances(color, simulation));
         }
     }
 
-    protected void CrearObjetos((float, float, float)[] parametros)
+    protected void CrearObjetos((float, float, float, bool, Texture2D[])[] parametros, Terrain terrain)
     {
         for (int i = 0; i < Models.Count; i++)
         {
-            var (altura, escalaMin, escalaMax) = parametros[i];
-            Models[i].CrearObjetos(altura, escalaMin, escalaMax);
+            var (altura, escalaMin, escalaMax, usaNormalMapping, normalMap ) = parametros[i];
+            Models[i].CrearObjetos(altura, escalaMin, escalaMax, usaNormalMapping, normalMap, terrain);
+        }
+    }
+    
+    protected void CrearPasto((float, float, float, bool, Texture2D[])[] parametros)
+    {
+        for (int i = 0; i < Models.Count; i++)
+        {
+            var (altura, escalaMin, escalaMax, usaNormalMapping, normalMap ) = parametros[i];
+            Models[i].CrearPasto(altura, escalaMin, escalaMax, usaNormalMapping, normalMap);
         }
     }
     
@@ -61,6 +70,15 @@ public abstract class ModelGroup
         }
     }
     
+    protected void CargarModelosPasto(Effect efecto, ContentManager content, string[] pathsModelos, string[] pathsTexturas, GraphicsDevice graphicsDevice)
+    {
+        for (int i = 0; i < Models.Count; i++)
+        {
+            string texturaPath = i < pathsTexturas.Length ? pathsTexturas[i] : null;
+            Models[i].CargarModeloPasto(pathsModelos[i], efecto, content, texturaPath, graphicsDevice);
+        }
+    }
+    
     protected void CargarModelos(Effect efecto, ContentManager content, string[] pathsModelos, string[] pathsTexturas, string[] pathsTexturas2)
     {
         for (int i = 0; i < Models.Count; i++)
@@ -71,11 +89,19 @@ public abstract class ModelGroup
         }
     }
     
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, Gizmos gizmos, string texto)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping)
     {
         foreach (var model in Models)
         {
-            model.Draw(effect, boundingFrustum, gizmos, texto);
+            model.Draw(effect, boundingFrustum, texto, usarNormalMapping);
+        }
+    }
+    
+    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float time)
+    {
+        foreach (var model in Models)
+        {
+            model.DrawPasto(graphicsDevice, view, projection, instanceBuffer, time);
         }
     }
     
@@ -107,4 +133,5 @@ public abstract class ModelGroup
             m.AlignToTerrain = alignToTerrain;
         }
     }
+    
 }

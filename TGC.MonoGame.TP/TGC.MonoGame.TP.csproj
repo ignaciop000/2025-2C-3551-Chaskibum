@@ -34,6 +34,7 @@
   <ItemGroup>
     <ClCompile Include="Content\Effects\Debug.fx" />
     <ClCompile Include="Content\Effects\Gizmos.fx" />
+    <ClCompile Include="Content\Effects\Pasto.fx" />
     <ClCompile Include="Content\Effects\ShadowMap.fx" />
   </ItemGroup>
   <Target Name="RestoreDotnetTools" BeforeTargets="CollectPackageReferences">

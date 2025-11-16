@@ -20,13 +20,14 @@ namespace TGC.MonoGame.TP
         private float _life;
 
         private BodyHandle _body;
+        public BodyHandle Body => _body;
         private XnaVector3 _pos;
         private readonly XnaQuaternion _rot = XnaQuaternion.Identity;
 
         // Debug-geom: cubito rápido
-        private static VertexBuffer _vb;
-        private static IndexBuffer _ib;
-        private static bool _primReady;
+        //private static VertexBuffer _vb;
+        //private static IndexBuffer _ib;
+        //private static bool _primReady;
 
         public Tank TanqueDisparador;
 
@@ -122,8 +123,10 @@ namespace TGC.MonoGame.TP
             if (IsDead) return;
             IsDead = true;
 
-            // Quitar el cuerpo una sola vez (sin Exists/HandleExists)
-            _simulation.Bodies.Remove(_body);
+            if (_simulation.Bodies.BodyExists(_body))
+            {
+                _simulation.Bodies.Remove(_body);
+            }
             CollisionHandler.HandleToProjectile.Remove(_body);
         }
 

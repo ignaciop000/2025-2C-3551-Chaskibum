@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices.ObjectiveC;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
@@ -10,18 +11,24 @@ using TGC.MonoGame.TP.Viewer.Gizmos;
 
 namespace TGC.MonoGame.TP;
 
-public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
+public class ModelInstances(Color color , Simulation simulation)
 {
     public Model Model;
     private BoundingBox _box;
-    public readonly List<Matrix> _worlds = [];
+    public readonly List<Matrix> Worlds = [];
     public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
-    private Effect _effect;
     private float _altura;
-    private Texture2D _texture;
-    private Texture2D _texture2; // Segunda textura (para hojas en árboles)
-    private int _modelIndex = 0; // Índice del modelo (para TreeType: 0, 1, 2)
+    public Texture2D[] Texturas = new Texture2D[2];
+    public bool UsaNormalMapping;
+    private Texture2D[] _normalMaps;
+    //para el pasto
+    private VertexBuffer _vertexBuffer;
+    private IndexBuffer _indexBuffer;
+    private int _primitiveCount;
+    public List<Vector2> PosicionesPasto = [];
+    private VertexDeclaration InstanceVertexDeclaration;
+    public Effect _effect;
     
     public List<Vector2> Positions { get; set; } = [];
 
@@ -37,11 +44,19 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
                        Matrix.CreateFromYawPitchRoll(MathHelper.ToRadians(yawInDegrees), 0f, 0f) * 
                        Matrix.CreateTranslation(position.X, position.Y, position.Z);
 
-        _worlds.Add(world);
+        Worlds.Add(world);
+    }
+
+    public void CrearPasto(float altura, float escalaMin, float escalaMax, bool usaNormalMapping,
+        Texture2D[] normalMaps)
+    {
+        
     }
     
-    public void CrearObjetos(float altura, float escalaMin, float escalaMax)
+    public void CrearObjetos(float altura, float escalaMin, float escalaMax, bool usaNormalMapping, Texture2D[] normalMaps, Terrain terrain)
     {
+        UsaNormalMapping = usaNormalMapping;
+        _normalMaps = normalMaps;
         foreach (var posicion in Positions)
         {
             //Filtro por inclinación
@@ -69,7 +84,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
                         Matrix.CreateFromYawPitchRoll(yaw, 0f, 0f) *
                         Matrix.CreateTranslation(posicion.X, altura + alturaMapa, posicion.Y);
             }
-            _worlds.Add(world);
+            Worlds.Add(world);
         }
 
         // Me guardo la altura para luego escalar correctamente el RigidBody
@@ -80,7 +95,7 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     {
         List<StaticHandle> handles = [];
         
-        foreach (var world in _worlds)
+        foreach (var world in Worlds)
         {
             world.Decompose(out var scale, out var rotation, out var translation);
 
@@ -128,9 +143,47 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
                 meshPart.Effect = efecto;
             }
         }
-
-        // Me lo guardo para usar en el dibujado
+        
+    }
+    
+    public VertexBuffer GenerarInstanceBuffer(InstanceData[] instances, GraphicsDevice graphicsDevice)
+    {
+         return new VertexBuffer(graphicsDevice, InstanceVertexDeclaration, instances.Length, BufferUsage.WriteOnly);
+    }
+    
+    public void CargarModeloPasto(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath, GraphicsDevice graphicsDevice)
+    {
         _effect = efecto;
+        Model = content.Load<Model>(ContentFolder3D + rutaRelativa);
+        if (!string.IsNullOrEmpty(texturaPath))
+        {
+            Texturas[0] = content.Load<Texture2D>(ContentFolder3D + texturaPath);
+        }
+        var mesh = Model.Meshes[0]; 
+        var part = mesh.MeshParts[0];
+
+        _vertexBuffer = part.VertexBuffer;
+
+        _indexBuffer = part.IndexBuffer;
+
+        _primitiveCount = part.PrimitiveCount;
+        
+        
+        VertexElement[] instanceElements = new VertexElement[]
+        {
+            new VertexElement(0, VertexElementFormat.Vector3, VertexElementUsage.Position, 1), // posición
+            new VertexElement(12, VertexElementFormat.Single, VertexElementUsage.TextureCoordinate, 1), // Escala
+            new VertexElement(16, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 2), // Rotacion
+            new VertexElement(32, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 3),
+            new VertexElement(48, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 4),
+            new VertexElement(64, VertexElementFormat.Vector4, VertexElementUsage.TextureCoordinate, 5),
+        }; 
+        
+        InstanceVertexDeclaration = new VertexDeclaration(instanceElements);
+        
+        
+        //_box = BoundingVolumesExtensions.CreateAABBFrom(Model);
+        
     }
     
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath)
@@ -147,92 +200,115 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
     {
         Model = content.Load<Model>(ContentFolder3D + rutaRelativa);
         _box = BoundingVolumesExtensions.CreateAABBFrom(Model);
-        _modelIndex = modelIndex; // Guardar el índice del modelo
-
+       
         // Cargar textura si se proporciona
         if (!string.IsNullOrEmpty(texturaPath))
         {
-            _texture = content.Load<Texture2D>(ContentFolder3D + texturaPath);
+            Texturas[0] = content.Load<Texture2D>(ContentFolder3D + texturaPath);
         }
         
         // Cargar segunda textura si se proporciona (para hojas)
         if (!string.IsNullOrEmpty(textura2Path))
         {
-            _texture2 = content.Load<Texture2D>(ContentFolder3D + textura2Path);
+            Texturas[1] = content.Load<Texture2D>(ContentFolder3D + textura2Path);
         }
-
+        if(rutaRelativa.Contains("tree"))
         foreach (var mesh in Model.Meshes)
         {
+            if(rutaRelativa.Contains("tree"))
             foreach (var meshPart in mesh.MeshParts)
             {
                 meshPart.Effect = efecto;
             }
         }
-
-        // Me lo guardo para usar en el dibujado
-        _effect = efecto;
     }
 
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, Gizmos gizmos, string texto)
+    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float gameTime)
+    {
+        graphicsDevice.BlendState = BlendState.AlphaBlend;
+        graphicsDevice.RasterizerState = RasterizerState.CullNone;
+        
+        graphicsDevice.SetVertexBuffers(
+            new VertexBufferBinding(_vertexBuffer),
+            new VertexBufferBinding(instanceBuffer, 0, 1)
+        );
+        graphicsDevice.Indices = _indexBuffer;
+
+        _effect.Parameters["World"].SetValue(Matrix.Identity);
+        _effect.Parameters["View"].SetValue(view);
+        _effect.Parameters["Projection"].SetValue(projection);
+        _effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
+        _effect.Parameters["Time"]?.SetValue(gameTime);
+
+        foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            graphicsDevice.DrawInstancedPrimitives(
+                PrimitiveType.TriangleList,
+                0,
+                0,
+                _primitiveCount,
+                instanceBuffer.VertexCount
+            );
+        }
+        graphicsDevice.BlendState = BlendState.Opaque;
+        graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;    
+    }
+    
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping)
     {
         // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
         
         effect.Parameters["TintColor"]?.SetValue(_color.ToVector4());
-        
-        // Configurar TreeType para el shader de árboles
-        effect.Parameters["TreeType"]?.SetValue(_modelIndex);
-        
-        // Si hay textura, activarla
-        if (_texture != null)
-        {
-            effect.Parameters["UseTexture"]?.SetValue(true);
-            effect.Parameters["ModelTexture"]?.SetValue(_texture);
-            
-            // Para TreeShader: textura de corteza
-            effect.Parameters["BarkTexture"]?.SetValue(_texture);
-        }
-        else
-        {
+        effect.Parameters["UseTexture"]?.SetValue(true);
+        if(texto.Equals("Poste de luz"))
             effect.Parameters["UseTexture"]?.SetValue(false);
-        }
-        
-        // Segunda textura (hojas para árboles) - CRUCIAL
-        if (_texture2 != null)
+        effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
+
+        foreach (var world in Worlds)
         {
-            effect.Parameters["LeavesTexture"]?.SetValue(_texture2);
-        }
-        
-        foreach (var world in _worlds)
-        {
-            var esVisible = EsVisible(world, boundingFrustum);
+            //Continuar si no esta dentro del frustum
+            if (!EsVisible(world, boundingFrustum))
+                continue;
             
-            if (esVisible)
+            var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
+            Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
+
+            if (usarNormalMapping)
+            { SetTechnique(effect);  }
+            else 
+            { effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"]; }
+            
+            foreach (var mesh in Model.Meshes)
             {
-              var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
-              Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
-              foreach (var mesh in Model.Meshes)
-              {
-                  var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
-                  effect.Parameters["World"]?.SetValue(relativeTransform * world);
-                  
-                  // Aplicar el efecto a cada mesh part para que use los parámetros actualizados
-                  foreach (var meshPart in mesh.MeshParts)
-                  {
-                      meshPart.Effect = effect;
-                  }
-                  
-                  mesh.Draw();
-              }
+                if (texto.Equals("Arbol"))
+                    ElegirTexturaYNormal(mesh, effect, usarNormalMapping);
+                
+                var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
+                effect.Parameters["World"]?.SetValue(relativeTransform * world);
+                
+                foreach (var meshPart in mesh.MeshParts)
+                {
+                    meshPart.Effect = effect;
+                }
+
+                mesh.Draw();
             }
+            
         }
     }
 
     public void DestruirInstancia(StaticHandle handle)
     {
         var index = Handles.IndexOf(handle);
-        simulation.Statics.Remove(handle);
+
+        if (simulation.Statics.StaticExists(handle))
+        {
+            simulation.Statics.Remove(handle);
+        }
+        
         Handles.Remove(handle);
-        _worlds.RemoveAt(index);
+        Worlds.RemoveAt(index);
     }
 
     private float NextFloat(float min, float max)
@@ -249,5 +325,49 @@ public class ModelInstances(Color color, Terrain terrain, Simulation simulation)
         var boundingBox = BoundingBox.CreateFromPoints(corners);
         return boundingFrustum.Intersects(boundingBox);
     }
+
+    private void SetTechnique(Effect effect)
+    {
+        
+        if (UsaNormalMapping)
+        {
+            effect.CurrentTechnique = effect.Techniques["NormalMapping"];
+            effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[0]);
+        }
+        else
+        {
+            effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"];
+        }
+    }
+
+    private void ElegirTexturaYNormal(ModelMesh mesh, Effect effect, bool usarNormalMapping)
+    {
+        if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
+        {
+            effect.Parameters["ModelTexture"]?.SetValue(Texturas[1]);
+            if(mesh.Name.Contains("Plane") && UsaNormalMapping && usarNormalMapping)
+                effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[0]);
+        }
+        else if(mesh.Name.Contains("Trunk") || mesh.Name.Contains("Branch"))
+        {
+            effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
+            if (UsaNormalMapping && usarNormalMapping)
+            {
+                effect.CurrentTechnique = effect.Techniques["NormalMapping"];
+                effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[1]);
+            }
+        }
+        else
+        {
+            effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"];
+            effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
+        }
+    }
 }
 
+public struct InstanceData
+{
+    public Vector3 Position;
+    public float Scale;
+    public Matrix Rotation;
+}
