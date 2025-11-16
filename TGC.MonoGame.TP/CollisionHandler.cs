@@ -67,7 +67,7 @@ public class CollisionHandler
     
     private void HandleDynamicCollision(ImpactoDinamico impacto)
     {
-        Console.WriteLine("Se registra Impacto Dinamico");
+        //Console.WriteLine("Se registra Impacto Dinamico");
         var a = impacto.Impactador;
         var b = impacto.Impactado;
 
