@@ -243,7 +243,7 @@ public class TGCGame : Game
         _effect.Parameters["diffuseColor"]?.SetValue(new Vector3(1, 1, 1));
         _effect.Parameters["Kd"]?.SetValue(0.8f);
         _effect.Parameters["specularColor"]?.SetValue(new Vector3(1, 1, 1));
-        _effect.Parameters["Ks"]?.SetValue(0.2f);
+        _effect.Parameters["Ks"]?.SetValue(0.1f);
         _effect.Parameters["shininess"]?.SetValue(4f);
 
         _pastoShader = Content.Load<Effect>(ContentFolderEffects + "Pasto");

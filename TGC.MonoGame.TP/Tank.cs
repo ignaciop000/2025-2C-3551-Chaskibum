@@ -105,6 +105,7 @@ public abstract class Tank
     // --- Helpers para extraer pos/axes de una Matrix ---
     private static Vector3 GetTranslation(in Matrix m) => new(m.M41, m.M42, m.M43);
     private static Vector3 GetUp(in Matrix m) => new(m.M21, m.M22, m.M23);
+    private static Vector3 GetForward(in Matrix m) => new(m.M31, m.M32, m.M33);
 
     /// <summary>
     /// Gets or sets the rotation of the wheels.
@@ -820,7 +821,7 @@ public abstract class Tank
         if (Model == null || _effect == null || IsDead) return;
 
         var wheelRotation = Matrix.CreateRotationX(WheelRotation);
-        var turretRotation = Matrix.CreateRotationZ(TurretRotation);
+        var turretRotation = Matrix.CreateRotationY(TurretRotation);
         var cannonRotation = Matrix.CreateRotationX(CannonRotation);
 
         for (int i = 0; i < 16; i++)
@@ -875,24 +876,24 @@ public abstract class Tank
     }
 
     // Devuelve posición y dirección de la boca del cañón, tomando el hueso real del cañón
-    private (Vector3 pos, Vector3 dir) GetMuzzle(float muzzleOffsetLocal = 300.2f)
+    private (Vector3 pos, Vector3 dir) GetMuzzle(float muzzleOffsetLocal = 610f)
     {
-        var turretRotation = Matrix.CreateRotationZ(TurretRotation);
+        var turretRotation = Matrix.CreateRotationY(TurretRotation);
         var cannonRotation = Matrix.CreateRotationX(CannonRotation); // mismo eje/signo que Draw
         _turretBone.Transform = turretRotation * _turretTransform;
         _cannonBone.Transform = cannonRotation * _cannonTransform;
 
         if (_boneTransforms == null || _boneTransforms.Length != Model.Bones.Count)
             _boneTransforms = new Matrix[Model.Bones.Count];
-
+        
         Model.CopyAbsoluteBoneTransformsTo(_boneTransforms);
 
         // Transform del cañón en espacio mundo
         var cannonAbs = _boneTransforms[_cannonBone.Index];
         var cannonWorld = cannonAbs * World; // mismo patrón que en Draw()
-
+        
         // La dirección “forward” del cañón 
-        var f = -Vector3.Normalize(GetUp(cannonWorld));
+        var f = -Vector3.Normalize(GetForward(cannonWorld));
 
         // Posición del muzzle: origen del hueso + corrimiento a lo largo del cañón
         var origin = GetTranslation(cannonWorld);
@@ -987,12 +988,12 @@ public abstract class Tank
         var proj = new Projectile(simulation, projectileEffect, muzzle, dir, TipoProyectilActual, this, properties);
         projectiles.Add(proj);
 
-        /*TriggerRecoil(
+        TriggerRecoil(
             dir,
             projectileMass: TipoProyectilActual.Mass,
             muzzleSpeed: TipoProyectilActual.Speed,
             intensity: 1f,
-            withBrake: true);*/
+            withBrake: true);
 
         ResetCooldown();
 

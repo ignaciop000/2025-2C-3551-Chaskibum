@@ -74,6 +74,7 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float4 texColor = tex2D(TextureSampler, input.TexCoord);    
     clip(texColor.a - 0.8);
     float gradient = (1 - input.TexCoord.y) * 1.8;
+    texColor.r += (input.Scale - 1.3)  * 0.05;
     texColor.rgb = lerp(texColor.rgb * -0.3, texColor.rgb, gradient);
     return texColor;
 }

@@ -74,7 +74,7 @@ void ApplyDeformation(inout float4 worldPosition, float4 impact)
 {
     float3 impactPos = impact.xyz;
     float impactRadius = impact.w;
-    float displacementAmount = 10.0f;
+    float displacementAmount = 1.0f;
 
     if (impactRadius > 0.0)
     {
@@ -85,8 +85,8 @@ void ApplyDeformation(inout float4 worldPosition, float4 impact)
         if (dist > 0.0001 && dist < impactRadius)
         {
             float deformationFactor = (1.0 - (dist / impactRadius));
-            float displacement = deformationFactor * impactRadius * 0.5f;
-            worldPosition.xyz += normalize(delta) * displacement;
+            float displacement = deformationFactor * impactRadius * 0.15f;
+            worldPosition.xyz -= normalize(delta) * displacement;
         }
     }
 }
@@ -122,10 +122,6 @@ float4 MainPS(VertexShaderOutput input) : COLOR
     float3 viewDirection = normalize(eyePosition - input.WorldPos.xyz);
     float3 halfVector = normalize(lightDirection + viewDirection);
     float3 normal = normalize(input.Normal.xyz);
-    if (length(normal) < 0.001)
-    {
-        normal = float3(0, 1, 0); // normal hacia arriba
-    }
     
     float3 lightSpacePosition = input.LightSpacePosition.xyz / input.LightSpacePosition.w;
     float2 shadowMapTextureCoordinates = 0.5 * lightSpacePosition.xy + float2(0.5, 0.5);
