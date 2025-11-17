@@ -913,10 +913,10 @@ public class TGCGame : Game
 
         foreach (var enemyTank in _enemyTanks)
         {
-            DrawTankShadow(enemyTank);
+            enemyTank.DrawShadow(_shadowEffect, _targetLightCamera);
         }
 
-        DrawTankShadow(_tank);
+        _tank.DrawShadow(_shadowEffect, _targetLightCamera);
 
         foreach (var instance in _allInstances)
         {
@@ -954,26 +954,7 @@ public class TGCGame : Game
         _terrain.DrawPastoShadow(_boundingFrustum, GraphicsDevice, _targetLightCamera, _pasto, _elapsedTime);
     }
 
-    private void DrawTankShadow(Tank tank)
-    {
-        var modelMeshesBaseTransforms = new Matrix[tank.Model.Bones.Count];
-        tank.Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
-        foreach (var modelMesh in tank.Model.Meshes)
-        {
-            foreach (var part in modelMesh.MeshParts)
-                part.Effect = _shadowEffect;
-
-            // We set the main matrices for each mesh to draw
-            var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * tank.World;
-
-            // WorldViewProjection is used to transform from model space to clip space
-            _shadowEffect.Parameters["WorldViewProjection"]
-                .SetValue(worldMatrix * _targetLightCamera.View * _targetLightCamera.Projection);
-
-            // Once we set these matrices we draw
-            modelMesh.Draw();
-        }
-    }
+    
 
     private void DibujarTerreno()
     {

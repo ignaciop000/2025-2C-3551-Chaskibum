@@ -999,4 +999,29 @@ public abstract class Tank
 
         Audio?.PlayShoot(TipoProyectilActual);
     }
+    
+    public void DrawShadow(Effect shadowEffect, TargetCamera targetLightCamera)
+    {
+        
+        var turretRotation = Matrix.CreateRotationY(TurretRotation);
+        var cannonRotation = Matrix.CreateRotationX(CannonRotation); // mismo eje/signo que Draw
+        _turretBone.Transform = turretRotation * _turretTransform;
+        _cannonBone.Transform = cannonRotation * _cannonTransform;
+        var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
+        Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
+        foreach (var modelMesh in Model.Meshes)
+        {
+            foreach (var part in modelMesh.MeshParts)
+                part.Effect = shadowEffect;
+
+            // We set the main matrices for each mesh to draw
+            var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * World;
+
+            // WorldViewProjection is used to transform from model space to clip space
+            shadowEffect.Parameters["WorldViewProjection"].SetValue(worldMatrix * targetLightCamera.View * targetLightCamera.Projection);
+
+            // Once we set these matrices we draw
+            modelMesh.Draw();
+        }
+    }
 }
