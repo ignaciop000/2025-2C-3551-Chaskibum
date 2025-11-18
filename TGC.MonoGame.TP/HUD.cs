@@ -198,4 +198,65 @@ public class HUD
         _spriteBatch.Draw(_pixel, destinationRectangle: new Rectangle(0, 0, pantalla.Width, pantalla.Height), color: new Color(0, 0, 0, 0.4f));
         _spriteBatch.DrawString(_menuFont, mensaje, centroPantalla, color, 0f, medida / 2f, 5f, SpriteEffects.None, 0f);
     }
+    
+    /// <summary>
+    /// Dibuja panel de ayuda con los controles del juego
+    /// </summary>
+    public void DrawHelp()
+    {
+        var viewport = _graphicsDevice.Viewport;
+        
+        // Panel semi-transparente
+        var panelW = 600;
+        var panelH = 500;
+        var panelX = (viewport.Width - panelW) / 2;
+        var panelY = (viewport.Height - panelH) / 2;
+        
+        _spriteBatch.Draw(_pixel, new Rectangle(panelX, panelY, panelW, panelH), new Color(0, 0, 0, 200));
+        
+        // Título
+        var title = "CONTROLES DEL JUEGO";
+        var titleSize = _menuFont.MeasureString(title);
+        var titlePos = new Vector2(panelX + (panelW - titleSize.X) / 2, panelY + 20);
+        _spriteBatch.DrawString(_menuFont, title, titlePos, Color.Yellow);
+        
+        // Lista de controles
+        var y = panelY + 70;
+        var lineHeight = 30;
+        var leftMargin = panelX + 40;
+        
+        var controls = new[]
+        {
+            "MOVIMIENTO:",
+            "  W/A/S/D - Mover tanque",
+            "  Shift - Turbo",
+            "  Espacio - Freno",
+            "",
+            "COMBATE:",
+            "  Mouse - Apuntar torreta y cañón",
+            "  Clic izquierdo - Disparar",
+            "  1 - Proyectil ligero",
+            "  2 - Proyectil pesado",
+            "",
+            "CÁMARA:",
+            "  Botón derecho - Modo libre",
+            "",
+            "OTROS:",
+            "  H - Mostrar/Ocultar esta ayuda",
+            "  Esc - Salir del juego"
+        };
+        
+        foreach (var line in controls)
+        {
+            var color = line.EndsWith(":") ? Color.Cyan : Color.White;
+            _spriteBatch.DrawString(_menuFont, line, new Vector2(leftMargin, y), color);
+            y += lineHeight;
+        }
+        
+        // Mensaje de cierre
+        var hint = "Presiona H para cerrar";
+        var hintSize = _menuFont.MeasureString(hint);
+        var hintPos = new Vector2(panelX + (panelW - hintSize.X) / 2, panelY + panelH - 40);
+        _spriteBatch.DrawString(_menuFont, hint, hintPos, Color.Gray);
+    }
 }

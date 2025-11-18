@@ -242,6 +242,11 @@ public class ModelInstances(Color color , Simulation simulation)
         _effect.Parameters["Time"]?.SetValue(gameTime);
         _effect.Parameters["eyePosition"]?.SetValue(eyePosition);
         _effect.Parameters["lightPosition"]?.SetValue(lightPosition);
+        
+        // Configurar parámetros de niebla
+        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
+        _effect.Parameters["FogStart"]?.SetValue(700f);
+        _effect.Parameters["FogEnd"]?.SetValue(2200f);
 
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
         {

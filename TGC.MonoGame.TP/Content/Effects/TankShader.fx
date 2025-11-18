@@ -25,6 +25,9 @@ static const float maxEpsilon = 0.000000523200045689009130001068115234375;
 float Ka;
 uniform float4 ImpactPoints[10];
 
+// Parámetro para texture scrolling de orugas
+float TreadmillOffset = 0.0;
+
 // Texturas del T90
 texture ModelTexture;
 sampler TextureSampler = sampler_state
@@ -188,5 +191,44 @@ technique MenuDrawing
     {
         VertexShader = compile VS_SHADERMODEL MenuVS();
         PixelShader = compile PS_SHADERMODEL MenuPS();
+    }
+}
+
+// Vertex shader para orugas con texture scrolling
+VertexShaderOutput TreadmillVS(in VertexShaderInput input)
+{
+    VertexShaderOutput output = (VertexShaderOutput)0;
+
+    float4 worldPosition = mul(input.Position, World);
+    ApplyDeformation(worldPosition, ImpactPoints[0]);
+    ApplyDeformation(worldPosition, ImpactPoints[1]);
+    ApplyDeformation(worldPosition, ImpactPoints[2]);
+    ApplyDeformation(worldPosition, ImpactPoints[3]);
+    ApplyDeformation(worldPosition, ImpactPoints[4]);
+    ApplyDeformation(worldPosition, ImpactPoints[5]);
+    ApplyDeformation(worldPosition, ImpactPoints[6]);
+    ApplyDeformation(worldPosition, ImpactPoints[7]);
+    ApplyDeformation(worldPosition, ImpactPoints[8]);
+    ApplyDeformation(worldPosition, ImpactPoints[9]);
+
+    output.Position = mul(mul(worldPosition, View), Projection);
+    
+    // Aplicar offset de texture scrolling en la coordenada V (vertical)
+    output.TextureCoordinate = input.TextureCoordinate;
+    output.TextureCoordinate.y += TreadmillOffset;
+    
+    output.WorldPos = worldPosition;
+    output.LightSpacePosition = mul(output.WorldPos, LightViewProjection);
+    output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld);
+    
+    return output;
+}
+
+technique TreadmillDrawing
+{
+    pass P0
+    {
+        VertexShader = compile VS_SHADERMODEL TreadmillVS();
+        PixelShader = compile PS_SHADERMODEL MainPS();
     }
 }

@@ -1,11 +1,9 @@
 ﻿// ARREGLOS
 // - Los tanques no deben spawnear donde hay obstaculos + no deben spawnear volando [AGUS]
 // - Bajar volumenes altos [SANTI]
-// - Cielo y niebla [SANTI]
 
 // NUEVAS TAREAS
 // - Modo God [MATEO]
-// - Animación ruedas con Texture Scrolling [SANTI]
 
 // FINALMENTE [TODOS]
 // - Separar los .cs en carpetas
@@ -71,6 +69,11 @@ public class TGCGame : Game
     private const float EscalaMapa = 30;
     private readonly GraphicsDeviceManager _graphics;
     private RenderTarget2D _shadowMapRenderTarget;
+    
+    // Post-procesado de niebla
+    private RenderTarget2D _sceneRenderTarget;
+    private Effect _fogEffect;
+    private VertexBuffer _fullScreenQuad;
 
     private TargetCamera _targetLightCamera;
     private const int ShadowmapSize = 4096;
@@ -147,6 +150,9 @@ public class TGCGame : Game
     private Debug _debug;
     private HUD _hud;
     private Menu _menu;
+
+    // Estado de la ayuda
+    private bool _showHelp = false;
 
     // Audio
     private Song _gameplayMusic;
@@ -247,6 +253,9 @@ public class TGCGame : Game
         // Cargar shader específico para tanques
         _tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
         _tankShader.Parameters["Ka"]?.SetValue(1f);
+        
+        // Cargar efecto de niebla para post-procesado
+        _fogEffect = Content.Load<Effect>(ContentFolderEffects + "Fog");
 
         // Cargar shader específico para el World Border
         _worldBorderEffect = Content.Load<Effect>(ContentFolderEffects + "WorldBorderShader");
@@ -395,6 +404,25 @@ public class TGCGame : Game
         _shadowMapRenderTarget = new RenderTarget2D(GraphicsDevice, ShadowmapSize, ShadowmapSize, false,
             SurfaceFormat.Single, DepthFormat.Depth24, 0, RenderTargetUsage.PlatformContents);
 
+        // Crear render target para la escena (con profundidad para niebla)
+        _sceneRenderTarget = new RenderTarget2D(GraphicsDevice, 
+            GraphicsDevice.PresentationParameters.BackBufferWidth,
+            GraphicsDevice.PresentationParameters.BackBufferHeight,
+            false,
+            SurfaceFormat.Color,
+            DepthFormat.Depth24);
+
+        // Crear quad de pantalla completa para post-procesado
+        var vertices = new[]
+        {
+            new VertexPositionTexture(new Microsoft.Xna.Framework.Vector3(-1, 1, 0), new Vector2(0, 0)),
+            new VertexPositionTexture(new Microsoft.Xna.Framework.Vector3(1, 1, 0), new Vector2(1, 0)),
+            new VertexPositionTexture(new Microsoft.Xna.Framework.Vector3(-1, -1, 0), new Vector2(0, 1)),
+            new VertexPositionTexture(new Microsoft.Xna.Framework.Vector3(1, -1, 0), new Vector2(1, 1))
+        };
+        _fullScreenQuad = new VertexBuffer(GraphicsDevice, typeof(VertexPositionTexture), 4, BufferUsage.WriteOnly);
+        _fullScreenQuad.SetData(vertices);
+
         _terrain.LightPosition = _lightPosition;
         _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         _targetLightCamera.Position = _lightPosition;
@@ -516,6 +544,11 @@ public class TGCGame : Game
             if (keyboardState.IsKeyUp(Keys.M) && _kbPrev.IsKeyDown(Keys.M))
             {
                 _dibujarSombras = !_dibujarSombras;
+            }
+
+            if (keyboardState.IsKeyUp(Keys.H) && _kbPrev.IsKeyDown(Keys.H))
+            {
+                _showHelp = !_showHelp;
             }
 
             _playerController.UpdateControls(keyboardState);
@@ -694,7 +727,7 @@ public class TGCGame : Game
         if (_dibujarSombras)
             DrawShadows();
         GraphicsDevice.SetRenderTarget(null);
-        GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.CornflowerBlue, 1f, 0);
+        GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, new Color(new Vector3(0.5f, 0.6f, 0.7f)), 1f, 0);
 
         if (_state == GameState.MainMenu)
         {
@@ -782,6 +815,12 @@ public class TGCGame : Game
                 _hud.DrawMensaje("GANASTE", Color.Green);
             }
 
+            // Mostrar panel de ayuda si está activado
+            if (_showHelp)
+            {
+                _hud.DrawHelp();
+            }
+
             _hud.End();
         }
     }
@@ -866,7 +905,7 @@ public class TGCGame : Game
             try
             {
                 MediaPlayer.IsRepeating = true;
-                MediaPlayer.Volume = 0.33f; // 33% del volumen (música de fondo)
+                MediaPlayer.Volume = 0.34f; // 34% del volumen (música de fondo)
                 MediaPlayer.Play(_gameplayMusic);
                 _gameplayMusicStarted = true;
             }
@@ -968,6 +1007,11 @@ public class TGCGame : Game
 
         _terrainEffect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         _terrainEffect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
+        
+        // Configurar parámetros de niebla
+        _terrainEffect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
+        _terrainEffect.Parameters["FogStart"]?.SetValue(700f);
+        _terrainEffect.Parameters["FogEnd"]?.SetValue(2200f);
 
         _terrain.Draw(Matrix.Identity, _camera, _boundingFrustum, _pasto, _elapsedTime);
     }
@@ -975,6 +1019,11 @@ public class TGCGame : Game
     private void DibujarElementos()
     {
         _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
+        
+        // Configurar parámetros de niebla
+        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
+        _effect.Parameters["FogStart"]?.SetValue(700f);
+        _effect.Parameters["FogEnd"]?.SetValue(2200f);
 
         _rocks.Draw(_effect, _boundingFrustum, "Piedra", _usarNormalMapping, _elapsedTime);
 

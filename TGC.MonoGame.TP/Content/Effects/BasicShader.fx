@@ -32,6 +32,11 @@ float shininess;
 bool UseTexture = false; // Flag para indicar si usamos textura o color sólido
 bool Sway = false;
 
+// Parámetros de niebla volumétrica 3D
+float3 FogColor = float3(0.5, 0.6, 0.7); // Color azulado por defecto
+float FogStart = 700.0; // Distancia donde empieza la niebla
+float FogEnd = 2200.0;   // Distancia donde la niebla es completa
+
 // Textura principal del modelo
 texture ModelTexture;
 sampler TextureSampler = sampler_state
@@ -124,6 +129,11 @@ float4 MainPS(VertexShaderOutput input) : COLOR
     float3 ambientLight = ambientColor * Ka;
     
     float4 finalColor = float4(saturate(ambientLight + diffuseLight) * color + specularLight, texColor.a);
+    
+    // Aplicar niebla volumétrica 3D
+    float distanceToCamera = distance(input.WorldPos, eyePosition);
+    float fogFactor = saturate((distanceToCamera - FogStart) / (FogEnd - FogStart));
+    finalColor.rgb = lerp(finalColor.rgb, FogColor, fogFactor);
        
 	return finalColor;
 }
@@ -131,8 +141,7 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 VertexShaderOutput NormalMapVS(in VertexShaderInput input)
 {
     VertexShaderOutput output = (VertexShaderOutput) 0;
-    
-    
+
     float4 worldPosition = mul(input.Position, World);
     float swayOffset = 0; 
     if(Sway)
@@ -165,12 +174,18 @@ float4 NormalMapPS(VertexShaderOutput input) : COLOR
     float NdotL = saturate(dot(normal, lightDirection));
     float3 diffuseLight = Kd * diffuseColor * NdotL;
 
-	// Calculate the specular light
+    // Calculate the specular light
     float NdotH = dot(normal, halfVector);
     float3 specularLight = Ks * specularColor * pow(NdotH, shininess);
     
     // Final calculation
     float4 finalColor = float4(saturate(ambientColor * Ka + diffuseLight) * texelColor.rgb + specularLight, texelColor.a);
+    
+    // Aplicar niebla volumétrica 3D
+    float distanceToCamera = distance(input.WorldPos.xyz, eyePosition);
+    float fogFactor = saturate((distanceToCamera - FogStart) / (FogEnd - FogStart));
+    finalColor.rgb = lerp(finalColor.rgb, FogColor, fogFactor);
+    
     return finalColor;
 
 }

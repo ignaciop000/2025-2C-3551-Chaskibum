@@ -835,6 +835,10 @@ public abstract class Tank
         var absBones = new Matrix[Model.Bones.Count];
         Model.CopyAbsoluteBoneTransformsTo(absBones);
 
+        // Calcular offset de texture scrolling basado en WheelRotation
+        // Dividir por 2*PI para convertir radianes a ciclos de textura
+        float treadmillOffset = -WheelRotation / (2f * MathF.PI);
+
         _effect.CurrentTechnique = _effect.Techniques["BasicDrawing"];
         _effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
         _effect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * shadowmapSize);
@@ -861,9 +865,17 @@ public abstract class Tank
                 part.Effect = _effect;
 
             _effect.Parameters["ModelTexture"]?.SetValue(Texture);
+            
+            // Usar técnica con texture scrolling para orugas
             if (mesh.Name.Contains("Treadmill"))
             {
+                _effect.CurrentTechnique = _effect.Techniques["TreadmillDrawing"];
+                _effect.Parameters["TreadmillOffset"]?.SetValue(treadmillOffset);
                 _effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);
+            }
+            else
+            {
+                _effect.CurrentTechnique = _effect.Techniques["BasicDrawing"];
             }
 
             var worldPerMesh = absBones[mesh.ParentBone.Index] * World;
