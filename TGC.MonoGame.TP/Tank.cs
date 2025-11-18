@@ -149,6 +149,8 @@ public abstract class Tank
 
     public readonly List<ImpactLocal> ImpactsLocal = new();
     private const float ImpactRadius = 15f;
+    
+    public bool ModoGod = false;
 
     public Tank(Vector3 initialPosition, float initialRotation, float scale)
     {
@@ -182,6 +184,7 @@ public abstract class Tank
         aimDirection = -aimDirection; // Se invierte pues los cálculos necesitan el vector que va hacia el cañón
         // Descomponemos el vector de puntería en dos ángulos: yaw de torreta y pitch de cañón.
         // Primero llevamos 'aimDirection' al sistema de referencia de la torreta (su "turret basis").
+        if(!simulation.Bodies.BodyExists(Body)) return (0, 0);
         QuaternionEx.ConcatenateWithoutOverlap(QuaternionEx.Conjugate(simulation.Bodies[Body].Pose.Orientation),
             _fromBodyLocalToTurretBasisLocal, out var toTurretBasis);
         var aimdirection = new System.Numerics.Vector3(aimDirection.X, aimDirection.Y, aimDirection.Z);
@@ -687,8 +690,11 @@ public abstract class Tank
     {
         if (IsDead) return;
         // Leer las poses actuales del cuerpo, torreta y cañón desde la simulación
+        if(!Simulation.Bodies.BodyExists(Body)) return;
         var bodyRef = Simulation.Bodies.GetBodyReference(Body);
+        if(!Simulation.Bodies.BodyExists(_turret)) return;
         var turretRef = Simulation.Bodies.GetBodyReference(_turret);
+        if(!Simulation.Bodies.BodyExists(_barrel)) return;
         var barrelRef = Simulation.Bodies.GetBodyReference(_barrel);
 
         var qBody = bodyRef.Pose.Orientation;
@@ -757,6 +763,7 @@ public abstract class Tank
     public void SyncFromPhysics()
     {
         if (IsDead) return;
+        if(!Simulation.Bodies.BodyExists(Body)) return;
         var body = Simulation.Bodies.GetBodyReference(Body);
         var pose = body.Pose;
 
@@ -770,6 +777,7 @@ public abstract class Tank
         if (IsDead) return;
 
         // Sincronizar posición y rotación desde la física
+        if(!Simulation.Bodies.BodyExists(Body)) return;
         var pose = Simulation.Bodies.GetBodyReference(Body).Pose;
 
         Position = new Vector3(pose.Position.X, pose.Position.Y, pose.Position.Z);
@@ -794,6 +802,7 @@ public abstract class Tank
 
     public void DrawDebug()
     {
+        if(!Simulation.Bodies.BodyExists(Body)) return;
         RigidPose pose = Simulation.Bodies.GetBodyReference(Body).Pose;
         var scale = Matrix.CreateScale(1f, 1f, 1f); // tamaño del cuerpo (Box)
         var rotation = Matrix.CreateFromQuaternion(pose.Orientation);
@@ -948,7 +957,8 @@ public abstract class Tank
     {
         if (IsDead) return;
         // Referencia al cuerpo físico del tanque
-        var bodyRef = simulation.Bodies.GetBodyReference(Body); // usa tu handle del tanque
+        if(!simulation.Bodies.BodyExists(Body)) return;
+        var bodyRef = simulation.Bodies.GetBodyReference(Body);
 
         // Retroceso: empuja en dirección opuesta por un tiempo corto
         if (RecoilTime > 0f)
@@ -969,6 +979,8 @@ public abstract class Tank
 
     public void RecibirAtaque(float danio)
     {
+        if (ModoGod) return;
+        
         Vida -= danio;
 
         if (Vida <= 0f)
@@ -982,14 +994,6 @@ public abstract class Tank
 
         // Detener todos los sonidos del tanque
         Audio?.StopAll();
-    }
-
-    public virtual void Reset()
-    {
-        IsDead = false;
-        Vida = VidaMax;
-        FireCooldown = 0f;
-        ImpactsLocal.Clear(); // Limpiar impactos al resetear el tanque
     }
 
     protected virtual void ResetCooldown()

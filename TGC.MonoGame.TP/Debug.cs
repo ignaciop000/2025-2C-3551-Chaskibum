@@ -183,11 +183,8 @@ public class Debug
             tank.DrawDebug();
             foreach (var bodyHandle in tank.BodyHandles)
             {
-                if(!_simulation.Bodies.BodyExists(bodyHandle))
-                    continue;
-                
                 if (_simulation == null || bodyHandle.Value < 0) return;
-
+                
                 if(!_simulation.Bodies.BodyExists(bodyHandle)) continue;
                 
                 var body = _simulation.Bodies.GetBodyReference(bodyHandle);
@@ -242,6 +239,7 @@ public class Debug
 
                 var bodyHandleProyectile = projectile.Body;
                 if (_simulation == null || bodyHandleProyectile.Value < 0) continue;
+                if(!_simulation.Bodies.BodyExists(bodyHandleProyectile)) continue;
 
                 var bodyProyectile = _simulation.Bodies.GetBodyReference(bodyHandleProyectile);
                 var bodyPoseProyectile = bodyProyectile.Pose;

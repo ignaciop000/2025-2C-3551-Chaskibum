@@ -77,7 +77,9 @@ struct TankCallbacks : INarrowPhaseCallbacks
                 }
                 else
                 {
+                    if(!_simulation.Bodies.BodyExists(pair.A.BodyHandle)) continue;
                     var poseA = _simulation.Bodies[pair.A.BodyHandle].Pose;
+                    if(!_simulation.Bodies.BodyExists(pair.B.BodyHandle)) continue;
                     var poseB = _simulation.Bodies[pair.B.BodyHandle].Pose;
                     AgregarImpactoDinamico(pair.A.BodyHandle, pair.B.BodyHandle, poseA.Position, poseB.Position);
                 }

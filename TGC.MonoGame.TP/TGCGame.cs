@@ -1,11 +1,4 @@
-﻿// ARREGLOS
-// - Los tanques no deben spawnear donde hay obstaculos + no deben spawnear volando [AGUS]
-// - Bajar volumenes altos [SANTI]
-
-// NUEVAS TAREAS
-// - Modo God [MATEO]
-
-// FINALMENTE [TODOS]
+﻿// FINALMENTE [TODOS]
 // - Separar los .cs en carpetas
 // - Emprolijar código (principalmente físicas, pero no estaria mal diseñar mejor algunas cosas)
 // - Emprolijar shaders (borrarles cosas innecesarias o unificarlos si se puede)
@@ -15,10 +8,8 @@
 
 // OPCIONALES [EL QUE QUIERA]
 // - Hacer volumen configurable
-// - Imagen tutorial [SANTI]
 // - Que los cambios en el menú sean no solo skin, si no tmb tamaño, vida, daño base, velocidad
 // - Crear algún sistema de partículas que muestren humo, fuego, chispas, etc.
-// - Delineado tanques ocultos
 // - Agregar un efecto de Bloom para los disparos, y el humo/fuego si fue implementado.
 // - Modo versus
 
@@ -517,7 +508,6 @@ public class TGCGame : Game
 
                 _enemyTanks.Clear();
                 _enemyControllers.Clear();
-                _tank.Reset();
             }
         }
         else
@@ -606,6 +596,11 @@ public class TGCGame : Game
                 {
                     _camera = _orbitCamera;
                 }
+            }
+            
+            if (keyboardState.IsKeyDown(Keys.F5) && !_kbPrev.IsKeyDown(Keys.F5))
+            {
+                _tank.ModoGod = !_tank.ModoGod;
             }
 
             if (Keyboard.GetState().IsKeyDown(Keys.L))

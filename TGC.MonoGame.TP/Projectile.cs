@@ -108,6 +108,7 @@ namespace TGC.MonoGame.TP
             }
 
             // sync pose desde física
+            if(!_simulation.Bodies.BodyExists(_body)) return;
             var bodyRef = _simulation.Bodies.GetBodyReference(_body);
             var p = bodyRef.Pose.Position;
             _pos = ToXna(p);

@@ -12,8 +12,7 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
     private static readonly List<Color> Colors =
     [
         Color.White, // Tree
-        Color.White, // Tree 2
-        //Color.White  // Tree 3
+        Color.White // Tree 2
     ];
     
     public void CrearObjetos(Texture2D normalMapTree2Leaves, Texture2D normalMapTree2Bark, Texture2D normalMapTreeLeaves, Terrain terrain)
@@ -25,8 +24,7 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (altura, escalaMin, escalaMax)
             (0f, 40f, 75f, true, normalMapsTree1), // Tree
-            (0f, 0.22f, 0.45f, true, normalMapsTree2), // Tree 2
-            //(0f, 10f, 25f, false, null) // Tree 3
+            (0f, 0.22f, 0.45f, true, normalMapsTree2) // Tree 2
         };
 
         base.CrearObjetos(parametros, terrain);
@@ -36,8 +34,7 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
             // Por si se quiere configurar cada modelo en concreto de forma distinta
             // (ancho, alto, profundidad, yawEnGrados)
             (0.5f, 2.5f, 0.3f, 0f), // Tree
-            (65f, 400f, 75f, 0f), // Tree 2
-            //(0.6f, 12f, 0.6f, 0f) // Tree 3
+            (65f, 400f, 75f, 0f) // Tree 2
         };
         
         CrearRigidBodies(parametrosRigidBodies);
@@ -48,34 +45,24 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
         var paths = new[]
         {
             "/tree/Tree",
-            "/tree2/Leaf_Oak",
-           // "/tree3/Tree"
+            "/tree2/Leaf_Oak"
         };
         
         // Texturas de corteza (BarkTexture)
         var barkTextures = new[]
         {
             "/tree/Tree.fbm/bark_0021",  // Tree 1 - corteza
-            "/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hz", // Tree 2 - corteza
-           // "/tree3/BarkDecidious0107_M"  // Tree 3 - corteza
+            "/tree2/tileable_tree_bark_texture_by_ftourini-d3l69hz" // Tree 2 - corteza
         };
         
         // Texturas de hojas (LeavesTexture)
         var leavesTextures = new[]
         {
             "/tree/Tree.fbm/DB2X2_L01", // Tree 1 - hojas
-            "/tree2/TexturesCom_Branches0018_1_alphamasked_S", // Tree 2 - hojas
-            //"/tree3/Branches0018_1_S"  // Tree 3 - hojas
+            "/tree2/TexturesCom_Branches0018_1_alphamasked_S" // Tree 2 - hojas
         };
         
         base.CargarModelos(efecto, content, paths, barkTextures, leavesTextures);
-    }
-    
-    public override void OnCollisionWithTank(StaticHandle handle)
-    {
-        // Rompe el objeto
-        var model = Models.FirstOrDefault(m => m.Handles.Contains(handle));
-        model?.DestruirInstancia(handle);
     }
 
     public void DrawSombra(BoundingFrustum boundingFrustum, Effect effect, TargetCamera targetLightCamera, float time)

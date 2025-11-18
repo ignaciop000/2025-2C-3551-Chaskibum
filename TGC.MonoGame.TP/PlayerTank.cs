@@ -14,6 +14,7 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
         if (IsDead) return;
         var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+        if(!Simulation.Bodies.BodyExists(Body)) return;
         var body = Simulation.Bodies.GetBodyReference(Body);
         body.Awake = true;
 
@@ -123,14 +124,14 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
     
     public void Reset()
     {
-        base.Reset(); // Llamar al Reset de la clase base (Tank) para limpiar impactos
         IsDead = false;
-        Vida = 100f;
+        Vida = VidaMax;
+        FireCooldown = 0f;
+        ImpactsLocal.Clear(); // Limpiar impactos al resetear el tanque
         WasBraking = false;
         TipoProyectilActual = ProjectileTypes.Light;
         BrakeTime = 0f;
         RecoilTime = 0f;
-        ResetCooldown();
         
         VolverAlCentro();
     }
@@ -139,12 +140,14 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
     {
         // Obtener referencia al cuerpo físico BEPU
         var centerY = Terrain.GetHeightAtPosition(0, 0);
+        if(!Simulation.Bodies.BodyExists(Body)) return;
         var bodyHandle = Simulation.Bodies.GetBodyReference(Body);
         var tankPos = bodyHandle.Pose.Position;
         var offset = new System.Numerics.Vector3(0, centerY + 25, 0) - tankPos;
             
         foreach (var handle in BodyHandles)
         {
+            if(!Simulation.Bodies.BodyExists(handle)) return;
             var bodyRef = Simulation.Bodies.GetBodyReference(handle);    
             var pose = bodyRef.Pose;
             pose.Position += offset;

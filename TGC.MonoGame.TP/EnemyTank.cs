@@ -23,6 +23,7 @@ public class EnemyTank(Vector3 initialPosition, float initialRotation = 0f, floa
             
         var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
+        if(!Simulation.Bodies.BodyExists(Body)) return;
         var body = Simulation.Bodies.GetBodyReference(Body);
         body.Awake = true;
             
@@ -47,19 +48,21 @@ public class EnemyTank(Vector3 initialPosition, float initialRotation = 0f, floa
     {
         if (IsDead) return;
         
-        //playerPosition = new Vector3(playerPosition.X, playerPosition.Y + 15, playerPosition.Z);
-
         var toPlayer = playerPosition - Position;
         var distance = toPlayer.Length();
         if (distance < 1e-4f) return;
+
+        // Para que el tanque apunte un poco más arriba al jugador, en función de la distancia
+        var toPlayerFixed = new Vector3(toPlayer.X, toPlayer.Y + distance / 17f, toPlayer.Z);
         
-        AimDirectionWorld = Vector3.Normalize(toPlayer);
+        AimDirectionWorld = Vector3.Normalize(toPlayerFixed);
         
         if (distance > 350f)
         {
             // Yaw objetivo (misma convención: +PI para que frente -Z sea 0)
             var targetYaw = MathF.Atan2(AimDirectionWorld.X, AimDirectionWorld.Z) + MathF.PI;
 
+            if(!Simulation.Bodies.BodyExists(Body)) return;
             var bodyRef = Simulation.Bodies.GetBodyReference(Body);
             var currentYaw = GetTankYaw(bodyRef.Pose.Orientation);
 
@@ -120,7 +123,7 @@ public class EnemyTank(Vector3 initialPosition, float initialRotation = 0f, floa
     
     protected override void ResetCooldown()
     {
-        FireCooldown = TipoProyectilActual.MaxCooldown * 2; // Para que disparen mas lento que el jugador
+        FireCooldown = TipoProyectilActual.MaxCooldown * 3; // Para que disparen mas lento que el jugador
     }
     
     public override void Kill()
