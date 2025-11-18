@@ -14,6 +14,7 @@ public class Terrain
     public float ScaleXz = 1;
     public float ScaleY = 1;
     public List<TerrainChunk> Chunks;
+    public List<TerrainChunk> ChunksVisibles;
     private readonly Texture2D _colorMapTexture;
     private readonly Texture2D _terrainTexture;
     private readonly Texture2D _terrainTexture2;
@@ -46,6 +47,7 @@ public class Terrain
         Texture2D spawnMap, Pasto pasto)
     {
         Chunks = [];
+        ChunksVisibles = [];
         //Shader
         _effect = effect;
         ColorMap = LoadColorMap(spawnMap);
@@ -173,9 +175,10 @@ public class Terrain
                     min = Vector3.Min(min, v.Position);
                     max = Vector3.Max(max, v.Position);
                 }
-                
+                var random = new Random();
+                var distMin = random.NextSingle() * 50f + 50f;
                 var grassPoints = _positionGenerator.GenerarPuntosPasto( 
-                    50f, 
+                    distMin, 
                     ColorMap, 
                     scaleXZ, 
                     chunkX, 
@@ -188,7 +191,6 @@ public class Terrain
                     30
                 );
                 
-                var random = new Random();
                 var instances = new InstanceData[grassPoints.Count];
                 
                 for (int i = 0; i < instances.Length; i++)
@@ -329,43 +331,51 @@ public class Terrain
     /// <param name="world">Matriz de transformación para coordenadas del mundo.</param>
     /// <param name="view">Matriz de vista de la cámara para determinar cómo se observa la escena.</param>
     /// <param name="projection">Matriz de proyección utilizada para la perspectiva 3D.</param>
-        public void Draw(Matrix world, Camera camera, BoundingFrustum boundingFrustum, Pasto pasto, float time)
+    public void Draw(Matrix world, Camera camera, BoundingFrustum boundingFrustum)
+    {
+        ChunksVisibles = [];
+        var graphicsDevice = _effect.GraphicsDevice;
+        var view = camera.View;
+        var projection = camera.Projection;
+        
+        _effect.Parameters["World"]?.SetValue(world);
+        _effect.Parameters["View"]?.SetValue(view);
+        _effect.Parameters["Projection"]?.SetValue(projection);
+        _effect.Parameters["texColorMap"]?.SetValue(_colorMapTexture);
+        _effect.Parameters["texDiffuseMap"]?.SetValue(_terrainTexture);
+        _effect.Parameters["texDiffuseMap2"]?.SetValue(_terrainTexture2);
+        _effect.Parameters["NormalTexture"]?.SetValue(_normalMap);
+        _effect.Parameters["lightPosition"]?.SetValue(LightPosition);
+        _effect.Parameters["eyePosition"]?.SetValue(EyePosition);
+
+        _effect.Parameters["WorldViewProjection"]?.SetValue(world * view * projection);
+        _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
+        foreach (var chunk in Chunks)
         {
-            var graphicsDevice = _effect.GraphicsDevice;
-            var view = camera.View;
-            var projection = camera.Projection;
-            
-            _effect.Parameters["World"]?.SetValue(world);
-            _effect.Parameters["View"]?.SetValue(view);
-            _effect.Parameters["Projection"]?.SetValue(projection);
-            _effect.Parameters["texColorMap"]?.SetValue(_colorMapTexture);
-            _effect.Parameters["texDiffuseMap"]?.SetValue(_terrainTexture);
-            _effect.Parameters["texDiffuseMap2"]?.SetValue(_terrainTexture2);
-            _effect.Parameters["NormalTexture"]?.SetValue(_normalMap);
-            _effect.Parameters["lightPosition"]?.SetValue(LightPosition);
-            _effect.Parameters["eyePosition"]?.SetValue(EyePosition);
-
-            _effect.Parameters["WorldViewProjection"]?.SetValue(world * view * projection);
-            _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
-
-            foreach (var chunk in Chunks)
+            if (boundingFrustum.Intersects(chunk.BoundingBox))
             {
-                if (boundingFrustum.Intersects(chunk.BoundingBox))
-                {
-                    pasto.DrawPasto(graphicsDevice, camera, chunk.InstanceBuffer, time, LightPosition, EyePosition);
-                    
-                    graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
-                    graphicsDevice.Indices = chunk.IndexBuffer;
+                ChunksVisibles.Add(chunk);
+                
+                graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
+                graphicsDevice.Indices = chunk.IndexBuffer;
 
-                    foreach (var pass in _effect.CurrentTechnique.Passes)
-                    {
-                        pass.Apply();
-                        graphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, chunk.IndexBuffer.IndexCount / 3);
-                    }
+                foreach (var pass in _effect.CurrentTechnique.Passes)
+                {
+                    pass.Apply();
+                    graphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, chunk.IndexBuffer.IndexCount / 3);
                 }
             }
         }
+    }
 
+    public void DibujarPasto(Pasto pasto, float time, Camera camera)
+    {
+        var graphicsDevice = _effect.GraphicsDevice;
+        foreach (var chunk in ChunksVisibles)
+        {
+            pasto.DrawPasto(graphicsDevice, camera, chunk.InstanceBuffer, time, LightPosition, EyePosition);
+        }
+    }
     /// <summary>
     /// Obtiene la altura del terreno en una posición específica (X, Z)
     /// </summary>

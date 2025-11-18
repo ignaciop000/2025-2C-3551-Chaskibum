@@ -28,7 +28,7 @@ static const float maxEpsilon = 0.000000523200045689009130001068115234375;
 
 float Ka;
 uniform float4 ImpactPoints[10];
-
+float3 color;
 // Parámetro para texture scrolling de orugas
 float TreadmillOffset = 0.0;
 
@@ -62,6 +62,11 @@ struct VertexShaderInput
     float3 Normal : NORMAL0;
 };
 
+struct OutlineVSInput
+{
+    float4 Position : POSITION0;
+};
+
 struct VertexShaderOutput
 {
 	float4 Position : SV_POSITION;
@@ -69,6 +74,11 @@ struct VertexShaderOutput
     float3 Normal : TEXCOORD1;
     float4 WorldPos : TEXCOORD2;
     float4 LightSpacePosition : TEXCOORD3;
+};
+
+struct OutlineVSOutput
+{
+    float4 Position : SV_POSITION;
 };
 
 struct MenuVSOutput
@@ -118,7 +128,7 @@ VertexShaderOutput MainVS(in VertexShaderInput input)
     output.TextureCoordinate = input.TextureCoordinate;
     output.WorldPos = worldPosition;
     output.LightSpacePosition = mul(output.WorldPos, LightViewProjection);
-    output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld);
+    output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld).xyz;
     
     return output;
 }
@@ -164,7 +174,7 @@ float4 MainPS(VertexShaderOutput input) : COLOR
     
     float distanceToCamera = distance(input.WorldPos.xyz, eyePosition);
     float fogFactor = saturate((distanceToCamera - FogStart) / (FogEnd - FogStart));
-    //finalColor.rgb = lerp(finalColor.rgb, FogColor, fogFactor);
+    finalColor.rgb = lerp(finalColor.rgb, FogColor, fogFactor);
     return finalColor;
 }
 
@@ -228,7 +238,7 @@ VertexShaderOutput TreadmillVS(in VertexShaderInput input)
     
     output.WorldPos = worldPosition;
     output.LightSpacePosition = mul(output.WorldPos, LightViewProjection);
-    output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld);
+    output.Normal = mul(float4(input.Normal, 1), InverseTransposeWorld).xyz;
     
     return output;
 }
@@ -239,5 +249,40 @@ technique TreadmillDrawing
     {
         VertexShader = compile VS_SHADERMODEL TreadmillVS();
         PixelShader = compile PS_SHADERMODEL MainPS();
+    }
+}
+
+OutlineVSOutput OutlineVS(in OutlineVSInput input)
+{
+    OutlineVSOutput output = (OutlineVSOutput)0;
+    float4 worldPos = mul(input.Position, World);
+    
+    ApplyDeformation(worldPos, ImpactPoints[0]);
+    ApplyDeformation(worldPos, ImpactPoints[1]);
+    ApplyDeformation(worldPos, ImpactPoints[2]);
+    ApplyDeformation(worldPos, ImpactPoints[3]);
+    ApplyDeformation(worldPos, ImpactPoints[4]);
+    ApplyDeformation(worldPos, ImpactPoints[5]);
+    ApplyDeformation(worldPos, ImpactPoints[6]);
+    ApplyDeformation(worldPos, ImpactPoints[7]);
+    ApplyDeformation(worldPos, ImpactPoints[8]);
+    ApplyDeformation(worldPos, ImpactPoints[9]);
+    
+    float4 viewPos = mul(worldPos, View);
+    output.Position = mul(viewPos, Projection);
+    return output;
+}
+
+float4 OutlinePS(OutlineVSOutput input) : COLOR
+{
+    return float4(color,1);
+}
+
+technique OutlineDrawing
+{
+    pass P0
+    {
+        VertexShader = compile VS_SHADERMODEL OutlineVS();
+        PixelShader = compile PS_SHADERMODEL OutlinePS();
     }
 }
