@@ -155,7 +155,6 @@ VS_OUTPUT vs_RenderTerrain(VS_INPUT input)
     //Enviar Texcoord directamente
     output.Texcoord = input.Texcoord;
 
-    //todo: que le pase el inv trasp. word
     float4x4 matInverseTransposeWorld = World;
     output.WorldPos = worldPosition.xyz;
     output.WorldNormal = mul(input.Normal, matInverseTransposeWorld).xyz;

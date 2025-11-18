@@ -107,7 +107,7 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
             effect.Parameters["ModelTexture"]?.SetValue(model.Texturas[1]);
             effect.Parameters["ViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
             effect.Parameters["World"]?.SetValue(worldMatrix);
-            
+            effect.Parameters["WorldViewProjection"]?.SetValue(worldMatrix * targetLightCamera.View * targetLightCamera.Projection);
         }
         else
         {
