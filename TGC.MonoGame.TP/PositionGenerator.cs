@@ -205,7 +205,6 @@ public class PositionGenerator()
                 
             currentAttempts--;
         }
-        Console.WriteLine("Se crearon " + points.Count + " posiciones");
         return points;
     }
     

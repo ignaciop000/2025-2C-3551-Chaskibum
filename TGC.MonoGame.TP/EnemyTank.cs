@@ -53,7 +53,7 @@ public class EnemyTank(Vector3 initialPosition, PlayerTank playerTank, float ini
         if (distance < 1e-4f) return;
 
         // Para que el tanque apunte un poco más arriba al jugador, en función de la distancia
-        var toPlayerFixed = new Vector3(toPlayer.X, toPlayer.Y + distance / 17f, toPlayer.Z);
+        var toPlayerFixed = new Vector3(toPlayer.X, toPlayer.Y + distance / 30f, toPlayer.Z);
         
         AimDirectionWorld = Vector3.Normalize(toPlayerFixed);
         

@@ -180,8 +180,6 @@ public class TGCGame : Game
         //DEBUG
         Gizmos = new Gizmos();
 
-        BufferPool = new BufferPool();
-
         // Inicialización de cámaras
         _orbitCamera = new OrbitCamera(
             GraphicsDevice.Viewport.AspectRatio,
@@ -195,20 +193,23 @@ public class TGCGame : Game
         _screenCenter = new Point(
             GraphicsDevice.Viewport.Width / 2,
             GraphicsDevice.Viewport.Height / 2);
+        
         _offset = new Vector3(2700f, 4600f, -2000f);
+        
         _collisionHandler = new CollisionHandler();
-        _bodyProperties = new CollidableProperty<TankBodyProperties>(); //BEPU
+        
+        //BEPU
+        BufferPool = new BufferPool();
+        _bodyProperties = new CollidableProperty<TankBodyProperties>();
         _callbacks = new TankCallbacks() { Properties = _bodyProperties };
         _callbacks.SetCollisionHandler(_collisionHandler);
 
         _simulation = Simulation.Create(BufferPool, _callbacks,
-            new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1)); //TODO
-
-        _tank = new PlayerTank(new Vector3(0, 0, 0), 0f, 0.1f);
-        _tanks = [_tank];
-
+            new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
+        
         _tank = new PlayerTank(new Vector3(0, 0, 0));
-
+        _tanks = [_tank];
+        
         _debug = new Debug();
         _menu = new Menu();
         _hud = new HUD(GraphicsDevice);

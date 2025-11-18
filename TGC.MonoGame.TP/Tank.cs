@@ -100,7 +100,7 @@ public abstract class Tank
     private const float BrakeDuration = 0.18f; // seg
     private const float BrakeK = 10f; // coeficiente de frenado (tunable)
 
-    public float VisualYOffset = 50f;
+    private const float VisualYOffset = 50f;
     private const float VisualZOffset = 23f;
 
     private float _previousSwivel;
@@ -243,7 +243,6 @@ public abstract class Tank
         // Cargar modelo
         Model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
         _box = BoundingVolumesExtensions.CreateAABBFrom(Model);
-
         
         // Cargar texturas del T90
         hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
@@ -274,7 +273,6 @@ public abstract class Tank
 
         _turretTransform = _turretBone.Transform;
         _cannonTransform = _cannonBone.Transform;
-
 
         // Allocate the transform matrix array.
         _boneTransforms = new Matrix[Model.Bones.Count];
@@ -716,8 +714,7 @@ public abstract class Tank
         QuaternionEx.Conjugate(qTurret, out var qInvTurret);
         QuaternionEx.Transform(fwdWorldN, qInvTurret, out var fwdLocalToTurret);
         var pitch = -MathF.Atan2(fwdLocalToTurret.Y, fwdLocalToTurret.Z);
-
-
+        
         // Asignar directo a los ángulos visuales
 
         TurretRotation = swivel + (1 * (swivel - _previousSwivel));
@@ -1017,7 +1014,6 @@ public abstract class Tank
         if (Vida <= 0f)
         {
             Kill();
-            
         }
     }
 

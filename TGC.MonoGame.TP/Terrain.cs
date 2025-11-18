@@ -217,7 +217,6 @@ public class Terrain
                 Chunks.Add(chunk);
             }
         }
-        Console.WriteLine($"Chunks generados: {Chunks.Count}");
 
         // Crear colisión física
         CreatePhysicsCollision(simulation);

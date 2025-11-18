@@ -151,7 +151,8 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
             var bodyRef = Simulation.Bodies.GetBodyReference(handle);    
             var pose = bodyRef.Pose;
             pose.Position += offset;
-            pose.Orientation = System.Numerics.Quaternion.Identity;
+            // No es tan sencillo resetear la orientación!
+            //pose.Orientation = System.Numerics.Quaternion.Identity;
             bodyRef.Pose = pose;
                 
             var vel = bodyRef.Velocity;
