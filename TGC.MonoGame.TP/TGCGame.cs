@@ -733,7 +733,7 @@ public class TGCGame : Game
             DrawShadows();
         
         GraphicsDevice.SetRenderTarget(null);
-        GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.CornflowerBlue, 1f, 0);
+        GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, new Color(new Vector3(0.5f, 0.6f, 0.7f)), 1f, 0);
 
         if (_state == GameState.MainMenu)
         {
