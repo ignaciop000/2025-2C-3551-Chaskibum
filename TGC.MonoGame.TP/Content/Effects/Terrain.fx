@@ -241,9 +241,10 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
     float NdotH = dot(normal, halfVector);
     float3 specularLight = 0.1 * float3(1,1,1) * pow(saturate(NdotH),8);
 
+    diffuseLight *= notInShadow;
+    specularLight *= notInShadow;
+        
     float4 baseColor = float4(saturate(float3(1,1,1) * 0.2 + diffuseLight) * color.rgb + specularLight, color.a);
-	
-    baseColor.rgb *= 0.5 + 0.5 * notInShadow;
     
     // Aplicar niebla volumétrica 3D
     float distanceToCamera = distance(input.WorldSpacePosition.xyz, eyePosition);

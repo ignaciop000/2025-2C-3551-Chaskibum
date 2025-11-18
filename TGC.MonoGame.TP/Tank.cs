@@ -9,11 +9,13 @@ using BepuUtilities.Memory;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
+using TGC.MonoGame.Samples.Collisions;
 using TGC.MonoGame.TP.Viewer.Gizmos;
 using Quaternion = Microsoft.Xna.Framework.Quaternion;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 using MathHelper = Microsoft.Xna.Framework.MathHelper;
 using Matrix = Microsoft.Xna.Framework.Matrix;
+using BoundingBox = Microsoft.Xna.Framework.BoundingBox;
 
 namespace TGC.MonoGame.TP;
 
@@ -27,6 +29,7 @@ public abstract class Tank
     public Effect _effect;
     public Matrix _world;
     public Matrix World;
+    private BoundingBox _box;
 
     private ModelBone[] _wheelBones;
     private ModelBone _turretBone;
@@ -235,6 +238,8 @@ public abstract class Tank
         BodyHandles = new QuickList<BodyHandle>(11, bufferPool);
         // Cargar modelo
         Model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
+        _box = BoundingVolumesExtensions.CreateAABBFrom(Model);
+
         
         // Cargar texturas del T90
         hullATexture = content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
@@ -741,7 +746,7 @@ public abstract class Tank
             sign = MathF.Sign(Vector3.Dot(dir, forward));
         }
 
-        WheelRotation += sign * (dist / (WheelRadius));
+        WheelRotation += sign * (dist / (WheelRadius * 2));
 
         if (WheelRotation > MathHelper.TwoPi) WheelRotation -= MathHelper.TwoPi;
         else if (WheelRotation < -MathHelper.TwoPi) WheelRotation += MathHelper.TwoPi;
@@ -816,11 +821,11 @@ public abstract class Tank
     }
 
     public void Draw(Camera camera, RenderTarget2D shadowMapRenderTarget, int shadowmapSize,
-        TargetCamera targetLightCamera)
+        TargetCamera targetLightCamera, BoundingFrustum boundingFrustum)
     {
-        if (Model == null || _effect == null || IsDead) return;
+        if (Model == null || _effect == null || IsDead || !EsVisible(boundingFrustum)) return;
 
-        var wheelRotation = Matrix.CreateRotationX(WheelRotation);
+        var wheelRotation = Matrix.CreateRotationX(-WheelRotation);
         var turretRotation = Matrix.CreateRotationY(TurretRotation);
         var cannonRotation = Matrix.CreateRotationX(CannonRotation);
 
@@ -837,7 +842,7 @@ public abstract class Tank
 
         // Calcular offset de texture scrolling basado en WheelRotation
         // Dividir por 2*PI para convertir radianes a ciclos de textura
-        float treadmillOffset = -WheelRotation / (2f * MathF.PI);
+        float treadmillOffset = WheelRotation / (2f * MathF.PI);
 
         _effect.CurrentTechnique = _effect.Techniques["BasicDrawing"];
         _effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
@@ -855,9 +860,11 @@ public abstract class Tank
         }
 
         _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
-
         _effect.Parameters["View"]?.SetValue(camera.View);
         _effect.Parameters["Projection"]?.SetValue(camera.Projection);
+        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
+        _effect.Parameters["FogStart"]?.SetValue(2000f);
+        _effect.Parameters["FogEnd"]?.SetValue(3000f);
 
         foreach (var mesh in Model.Meshes)
         {
@@ -1012,9 +1019,10 @@ public abstract class Tank
         Audio?.PlayShoot(TipoProyectilActual);
     }
     
-    public void DrawShadow(Effect shadowEffect, TargetCamera targetLightCamera)
+    public void DrawShadow(Effect shadowEffect, TargetCamera targetLightCamera, BoundingFrustum boundingFrustum)
     {
-        
+        if (!EsVisible(boundingFrustum)) 
+            return;
         var turretRotation = Matrix.CreateRotationY(TurretRotation);
         var cannonRotation = Matrix.CreateRotationX(CannonRotation); // mismo eje/signo que Draw
         _turretBone.Transform = turretRotation * _turretTransform;
@@ -1035,5 +1043,15 @@ public abstract class Tank
             // Once we set these matrices we draw
             modelMesh.Draw();
         }
+    }
+    
+    public bool EsVisible(BoundingFrustum boundingFrustum)
+    {
+        var corners = _box.GetCorners();
+        for (int i = 0; i < corners.Length; i++)
+            corners[i] = Vector3.Transform(corners[i], World);
+
+        var boundingBox = BoundingBox.CreateFromPoints(corners);
+        return boundingFrustum.Intersects(boundingBox);
     }
 }

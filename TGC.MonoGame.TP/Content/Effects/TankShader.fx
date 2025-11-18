@@ -19,6 +19,10 @@ float2 shadowMapSize;
 float AmbientLight = 0.3;
 float3 eyePosition;
 
+float3 FogColor = float3(0.5, 0.6, 0.7); 
+float FogStart = 700.0; 
+float FogEnd = 2200.0; 
+
 static const float modulatedEpsilon = 0.000000541200182749889791011810302734375;
 static const float maxEpsilon = 0.000000523200045689009130001068115234375;
 
@@ -151,11 +155,16 @@ float4 MainPS(VertexShaderOutput input) : COLOR
     float3 diffuseLight = 0.8 * float3(1,1,1) * NdotL;  
     
     float NdotH = dot(normal, halfVector);
-    float3 specularLight = 0.3 * float3(1,1,1) * pow(saturate(NdotH),32);
+    float3 specularLight = 0.3 * float3(1,1,1) * pow(saturate(NdotH),24);
+    
+    diffuseLight *= notInShadow;
+    specularLight *= notInShadow;
     
     float4 finalColor = float4(saturate(float3(1,1,1) * Ka + diffuseLight) * color + specularLight, texColor.a);
     
-    finalColor.rgb *= 0.5 + 0.5 * notInShadow;
+    float distanceToCamera = distance(input.WorldPos.xyz, eyePosition);
+    float fogFactor = saturate((distanceToCamera - FogStart) / (FogEnd - FogStart));
+    //finalColor.rgb = lerp(finalColor.rgb, FogColor, fogFactor);
     return finalColor;
 }
 

@@ -181,9 +181,6 @@ public class ModelInstances(Color color , Simulation simulation)
         
         InstanceVertexDeclaration = new VertexDeclaration(instanceElements);
         
-        
-        //_box = BoundingVolumesExtensions.CreateAABBFrom(Model);
-        
     }
     
     public void CargarModelo(string rutaRelativa, Effect efecto, ContentManager content, string texturaPath)
@@ -245,8 +242,8 @@ public class ModelInstances(Color color , Simulation simulation)
         
         // Configurar parámetros de niebla
         _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _effect.Parameters["FogStart"]?.SetValue(700f);
-        _effect.Parameters["FogEnd"]?.SetValue(2200f);
+        _effect.Parameters["FogStart"]?.SetValue(2000f);
+        _effect.Parameters["FogEnd"]?.SetValue(3000f);
 
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
         {

@@ -761,10 +761,10 @@ public class TGCGame : Game
         {
             foreach (var enemyTank in _enemyTanks)
             {
-                enemyTank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera);
+                enemyTank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum);
             }
 
-            _tank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera);
+            _tank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum);
 
             DibujarElementos();
 
@@ -949,10 +949,10 @@ public class TGCGame : Game
 
         foreach (var enemyTank in _enemyTanks)
         {
-            enemyTank.DrawShadow(_shadowEffect, _targetLightCamera);
+            enemyTank.DrawShadow(_shadowEffect, _targetLightCamera, _boundingFrustum);
         }
 
-        _tank.DrawShadow(_shadowEffect, _targetLightCamera);
+        _tank.DrawShadow(_shadowEffect, _targetLightCamera, _boundingFrustum);
 
         foreach (var instance in _allInstances)
         {
@@ -1010,8 +1010,8 @@ public class TGCGame : Game
         
         // Configurar parámetros de niebla
         _terrainEffect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _terrainEffect.Parameters["FogStart"]?.SetValue(700f);
-        _terrainEffect.Parameters["FogEnd"]?.SetValue(2200f);
+        _terrainEffect.Parameters["FogStart"]?.SetValue(2000f);
+        _terrainEffect.Parameters["FogEnd"]?.SetValue(3000f);
 
         _terrain.Draw(Matrix.Identity, _camera, _boundingFrustum, _pasto, _elapsedTime);
     }
@@ -1022,8 +1022,8 @@ public class TGCGame : Game
         
         // Configurar parámetros de niebla
         _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _effect.Parameters["FogStart"]?.SetValue(700f);
-        _effect.Parameters["FogEnd"]?.SetValue(2200f);
+        _effect.Parameters["FogStart"]?.SetValue(2000f);
+        _effect.Parameters["FogEnd"]?.SetValue(3000f);
 
         _rocks.Draw(_effect, _boundingFrustum, "Piedra", _usarNormalMapping, _elapsedTime);
 
