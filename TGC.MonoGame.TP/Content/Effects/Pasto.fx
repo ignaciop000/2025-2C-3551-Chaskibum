@@ -12,6 +12,9 @@ float4x4 View;
 float4x4 Projection;
 float Time; 
 
+float3 lightPosition;
+float3 eyePosition;
+
 texture ModelTexture;
 sampler TextureSampler = sampler_state
 {
@@ -39,6 +42,7 @@ struct VSOutput
     float4 Position : SV_POSITION;
     float2 TexCoord : TEXCOORD0;
     float Scale: TEXCOORD1;
+    float4 WorldPos: TEXCOORD2;
 };
 
 VSOutput VSMain(VSInput input)
@@ -59,12 +63,11 @@ VSOutput VSMain(VSInput input)
     
     rotated.y *= input.Scale;
     output.Scale = input.Scale;
-    float3 worldPos = rotated + input.InstancePos;
+    float3 posWorld = rotated + input.InstancePos;
 
-    float4 posWorld = mul(float4(worldPos, 1.0), World);
-    float4 posView  = mul(posWorld, View);
+    output.WorldPos = mul(float4(posWorld, 1.0), World);
+    float4 posView  = mul(output.WorldPos, View);
     output.Position = mul(posView, Projection);
-    
     output.TexCoord = input.TexCoord;
     return output;
 }
@@ -76,7 +79,24 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float gradient = (1 - input.TexCoord.y) * 1.8;
     texColor.r += (input.Scale - 1.3)  * 0.05;
     texColor.rgb = lerp(texColor.rgb * -0.3, texColor.rgb, gradient);
-    return texColor;
+    
+    float3 lightDirection = normalize(lightPosition - input.WorldPos.xyz);
+    float3 viewDirection = normalize(eyePosition - input.WorldPos.xyz);
+    float3 halfVector = normalize(lightDirection + viewDirection);
+    float3 normal = normalize(lerp( float3(0,1,0), float3(0,0,1), pow(input.TexCoord.y,4)));
+    
+    float NdotL = dot(normal, lightDirection);
+    float3 diffuseLight = 0.1 * float3(1,1,1) * saturate(NdotL);  
+        
+    float NdotH = dot(normal, halfVector);
+    float3 specularLight = 0.15 * float3(1,1,1) * pow(saturate(NdotH), 6);
+    specularLight *= 1-input.TexCoord.y;
+   
+    float3 ambientLight = float3(1,1,1) * 0.8;
+    
+    float4 finalColor = float4(saturate(ambientLight + diffuseLight) * texColor.rgb + specularLight, texColor.a);
+    
+    return finalColor;
 }
 
 technique Instancing

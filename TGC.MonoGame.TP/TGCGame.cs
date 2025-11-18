@@ -5,7 +5,6 @@
 
 // NUEVAS TAREAS
 // - Modo God [MATEO]
-// - Mejorar IA tanques: deben disparar al jugador (y este debe perder vida) [AGUS]
 // - Animación ruedas con Texture Scrolling [SANTI]
 
 // FINALMENTE [TODOS]
@@ -14,8 +13,6 @@
 // - Emprolijar shaders (borrarles cosas innecesarias o unificarlos si se puede)
 
 // ERRORES A SOLUCIONAR [TODOS]
-// - A veces algunos proyectiles rebotan en el piso
-// - Ver si se solucionó el bug del suicidio
 // - Error de BEPU de que un valor es nan o infinito
 
 // OPCIONALES [EL QUE QUIERA]
@@ -950,7 +947,7 @@ public class TGCGame : Game
             }
         }
 
-        _trees.DrawSombra(_boundingFrustum, _shadowEffect, _targetLightCamera);
+        _trees.DrawSombra(_boundingFrustum, _shadowEffect, _targetLightCamera, _elapsedTime);
         _terrain.DrawPastoShadow(_boundingFrustum, GraphicsDevice, _targetLightCamera, _pasto, _elapsedTime);
     }
 
@@ -961,8 +958,8 @@ public class TGCGame : Game
         if (_dibujarSombras)
         {
             _terrainEffect.CurrentTechnique = _terrainEffect.Techniques["DrawShadowedPCF"];
-            _terrainEffect.Parameters["shadowMap"].SetValue(_shadowMapRenderTarget);
-            _terrainEffect.Parameters["shadowMapSize"].SetValue(Vector2.One * ShadowmapSize);
+            _terrainEffect.Parameters["shadowMap"]?.SetValue(_shadowMapRenderTarget);
+            _terrainEffect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * ShadowmapSize);
         }
         else
         {
@@ -970,27 +967,26 @@ public class TGCGame : Game
         }
 
         _terrainEffect.Parameters["lightPosition"]?.SetValue(_lightPosition);
-        _terrainEffect.Parameters["LightViewProjection"]
-            ?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
+        _terrainEffect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
 
-        _terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection, _boundingFrustum, _pasto, _elapsedTime);
+        _terrain.Draw(Matrix.Identity, _camera, _boundingFrustum, _pasto, _elapsedTime);
     }
 
     private void DibujarElementos()
     {
         _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
 
-        _rocks.Draw(_effect, _boundingFrustum, "Piedra", _usarNormalMapping);
+        _rocks.Draw(_effect, _boundingFrustum, "Piedra", _usarNormalMapping, _elapsedTime);
 
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
-        _houses.Draw(_effect, _boundingFrustum, "Casa", _usarNormalMapping);
+        _houses.Draw(_effect, _boundingFrustum, "Casa", _usarNormalMapping, _elapsedTime);
 
-        _trees.Draw(_effect, _boundingFrustum, "Arbol", _usarNormalMapping);
+        _trees.Draw(_effect, _boundingFrustum, "Arbol", _usarNormalMapping, _elapsedTime);
 
         //_bushes.Draw(_effect,_boundingFrustum, "Arbusto", _usarNormalMapping);
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
-        _lightPoles.Draw(_effect, _boundingFrustum, "Poste de luz", _usarNormalMapping);
+        _lightPoles.Draw(_effect, _boundingFrustum, "Poste de luz", _usarNormalMapping, _elapsedTime);
 
 
         foreach (var projectile in _projectiles)

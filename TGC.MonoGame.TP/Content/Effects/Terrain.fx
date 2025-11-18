@@ -229,7 +229,7 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
     float3 diffuseLight = 0.8 * color.rgb * NdotL;  
     
     float NdotH = dot(normal, halfVector);
-    float3 specularLight = 0.15 * float3(1,1,1) * pow(saturate(NdotH),24);
+    float3 specularLight = 0.1 * float3(1,1,1) * pow(saturate(NdotH),8);
 
     float4 baseColor = float4(saturate(float3(1,1,1) * 0.2 + diffuseLight) * color.rgb + specularLight, color.a);
 	

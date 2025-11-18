@@ -329,9 +329,11 @@ public class Terrain
     /// <param name="world">Matriz de transformación para coordenadas del mundo.</param>
     /// <param name="view">Matriz de vista de la cámara para determinar cómo se observa la escena.</param>
     /// <param name="projection">Matriz de proyección utilizada para la perspectiva 3D.</param>
-        public void Draw(Matrix world, Matrix view, Matrix projection, BoundingFrustum boundingFrustum, Pasto pasto, float time)
+        public void Draw(Matrix world, Camera camera, BoundingFrustum boundingFrustum, Pasto pasto, float time)
         {
             var graphicsDevice = _effect.GraphicsDevice;
+            var view = camera.View;
+            var projection = camera.Projection;
             
             _effect.Parameters["World"]?.SetValue(world);
             _effect.Parameters["View"]?.SetValue(view);
@@ -350,7 +352,7 @@ public class Terrain
             {
                 if (boundingFrustum.Intersects(chunk.BoundingBox))
                 {
-                    pasto.DrawPasto(graphicsDevice,view,projection, chunk.InstanceBuffer, time);
+                    pasto.DrawPasto(graphicsDevice, camera, chunk.InstanceBuffer, time, LightPosition, EyePosition);
                     
                     graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
                     graphicsDevice.Indices = chunk.IndexBuffer;
@@ -506,7 +508,7 @@ public class Terrain
         {
             if (boundingFrustum.Intersects(chunk.BoundingBox))
             {
-                pasto.DrawPasto(graphicsDevice, targetLightCamera.View, targetLightCamera.Projection , chunk.InstanceBuffer, time);
+                pasto.DrawPasto(graphicsDevice, targetLightCamera, chunk.InstanceBuffer, time, LightPosition, EyePosition);
             }
         }
     }

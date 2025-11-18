@@ -16,6 +16,8 @@ float AmbientLight = 0.3;
 float3 lightPosition;
 float3 eyePosition;
 
+float Time;
+
 float3 ambientColor;
 float Ka;
 
@@ -26,6 +28,9 @@ float3 specularColor;
 float Ks;
 
 float shininess;
+
+bool UseTexture = false; // Flag para indicar si usamos textura o color sólido
+bool Sway = false;
 
 // Textura principal del modelo
 texture ModelTexture;
@@ -66,9 +71,6 @@ float3 getNormalFromMap(float2 textureCoordinates, float3 worldPosition, float3 
 
     return normalize(mul(tangentNormal, TBN));
 }
-
-// Flag para indicar si usamos textura o color sólido
-bool UseTexture = false;
 
 struct VertexShaderInput
 {
@@ -129,8 +131,15 @@ float4 MainPS(VertexShaderOutput input) : COLOR
 VertexShaderOutput NormalMapVS(in VertexShaderInput input)
 {
     VertexShaderOutput output = (VertexShaderOutput) 0;
-
+    
+    
     float4 worldPosition = mul(input.Position, World);
+    float swayOffset = 0; 
+    if(Sway)
+    {
+        swayOffset = sin(Time + worldPosition.x * .5 + worldPosition.z * .5 + worldPosition.y * 2) * (((1-input.TextureCoordinate.y) + input.TextureCoordinate.x)/2);
+    }
+    worldPosition.x += swayOffset * 10;
     float4 viewPosition = mul(worldPosition, View);	
     output.Position = mul(viewPosition, Projection);
     

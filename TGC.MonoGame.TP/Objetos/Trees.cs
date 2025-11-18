@@ -78,8 +78,10 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
         model?.DestruirInstancia(handle);
     }
 
-    public void DrawSombra(BoundingFrustum boundingFrustum, Effect effect, TargetCamera targetLightCamera)
+    public void DrawSombra(BoundingFrustum boundingFrustum, Effect effect, TargetCamera targetLightCamera, float time)
     {
+        effect.Parameters["Time"]?.SetValue(time);
+        
         foreach (var instance in Models)
         {
             effect.Parameters["checkInvisible"]?.SetValue(true);
@@ -96,31 +98,35 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
                 }
                 foreach (var modelMesh in model.Meshes)
                 {
-                    SetTexture(modelMesh, effect, instance);
                     foreach (var part in modelMesh.MeshParts)
                         part.Effect = effect;
-                        
                     var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * world;
-                    // WorldViewProjection is used to transform from model space to clip space
-                    effect.Parameters["WorldViewProjection"]?.SetValue(worldMatrix * targetLightCamera.View * targetLightCamera.Projection);
-                        
-                    // Once we set these matrices we draw
+                    SetVariables(modelMesh, effect, instance, worldMatrix, targetLightCamera);
+                    
+                    
                     modelMesh.Draw();
                 }
             }
         }
         effect.Parameters["checkInvisible"]?.SetValue(false);
+        effect.Parameters["Sway"]?.SetValue(0);
     }
 
-    private void SetTexture(ModelMesh mesh, Effect effect, ModelInstances model)
+    private void SetVariables(ModelMesh mesh, Effect effect, ModelInstances model, Matrix worldMatrix, TargetCamera targetLightCamera)
     {
         if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
         {
+            effect.Parameters["Sway"]?.SetValue(1);
             effect.Parameters["ModelTexture"]?.SetValue(model.Texturas[1]);
+            effect.Parameters["ViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
+            effect.Parameters["World"]?.SetValue(worldMatrix);
+            
         }
         else
         {
+            effect.Parameters["Sway"]?.SetValue(0);
             effect.Parameters["ModelTexture"]?.SetValue(model.Texturas[0]);
+            effect.Parameters["WorldViewProjection"]?.SetValue(worldMatrix * targetLightCamera.View * targetLightCamera.Projection);
         }
     }
 }

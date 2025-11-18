@@ -8,7 +8,12 @@
 #endif
 
 float4x4 WorldViewProjection;
+float4x4 ViewProjection;
+float4x4 World;
 bool checkInvisible = false;
+float Time;
+int Sway = 0;
+
 
 texture ModelTexture;
 sampler TextureSampler = sampler_state
@@ -36,7 +41,17 @@ struct DepthPassVertexShaderOutput
 DepthPassVertexShaderOutput DepthVS(in DepthPassVertexShaderInput input)
 {
 	DepthPassVertexShaderOutput output;
-	output.Position = mul(input.Position, WorldViewProjection);
+	
+	float swayOffset = 0; 
+    if(Sway)
+    {
+        float4 worldPosition = mul(input.Position, World);
+        swayOffset = sin(Time + worldPosition.x * .5 + worldPosition.z * .5 + worldPosition.y * 2) * (((1-input.TextureCoordinate.y) + input.TextureCoordinate.x)/2);
+        worldPosition.x += swayOffset * 10;
+        output.Position = mul(worldPosition, ViewProjection);
+    }else{
+        output.Position = mul(input.Position, WorldViewProjection);
+    }
 	output.ScreenSpacePosition = mul(input.Position, WorldViewProjection);
 	output.TextureCoordinate = input.TextureCoordinate;
 	
@@ -46,8 +61,8 @@ DepthPassVertexShaderOutput DepthVS(in DepthPassVertexShaderInput input)
 float4 DepthPS(in DepthPassVertexShaderOutput input) : COLOR
 {
     float alpha = tex2D(TextureSampler, input.TextureCoordinate).a;
-    float checkInv = checkInvisible;
-    clip(alpha - 0.3 * checkInv);
+    if(checkInvisible)
+        clip(alpha - 0.3);
     
     float depth = input.ScreenSpacePosition.z / input.ScreenSpacePosition.w;
     

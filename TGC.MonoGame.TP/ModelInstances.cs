@@ -223,9 +223,10 @@ public class ModelInstances(Color color , Simulation simulation)
         }
     }
 
-    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float gameTime)
+    public void DrawPasto(GraphicsDevice graphicsDevice, Camera camera, VertexBuffer instanceBuffer, 
+        float gameTime, Vector3 lightPosition, Vector3 eyePosition)
     {
-        graphicsDevice.BlendState = BlendState.AlphaBlend;
+        //graphicsDevice.BlendState = BlendState.AlphaBlend;
         graphicsDevice.RasterizerState = RasterizerState.CullNone;
         
         graphicsDevice.SetVertexBuffers(
@@ -235,10 +236,12 @@ public class ModelInstances(Color color , Simulation simulation)
         graphicsDevice.Indices = _indexBuffer;
 
         _effect.Parameters["World"].SetValue(Matrix.Identity);
-        _effect.Parameters["View"].SetValue(view);
-        _effect.Parameters["Projection"].SetValue(projection);
+        _effect.Parameters["View"].SetValue(camera.View);
+        _effect.Parameters["Projection"].SetValue(camera.Projection);
         _effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
         _effect.Parameters["Time"]?.SetValue(gameTime);
+        _effect.Parameters["eyePosition"]?.SetValue(eyePosition);
+        _effect.Parameters["lightPosition"]?.SetValue(lightPosition);
 
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
         {
@@ -255,7 +258,7 @@ public class ModelInstances(Color color , Simulation simulation)
         graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;    
     }
     
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping, float time)
     {
         // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
         
@@ -282,7 +285,10 @@ public class ModelInstances(Color color , Simulation simulation)
             foreach (var mesh in Model.Meshes)
             {
                 if (texto.Equals("Arbol"))
+                {
                     ElegirTexturaYNormal(mesh, effect, usarNormalMapping);
+                    effect.Parameters["Time"]?.SetValue(time);
+                }
                 
                 var relativeTransform = modelMeshesBaseTransforms[mesh.ParentBone.Index];
                 effect.Parameters["World"]?.SetValue(relativeTransform * world);
@@ -345,11 +351,13 @@ public class ModelInstances(Color color , Simulation simulation)
         if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
         {
             effect.Parameters["ModelTexture"]?.SetValue(Texturas[1]);
+            effect.Parameters["Sway"]?.SetValue(true);
             if(mesh.Name.Contains("Plane") && UsaNormalMapping && usarNormalMapping)
                 effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[0]);
         }
         else if(mesh.Name.Contains("Trunk") || mesh.Name.Contains("Branch"))
         {
+            effect.Parameters["Sway"]?.SetValue(false);
             effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
             if (UsaNormalMapping && usarNormalMapping)
             {
@@ -359,6 +367,7 @@ public class ModelInstances(Color color , Simulation simulation)
         }
         else
         {
+            effect.Parameters["Sway"]?.SetValue(false);
             effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"];
             effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
         }

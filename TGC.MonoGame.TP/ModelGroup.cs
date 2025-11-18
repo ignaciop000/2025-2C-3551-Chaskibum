@@ -89,19 +89,20 @@ public abstract class ModelGroup
         }
     }
     
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping, float time)
     {
         foreach (var model in Models)
         {
-            model.Draw(effect, boundingFrustum, texto, usarNormalMapping);
+            model.Draw(effect, boundingFrustum, texto, usarNormalMapping, time);
         }
     }
     
-    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float time)
+    public void DrawPasto(GraphicsDevice graphicsDevice, Camera camera, VertexBuffer instanceBuffer, 
+        float time, Vector3 lightPosition, Vector3 eyePosition)
     {
         foreach (var model in Models)
         {
-            model.DrawPasto(graphicsDevice, view, projection, instanceBuffer, time);
+            model.DrawPasto(graphicsDevice, camera, instanceBuffer, time, lightPosition, eyePosition);
         }
     }
     
