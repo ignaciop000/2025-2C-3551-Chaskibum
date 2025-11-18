@@ -97,11 +97,11 @@ public abstract class ModelGroup
         }
     }
     
-    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float time)
+    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float time, Vector3 eyePosition)
     {
         foreach (var model in Models)
         {
-            model.DrawPasto(graphicsDevice, view, projection, instanceBuffer, time);
+            model.DrawPasto(graphicsDevice, view, projection, instanceBuffer, time, eyePosition);
         }
     }
     

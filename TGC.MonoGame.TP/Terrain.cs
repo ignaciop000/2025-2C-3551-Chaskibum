@@ -350,7 +350,7 @@ public class Terrain
             {
                 if (boundingFrustum.Intersects(chunk.BoundingBox))
                 {
-                    pasto.DrawPasto(graphicsDevice,view,projection, chunk.InstanceBuffer, time);
+                    pasto.DrawPasto(graphicsDevice,view,projection, chunk.InstanceBuffer, time, EyePosition);
                     
                     graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
                     graphicsDevice.Indices = chunk.IndexBuffer;
@@ -506,7 +506,7 @@ public class Terrain
         {
             if (boundingFrustum.Intersects(chunk.BoundingBox))
             {
-                pasto.DrawPasto(graphicsDevice, targetLightCamera.View, targetLightCamera.Projection , chunk.InstanceBuffer, time);
+                pasto.DrawPasto(graphicsDevice, targetLightCamera.View, targetLightCamera.Projection , chunk.InstanceBuffer, time, targetLightCamera.Position);
             }
         }
     }

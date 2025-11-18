@@ -223,7 +223,7 @@ public class ModelInstances(Color color , Simulation simulation)
         }
     }
 
-    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float gameTime)
+    public void DrawPasto(GraphicsDevice graphicsDevice, Matrix view, Matrix projection, VertexBuffer instanceBuffer, float gameTime, Vector3 eyePosition)
     {
         graphicsDevice.BlendState = BlendState.AlphaBlend;
         graphicsDevice.RasterizerState = RasterizerState.CullNone;
@@ -239,6 +239,11 @@ public class ModelInstances(Color color , Simulation simulation)
         _effect.Parameters["Projection"].SetValue(projection);
         _effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
         _effect.Parameters["Time"]?.SetValue(gameTime);
+        
+        // Configurar parámetros de niebla
+        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
+        _effect.Parameters["FogStart"]?.SetValue(700f);
+        _effect.Parameters["FogEnd"]?.SetValue(2200f);
 
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
         {

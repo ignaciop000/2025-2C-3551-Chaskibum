@@ -10,7 +10,13 @@
 float4x4 World;           
 float4x4 View;
 float4x4 Projection;
-float Time; 
+float Time;
+
+// Parámetros de niebla volumétrica 3D
+float3 FogColor = float3(0.5, 0.6, 0.7);
+float FogStart = 700.0;
+float FogEnd = 2200.0;
+float3 eyePosition; 
 
 texture ModelTexture;
 sampler TextureSampler = sampler_state
@@ -39,6 +45,7 @@ struct VSOutput
     float4 Position : SV_POSITION;
     float2 TexCoord : TEXCOORD0;
     float Scale: TEXCOORD1;
+    float3 WorldPos : TEXCOORD2;
 };
 
 VSOutput VSMain(VSInput input)
@@ -65,6 +72,7 @@ VSOutput VSMain(VSInput input)
     float4 posView  = mul(posWorld, View);
     output.Position = mul(posView, Projection);
     
+    output.WorldPos = posWorld.xyz;
     output.TexCoord = input.TexCoord;
     return output;
 }
@@ -76,6 +84,12 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float gradient = (1 - input.TexCoord.y) * 1.8;
     texColor.r += (input.Scale - 1.3)  * 0.05;
     texColor.rgb = lerp(texColor.rgb * -0.3, texColor.rgb, gradient);
+    
+    // Aplicar niebla volumétrica 3D
+    float distanceToCamera = distance(input.WorldPos, eyePosition);
+    float fogFactor = saturate((distanceToCamera - FogStart) / (FogEnd - FogStart));
+    texColor.rgb = lerp(texColor.rgb, FogColor, fogFactor);
+    
     return texColor;
 }
 

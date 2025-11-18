@@ -26,6 +26,11 @@ float alphaValue = 1;
 float time = 0;
 float3 eyePosition;
 
+// Parámetros de niebla volumétrica 3D
+float3 FogColor = float3(0.5, 0.6, 0.7); // Color azulado por defecto
+float FogStart = 700.0; // Distancia donde empieza la niebla
+float FogEnd = 2200.0;   // Distancia donde la niebla es completa
+
 //---------------TEXTURAS---------------
 texture texDiffuseMap;
 sampler2D diffuseMap = sampler_state
@@ -178,6 +183,11 @@ float4 ps_RenderTerrain(VS_OUTPUT input) : COLOR0
     float3 specularLight = 0.05 * float3(1,1,1) * pow(saturate(NdotH),1.1);
 
     float4 finalColor = float4(saturate(float3(1,1,1) * 0.2 + diffuseLight) * color.rgb + specularLight, color.a);
+    
+    // Aplicar niebla volumétrica 3D
+    float distanceToCamera = distance(input.WorldPos, eyePosition);
+    float fogFactor = saturate((distanceToCamera - FogStart) / (FogEnd - FogStart));
+    finalColor.rgb = lerp(finalColor.rgb, FogColor, fogFactor);
        
    	return finalColor;
 }
@@ -234,6 +244,12 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
     float4 baseColor = float4(saturate(float3(1,1,1) * 0.2 + diffuseLight) * color.rgb + specularLight, color.a);
 	
     baseColor.rgb *= 0.5 + 0.5 * notInShadow;
+    
+    // Aplicar niebla volumétrica 3D
+    float distanceToCamera = distance(input.WorldSpacePosition.xyz, eyePosition);
+    float fogFactor = saturate((distanceToCamera - FogStart) / (FogEnd - FogStart));
+    baseColor.rgb = lerp(baseColor.rgb, FogColor, fogFactor);
+    
 	return baseColor;
 }
 

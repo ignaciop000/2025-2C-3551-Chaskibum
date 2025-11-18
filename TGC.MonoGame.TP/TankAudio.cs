@@ -39,7 +39,7 @@ public class TankAudio
             _engineSound = content.Load<SoundEffect>("Sounds/tank_engine");
             _engineInstance = _engineSound.CreateInstance();
             _engineInstance.IsLooped = true;
-            _engineInstance.Volume = 0.4f;
+            _engineInstance.Volume = 0.2f;
         }
         catch
         {
@@ -51,7 +51,7 @@ public class TankAudio
             _turboSound = content.Load<SoundEffect>("Sounds/tank_turbo");
             _turboInstance = _turboSound.CreateInstance();
             _turboInstance.IsLooped = true;
-            _turboInstance.Volume = 0.5f;
+            _turboInstance.Volume = 0.25f;
         }
         catch
         {
@@ -117,7 +117,7 @@ public class TankAudio
                 // Bajar volumen del motor normal
                 if (_enginePlaying)
                 {
-                    _engineInstance.Volume = System.Math.Max(0.1f, _engineInstance.Volume - deltaTime * 2f);
+                    _engineInstance.Volume = System.Math.Max(0.05f, _engineInstance.Volume - deltaTime * 2f);
                 }
                 
                 // Activar sonido de turbo
@@ -132,7 +132,7 @@ public class TankAudio
                 {
                     var normalizedSpeed = System.Math.Clamp(System.Math.Abs(currentSpeed) / 40f, 0f, 1f);
                     _turboInstance.Pitch = 0f + (normalizedSpeed * 0.3f); // 0.0 a 0.3 (más agudo)
-                    _turboInstance.Volume = 0.4f + (normalizedSpeed * 0.3f); // 0.4 a 0.7
+                    _turboInstance.Volume = 0.2f + (normalizedSpeed * 0.15f); // 0.2 a 0.35
                 }
             }
             else
@@ -156,7 +156,7 @@ public class TankAudio
                 // Variar pitch según velocidad (0.8 a 1.2)
                 var normalizedSpeed = System.Math.Clamp(System.Math.Abs(currentSpeed) / 30f, 0f, 1f);
                 _engineInstance.Pitch = -0.2f + (normalizedSpeed * 0.4f);
-                _engineInstance.Volume = 0.3f + (normalizedSpeed * 0.2f); // 0.3 a 0.5
+                _engineInstance.Volume = 0.15f + (normalizedSpeed * 0.1f); // 0.15 a 0.25
             }
         }
         else
@@ -189,11 +189,11 @@ public class TankAudio
             // Determinar qué sonido reproducir según el tipo
             if (projectileType == ProjectileTypes.Heavy)
             {
-                _shootHeavySound?.Play(volume: 0.7f, pitch: -0.1f, pan: 0f); // Más grave y fuerte
+                _shootHeavySound?.Play(volume: 0.4f, pitch: -0.1f, pan: 0f); // Más grave y fuerte
             }
             else // Light o cualquier otro
             {
-                _shootLightSound?.Play(volume: 0.5f, pitch: 0.1f, pan: 0f); // Más agudo y suave
+                _shootLightSound?.Play(volume: 0.3f, pitch: 0.1f, pan: 0f); // Más agudo y suave
             }
         }
         catch
@@ -212,7 +212,7 @@ public class TankAudio
             // Solo reproducir si el motor está sonando (tanque se está moviendo)
             if (_enginePlaying)
             {
-                _brakeSound?.Play(volume: 0.5f, pitch: 0f, pan: 0f);
+                _brakeSound?.Play(volume: 0.3f, pitch: 0f, pan: 0f);
             }
         }
         catch
@@ -231,8 +231,8 @@ public class TankAudio
 
         try
         {
-            // Volumen reducido (0.10 a 0.20)
-            var volume = System.Math.Clamp(0.10f + (intensity * 0.10f), 0.10f, 0.20f);
+            // Volumen muy reducido (0.05 a 0.10)
+            var volume = System.Math.Clamp(0.05f + (intensity * 0.05f), 0.05f, 0.10f);
             _collisionSound?.Play(volume: volume, pitch: 0f, pan: 0f);
             _collisionCooldown = CollisionCooldownTime;
         }
