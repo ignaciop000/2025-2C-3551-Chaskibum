@@ -171,4 +171,9 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
 
         Texture = null;
     }
+
+    public void Curar(int cantidad)
+    {
+        Vida = Math.Min(VidaMax, Vida + cantidad);
+    }
 }

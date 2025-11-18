@@ -701,7 +701,7 @@ public class TGCGame : Game
 
             // Actualizar la cámara (maneja el input del mouse)
             _camera.Update(gameTime, _screenCenter);
-            _orbitCamera.ConstrainAboveTerrain(_terrain, clearance: 50f, samples: 16);
+            _orbitCamera.ConstrainAboveTerrain(_terrain, clearance: 30f, samples: 16);
             _orbitCamera.ConstrainInsideWorldBorder(_worldBorder);
 
             //debug
@@ -748,23 +748,17 @@ public class TGCGame : Game
             _terrain);
 
         //_terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
-        DibujarTerreno();
+        
 
-        _tankShader.Parameters["lightPosition"]?.SetValue(_lightPosition);
-        _tankShader.Parameters["eyePosition"]?.SetValue(_camera.Position);
+        _tankShader.Parameters["lightPosition"].SetValue(_lightPosition);
+        _tankShader.Parameters["eyePosition"].SetValue(_camera.Position);
         if (_state != GameState.MainMenu)
         {
-            foreach (var enemyTank in _enemyTanks)
-            {
-                enemyTank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum);
-            }
-
-            _tank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum);
-
+            DibujarTerreno();
             DibujarElementos();
-
             _worldBorder.Draw(_camera.View, _camera.Projection);
-
+            DibujarTanques();
+            DibujarPasto();
             _imGuiRenderer.BeforeLayout(gameTime);
 
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
@@ -783,8 +777,6 @@ public class TGCGame : Game
             _hud.Begin();
             if (!_hasLost && !_hasWon)
             {
-                _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown,
-                    _tank.TipoProyectilActual, _tank.Vida, Tank.VidaMax, _enemyCount, gameTime);
                 foreach (var enemyTank in _enemyTanks)
                 {
                     var healthBarPosition3D = enemyTank.Position + Microsoft.Xna.Framework.Vector3.Up * 50f;
@@ -797,7 +789,8 @@ public class TGCGame : Game
                             10);
                     }
                 }
-                
+                _hud.Draw(_matchTimeSeconds, _tank.FireCooldown, _tank.TipoProyectilActual.MaxCooldown, 
+                    _tank.TipoProyectilActual, _tank.Vida, Tank.VidaMax, _enemyCount, gameTime);
             }
 
             if (_hasLost)
@@ -850,14 +843,10 @@ public class TGCGame : Game
     {
         for (int i = 1; i < cantTanks + 1; i++) // Desde 1 porque la posición 0 es la del jugador
         {
-            var random = new Random();
-            var radio = (float)(100f + random.NextDouble() * 1000f);
-            var angulo = (float)(random.NextDouble() * Math.PI * 2);
             var generatedPosition = _positionGenerator.ReservedPositions[i];
-
             var spawnPosition = new Vector3(generatedPosition.X, 0, generatedPosition.Y);
 
-            var enemyTank = new EnemyTank(spawnPosition);
+            var enemyTank = new EnemyTank(spawnPosition, _tank);
 
             enemyTank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
                 _bodyProperties, _terrain);
@@ -1008,7 +997,7 @@ public class TGCGame : Game
         _terrainEffect.Parameters["FogStart"]?.SetValue(2000f);
         _terrainEffect.Parameters["FogEnd"]?.SetValue(3000f);
 
-        _terrain.Draw(Matrix.Identity, _camera, _boundingFrustum, _pasto, _elapsedTime);
+        _terrain.Draw(Matrix.Identity, _camera, _boundingFrustum);
     }
 
     private void DibujarElementos()
@@ -1035,5 +1024,26 @@ public class TGCGame : Game
 
         foreach (var projectile in _projectiles)
             projectile.Draw(_effect, _camera.View, _camera.Projection);
+    }
+
+    private void DibujarPasto()
+    {
+        _terrain.DibujarPasto(_pasto, _elapsedTime, _camera);
+    }
+
+    private void DibujarTanques()
+    {
+        foreach (var enemyTank in _enemyTanks)
+        {
+            enemyTank.DrawOutline(_camera, GraphicsDevice, Color.Red.ToVector3(), _boundingFrustum);
+        }
+        _tank.DrawOutline(_camera, GraphicsDevice, Color.White.ToVector3(), _boundingFrustum);
+        
+        foreach (var enemyTank in _enemyTanks)
+        {
+            enemyTank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum);
+        }
+        _tank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum);
+
     }
 }

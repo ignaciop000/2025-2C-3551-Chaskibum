@@ -100,7 +100,7 @@ public abstract class Tank
     private const float BrakeDuration = 0.18f; // seg
     private const float BrakeK = 10f; // coeficiente de frenado (tunable)
 
-    private const float VisualYOffset = 38f;
+    public float VisualYOffset = 50f;
     private const float VisualZOffset = 23f;
 
     private float _previousSwivel;
@@ -157,6 +157,7 @@ public abstract class Tank
         LastPos = Position = initialPosition;
         Rotation = initialRotation;
         Scale = scale;
+        
     }
     
     public void AddImpact(Vector3 worldImpactPosition, int boneIndex)
@@ -413,48 +414,35 @@ public abstract class Tank
 
         _tankDescription = new TankDescription
         {
-            //Cuerpo del tanque
             Body = TankPartDescription.Create(1, new Box(36f, 5f, 60),
                 new RigidPose(new System.Numerics.Vector3(0, 0, 0), System.Numerics.Quaternion.Identity), 0.5f,
                 Simulation.Shapes),
             SecondaryBody = TankPartDescription.Create(0.1f, new Box(22f, 5f, 52.5f),
                 new RigidPose(new System.Numerics.Vector3(0, -5, 0), System.Numerics.Quaternion.Identity), 0.5f,
                 Simulation.Shapes),
-            // Torreta, desplazado hacia arriba y adelante
             Turret = TankPartDescription.Create(1, new Cylinder(15f, 7f), new System.Numerics.Vector3(0f, 6f, 2.5f),
                 0.5f, Simulation.Shapes),
-            // Cañón
             Barrel = TankPartDescription.Create(0.1f, new Box(2f, 2f, 46f), new System.Numerics.Vector3(0, 6f, -34),
                 0.5f, Simulation.Shapes),
-            // Punto de anclaje de la torreta respecto al cuerpo.
             TurretAnchor = new System.Numerics.Vector3(1f, 3f, 2.5f),
-            // Punto de anclaje del cañón respecto a la torreta.
             BarrelAnchor = new System.Numerics.Vector3(0, 6f, -11),
-            // Base/orientación de referencia de la torreta (rotada 180° sobre Y)
             TurretBasis = System.Numerics.Quaternion.CreateFromAxisAngle(
                 System.Numerics.Vector3.UnitY, MathF.PI),
-            // Control de servo y resorte para la torreta
             TurretServo = new ServoSettings(1e7f, 0f, 1000),
             TurretSpring = new SpringSettings(10f, 10.0f),
-            // Control de servo y resorte para el cañón
             BarrelServo = new ServoSettings(1e7f, 0f, 4000),
             BarrelSpring = new SpringSettings(10f, 10.0f),
-            // Offset lateral de las orugas izquierda y derecha.
             LeftTreadOffset = new System.Numerics.Vector3(-15f, 0f, 0),
             RightTreadOffset = new System.Numerics.Vector3(15f, 0f, 0),
-            // Longitud de suspensión y parámetros de resorte/amortiguación de las ruedas.
             SuspensionLength = 6.5f,
-            SuspensionSettings = new SpringSettings(5f, 3f),
-            // Forma, inercia y fricción de las ruedas.
+            SuspensionSettings = new SpringSettings(30f, 10f),
             WheelShape = wheelShapeIndex,
             SmallWheelShape = smallWheelShapeIndex,
             SmallerWheelShape = smallerWheelShapeIndex,
             WheelInertia = wheelInertia,
             WheelFriction = 2f,
-            // Espaciado entre ruedas y cantidad de ruedas por oruga.
             TreadSpacing = 8f,
             WheelCountPerTread = 8,
-            // Orientación local de la rueda (ejes del cilindro alineados con el mundo de rueda).
             WheelOrientation = QuaternionEx.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ, MathF.PI * -0.5f),
         };
 
@@ -829,6 +817,54 @@ public abstract class Tank
         Gizmos.Draw();
     }
 
+    public void DrawOutline(Camera camera,GraphicsDevice graphicsDevice, Vector3 color, BoundingFrustum boundingFrustum)
+    {
+        graphicsDevice.DepthStencilState = DepthStencilState.None;
+        _effect.CurrentTechnique = _effect.Techniques["OutlineDrawing"];
+        _effect.Parameters["color"].SetValue(color);
+        _effect.Parameters["View"].SetValue(camera.View);
+        _effect.Parameters["Projection"].SetValue(camera.Projection);
+        if (Model == null || _effect == null || IsDead || !EsVisible(boundingFrustum)) return;
+
+        var wheelRotation = Matrix.CreateRotationX(-WheelRotation);
+        var turretRotation = Matrix.CreateRotationY(TurretRotation);
+        var cannonRotation = Matrix.CreateRotationX(CannonRotation);
+
+        for (int i = 0; i < 16; i++)
+            _wheelBones[i].Transform = wheelRotation * _wheelTransforms[i];
+
+        _turretBone.Transform = turretRotation * _turretTransform;
+        _cannonBone.Transform = cannonRotation * _cannonTransform;
+        
+        var absBones = new Matrix[Model.Bones.Count];
+        Model.CopyAbsoluteBoneTransformsTo(absBones);
+        
+        var impactPointsArray = new Vector4[MaxImpacts];
+        var used = Math.Min(ImpactsLocal.Count, MaxImpacts);
+        for (int i = 0; i < used; i++)
+        {
+            var imp = ImpactsLocal[i];
+            var boneWorld = absBones[imp.BoneIndex] * World;
+            var worldPos = Vector3.Transform(imp.Local, boneWorld);
+            impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
+        }
+        _effect.Parameters["ImpactPoints"].SetValue(impactPointsArray);
+        
+        foreach (var mesh in Model.Meshes)
+        {
+            foreach (var part in mesh.MeshParts)
+                part.Effect = _effect;
+
+            var worldPerMesh = absBones[mesh.ParentBone.Index] * World;
+            _effect.Parameters["World"]?.SetValue(worldPerMesh);
+            _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
+
+            mesh.Draw();
+        }
+        
+        graphicsDevice.DepthStencilState = DepthStencilState.Default;
+    }
+    
     public void Draw(Camera camera, RenderTarget2D shadowMapRenderTarget, int shadowmapSize,
         TargetCamera targetLightCamera, BoundingFrustum boundingFrustum)
     {
@@ -839,24 +875,25 @@ public abstract class Tank
         var cannonRotation = Matrix.CreateRotationX(CannonRotation);
 
         for (int i = 0; i < 16; i++)
-        {
             _wheelBones[i].Transform = wheelRotation * _wheelTransforms[i];
-        }
 
         _turretBone.Transform = turretRotation * _turretTransform;
         _cannonBone.Transform = cannonRotation * _cannonTransform;
 
         var absBones = new Matrix[Model.Bones.Count];
         Model.CopyAbsoluteBoneTransformsTo(absBones);
-
-        // Calcular offset de texture scrolling basado en WheelRotation
-        // Dividir por 2*PI para convertir radianes a ciclos de textura
+        
         float treadmillOffset = WheelRotation / (2f * MathF.PI);
 
         _effect.CurrentTechnique = _effect.Techniques["BasicDrawing"];
         _effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
         _effect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * shadowmapSize);
         _effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
+        _effect.Parameters["View"]?.SetValue(camera.View);
+        _effect.Parameters["Projection"]?.SetValue(camera.Projection);
+        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
+        _effect.Parameters["FogStart"]?.SetValue(2000f);
+        _effect.Parameters["FogEnd"]?.SetValue(3000f);
 
         var impactPointsArray = new Vector4[MaxImpacts];
         var used = Math.Min(ImpactsLocal.Count, MaxImpacts);
@@ -867,14 +904,8 @@ public abstract class Tank
             var worldPos = Vector3.Transform(imp.Local, boneWorld);
             impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
         }
-
         _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
-        _effect.Parameters["View"]?.SetValue(camera.View);
-        _effect.Parameters["Projection"]?.SetValue(camera.Projection);
-        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _effect.Parameters["FogStart"]?.SetValue(2000f);
-        _effect.Parameters["FogEnd"]?.SetValue(3000f);
-
+        
         foreach (var mesh in Model.Meshes)
         {
             foreach (var part in mesh.MeshParts)
@@ -984,7 +1015,10 @@ public abstract class Tank
         Vida -= danio;
 
         if (Vida <= 0f)
+        {
             Kill();
+            
+        }
     }
 
     public virtual void Kill()
@@ -1049,7 +1083,7 @@ public abstract class Tank
         }
     }
     
-    public bool EsVisible(BoundingFrustum boundingFrustum)
+    private bool EsVisible(BoundingFrustum boundingFrustum)
     {
         var corners = _box.GetCorners();
         for (int i = 0; i < corners.Length; i++)

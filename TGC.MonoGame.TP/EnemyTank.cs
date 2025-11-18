@@ -6,7 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP;
 
-public class EnemyTank(Vector3 initialPosition, float initialRotation = 0f, float scale = 0.1f) : Tank(initialPosition, initialRotation, scale)
+public class EnemyTank(Vector3 initialPosition, PlayerTank playerTank, float initialRotation = 0f, float scale = 0.1f) : Tank(initialPosition, initialRotation, scale)
 {
     // Método auxiliar
     private static float GetTankYaw(System.Numerics.Quaternion qBody)
@@ -129,7 +129,7 @@ public class EnemyTank(Vector3 initialPosition, float initialRotation = 0f, floa
     public override void Kill()
     {
         base.Kill();
-        
+        playerTank.Curar(20);
         Audio?.Dispose();
             
         foreach(var handle in BodyHandles)

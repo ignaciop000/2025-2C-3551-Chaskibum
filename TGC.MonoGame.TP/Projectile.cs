@@ -67,7 +67,7 @@ namespace TGC.MonoGame.TP
             _life = 0f;
             TanqueDisparador = tank;
 
-            Damage = mass * 10f; // Masa * Multiplicador de daño
+            Damage = mass * 20f; // Masa * Multiplicador de daño
 
             // Cuerpo BEPU: esfera dinámica
             var sphere = new Sphere(radius);
