@@ -747,9 +747,6 @@ public class TGCGame : Game
         _debug.Draw(_camera, _orbitCamera, _targetLightCamera, Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime,
             _terrain);
 
-        //_terrain.Draw(Matrix.Identity, _camera.View, _camera.Projection);
-        
-
         _tankShader.Parameters["lightPosition"].SetValue(_lightPosition);
         _tankShader.Parameters["eyePosition"].SetValue(_camera.Position);
         if (_state != GameState.MainMenu)
@@ -757,8 +754,11 @@ public class TGCGame : Game
             DibujarTerreno();
             DibujarElementos();
             _worldBorder.Draw(_camera.View, _camera.Projection);
-            DibujarTanques();
+
+            DibujarTanques(); // Acá se dibuja el outline también
+
             DibujarPasto();
+            DibujarProyectiles();
             _imGuiRenderer.BeforeLayout(gameTime);
 
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
@@ -1020,8 +1020,10 @@ public class TGCGame : Game
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
         _lightPoles.Draw(_effect, _boundingFrustum, "Poste de luz", _usarNormalMapping, _elapsedTime);
+    }
 
-
+    private void DibujarProyectiles()
+    {
         foreach (var projectile in _projectiles)
             projectile.Draw(_effect, _camera.View, _camera.Projection);
     }
