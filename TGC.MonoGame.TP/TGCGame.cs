@@ -757,12 +757,11 @@ public class TGCGame : Game
         {
             DibujarTerreno();
             DibujarElementos();
-            _worldBorder.Draw(_camera.View, _camera.Projection);
-
             DibujarTanques(); // Acá se dibuja el outline también
-
             DibujarPasto();
             DibujarProyectiles();
+            _worldBorder.Draw(_camera.View, _camera.Projection);
+            
             _imGuiRenderer.BeforeLayout(gameTime);
 
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
