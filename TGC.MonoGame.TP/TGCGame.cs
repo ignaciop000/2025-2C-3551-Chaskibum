@@ -23,8 +23,16 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
-using TGC.MonoGame.Samples.Viewer.GUI.ImGuiNET;
-using TGC.MonoGame.TP.Viewer.Gizmos;
+using TGC.MonoGame.TP.Ambiente;
+using TGC.MonoGame.TP.Ambiente.Objetos;
+using TGC.MonoGame.TP.Ambiente.Objetos.Grupos;
+using TGC.MonoGame.TP.Cameras;
+using TGC.MonoGame.TP.Debug;
+using TGC.MonoGame.TP.Debug.Gizmos;
+using TGC.MonoGame.TP.Fisicas;
+using TGC.MonoGame.TP.Proyectiles;
+using TGC.MonoGame.TP.Tanques;
+using TGC.MonoGame.TP.UI;
 using Matrix = Microsoft.Xna.Framework.Matrix;
 using Vector3 = System.Numerics.Vector3;
 
@@ -59,12 +67,9 @@ public class TGCGame : Game
     private GameState _state = GameState.MainMenu;
 
     private const float EscalaMapa = 30;
-    private readonly GraphicsDeviceManager _graphics;
     private RenderTarget2D _shadowMapRenderTarget;
     
     // Post-procesado de niebla
-    private RenderTarget2D _sceneRenderTarget;
-    private Effect _fogEffect;
     private VertexBuffer _fullScreenQuad;
 
     private TargetCamera _targetLightCamera;
@@ -99,14 +104,13 @@ public class TGCGame : Game
     private TankController _playerController;
     private int _enemyCount;
 
-    private bool _slowmotion = false;
-    private bool _stopTime = false;
-    private bool _apuntar = true;
+    private bool _slowmotion;
+    private bool _stopTime;
+    private const bool Apuntar = true;
 
     private PlayerTank _tank;
     private List<EnemyTank> _enemyTanks;
     private List<TankController> _enemyControllers;
-    private List<Tank> _tanks;
     List<ModelInstances> _allInstances;
 
     private Effect _tankShader;
@@ -119,7 +123,6 @@ public class TGCGame : Game
     private Houses _houses;
     private Rocks _rocks;
     private Trees _trees;
-    private Bushes _bushes;
     private LightPoles _lightPoles;
 
     private Pasto _pasto;
@@ -130,39 +133,37 @@ public class TGCGame : Game
     private bool _usarNormalMapping;
     private bool _dibujarSombras;
 
-    private float _playerHealth = 100f;
-    private float _playerMaxHealth = 100f;
-
     private Vector3 _offset;
 
-    private List<TankEntry> _tankEntries = new();
+    private readonly List<TankEntry> _tankEntries = new();
 
     private Texture2D _treadmillsTexture;
 
     private static readonly Random Random = new Random();
 
-    private Debug _debug;
+    private Debug.Debug _debug;
     private HUD _hud;
     private Menu _menu;
 
     // Estado de la ayuda
-    private bool _showHelp = false;
+    private bool _showHelp;
 
     // Audio
     private Song _gameplayMusic;
-    private bool _gameplayMusicStarted = false;
+    private bool _gameplayMusicStarted;
 
     /// <summary>
     ///     Constructor del juego.
     /// </summary>
     public TGCGame()
     {
-        // Maneja la configuración y la administración del dispositivo gráfico.
-        _graphics = new GraphicsDeviceManager(this);
+        var graphics =
+            // Maneja la configuración y la administración del dispositivo gráfico.
+            new GraphicsDeviceManager(this);
 
         //Le restamos un valor arbitrario para descartar para de titulo y barra de tareas
-        _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
-        _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
+        graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
+        graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
         // Para que el juego sea pantalla completa se puede usar Graphics IsFullScreen.
         //_graphics.IsFullScreen = true;
         // Carpeta raíz donde va a estar toda la Media.
@@ -210,7 +211,7 @@ public class TGCGame : Game
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
         
-        _debug = new Debug();
+        _debug = new Debug.Debug();
         _menu = new Menu();
         _hud = new HUD(GraphicsDevice);
         _enemyTanks = new List<EnemyTank>();
@@ -247,7 +248,7 @@ public class TGCGame : Game
         _tankShader.Parameters["Ka"]?.SetValue(1f);
         
         // Cargar efecto de niebla para post-procesado
-        _fogEffect = Content.Load<Effect>(ContentFolderEffects + "Fog");
+        Content.Load<Effect>(ContentFolderEffects + "Fog");
 
         // Cargar shader específico para el World Border
         _worldBorderEffect = Content.Load<Effect>(ContentFolderEffects + "WorldBorderShader");
@@ -278,7 +279,7 @@ public class TGCGame : Game
 
         _pasto = new Pasto(_simulation, GraphicsDevice);
         _pasto.CargarModelos(_pastoShader, Content);
-        _pasto.Models[0]._effect = _pastoShader;
+        _pasto.Models[0].Effect = _pastoShader;
 
         _positionGenerator = new PositionGenerator();
         _terrain = new Terrain(GraphicsDevice,
@@ -302,26 +303,24 @@ public class TGCGame : Game
 
         var tankT90 = Content.Load<Model>(ContentFolder3D + "t90/T90");
         var hullATexture = Content.Load<Texture2D>(ContentFolder3D + "t90/textures_mod/hullA");
-        _tankEntries.Add(new TankEntry("T-90-A", tankT90, hullATexture, 0.002f, 0.5f, _tankShader));
+        _tankEntries.Add(new TankEntry(tankT90, hullATexture, 0.002f, 0.5f, _tankShader));
 
         var hullBTexture = Content.Load<Texture2D>(ContentFolder3D + "t90/textures_mod/hullB");
-        _tankEntries.Add(new TankEntry("T-90-B", tankT90, hullBTexture, 0.002f, 0.5f, _tankShader));
+        _tankEntries.Add(new TankEntry(tankT90, hullBTexture, 0.002f, 0.5f, _tankShader));
 
         var hullCTexture = Content.Load<Texture2D>(ContentFolder3D + "t90/textures_mod/hullC");
-        _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, 0.002f, 0.5f, _tankShader));
+        _tankEntries.Add(new TankEntry(tankT90, hullCTexture, 0.002f, 0.5f, _tankShader));
         
         _treadmillsTexture = Content.Load<Texture2D>(ContentFolder3D + "t90/textures_mod/treadmills");
         
         _trees = new Trees(_simulation);
         _houses = new Houses(_simulation);
         _rocks = new Rocks(_simulation);
-        _bushes = new Bushes(_simulation);
         _lightPoles = new LightPoles(_simulation);
 
 
         _houses.SetPlacementRules(5f, false); // ≤ 5°, NO se inclinan
         _trees.SetPlacementRules(20f, true); // ≤ 20°, se inclinan
-        _bushes.SetPlacementRules(25f, true); // ≤ 25°, se inclinan
         _rocks.SetPlacementRules(null, true); // sin restricción, se inclinan
         _lightPoles.SetPlacementRules(10f, true);
         _pasto.SetPlacementRules(30, true);
@@ -338,25 +337,17 @@ public class TGCGame : Game
             .ToList();
 
         _positionGenerator.GenerarPosicionesReservadas();
-
-
         _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa, 450);
-
-        // Genero otros puntos para los arbustos
-        var arbustos = _bushes.GetModelosConPorcentaje(1.0);
-        _positionGenerator.AgregarPosiciones(arbustos, colorMap, EscalaMapa, 450);
 
         _trees.CrearObjetos(normalMapTree2Leaves, normalMapTree2Bark, normalMapTreeLeaves, _terrain);
         _rocks.CrearObjetos(normalMapRock, _terrain);
         _houses.CrearObjetos(normalMapHouse, _terrain);
-        _bushes.CrearObjetos(_terrain);
         _lightPoles.CrearObjetos(_terrain);
         _pasto.CrearObjetos(_terrain);
 
         _trees.CargarModelos(treeShader, Content);
         _houses.CargarModelos(_effect, Content);
         _rocks.CargarModelos(_effect, Content);
-        _bushes.CargarModelos(_effect, Content);
         _lightPoles.CargarModelos(_effect, Content);
 
         var anchoMapa = (_terrain.HeightmapData.GetLength(0) - 1) * EscalaMapa; // Ancho terreno en mundo
@@ -392,14 +383,6 @@ public class TGCGame : Game
 
         _shadowMapRenderTarget = new RenderTarget2D(GraphicsDevice, ShadowmapSize, ShadowmapSize, false,
             SurfaceFormat.Single, DepthFormat.Depth24, 0, RenderTargetUsage.PlatformContents);
-
-        // Crear render target para la escena (con profundidad para niebla)
-        _sceneRenderTarget = new RenderTarget2D(GraphicsDevice, 
-            GraphicsDevice.PresentationParameters.BackBufferWidth,
-            GraphicsDevice.PresentationParameters.BackBufferHeight,
-            false,
-            SurfaceFormat.Color,
-            DepthFormat.Depth24);
 
         // Crear quad de pantalla completa para post-procesado
         var vertices = new[]
@@ -542,7 +525,7 @@ public class TGCGame : Game
             }
 
             _playerController.UpdateControls(keyboardState);
-            if(_apuntar)
+            if(Apuntar)
                 _tank.UpdateAim(mouseState, _camera, GraphicsDevice.Viewport);
             _playerController.UpdateMovementAndAim(_simulation, _tank.AimDirectionWorld);
 
@@ -644,7 +627,6 @@ public class TGCGame : Game
             }
 
             var forward = Microsoft.Xna.Framework.Vector3.Normalize(_orbitCamera.FrontDirection);
-            var targetPos = _orbitCamera.Position + forward * 2000;
             var nuevaPos = _tank.Position + _offset;
             _lightPosition = new Vector3(nuevaPos.X, nuevaPos.Y, nuevaPos.Z);
             _targetLightCamera.Position = nuevaPos;
@@ -910,26 +892,6 @@ public class TGCGame : Game
             {
                 // Si hay error al reproducir, continuar sin música
             }
-        }
-    }
-
-    /// <summary>
-    /// Detiene la música de gameplay
-    /// </summary>
-    private void StopGameplayMusic()
-    {
-        try
-        {
-            if (MediaPlayer.State == MediaState.Playing)
-            {
-                MediaPlayer.Stop();
-            }
-
-            _gameplayMusicStarted = false;
-        }
-        catch
-        {
-            // Ignorar errores
         }
     }
 
