@@ -1,19 +1,4 @@
-﻿// FINALMENTE [TODOS]
-// - Separar los .cs en carpetas
-// - Emprolijar código (principalmente físicas, pero no estaria mal diseñar mejor algunas cosas)
-// - Emprolijar shaders (borrarles cosas innecesarias o unificarlos si se puede)
-
-// ERRORES A SOLUCIONAR [TODOS]
-// - Error de BEPU de que un valor es nan o infinito
-
-// OPCIONALES [EL QUE QUIERA]
-// - Hacer volumen configurable
-// - Que los cambios en el menú sean no solo skin, si no tmb tamaño, vida, daño base, velocidad
-// - Crear algún sistema de partículas que muestren humo, fuego, chispas, etc.
-// - Agregar un efecto de Bloom para los disparos, y el humo/fuego si fue implementado.
-// - Modo versus
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using BepuPhysics;
