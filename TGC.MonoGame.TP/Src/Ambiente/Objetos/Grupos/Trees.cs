@@ -65,7 +65,7 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
         base.CargarModelos(efecto, content, paths, barkTextures, leavesTextures);
     }
 
-    public void DrawSombra(BoundingFrustum boundingFrustum, Effect effect, TargetCamera targetLightCamera, float time)
+    public void DrawSombra(BoundingFrustum boundingFrustum, Effect effect, Camera targetLightCamera, float time)
     {
         effect.Parameters["Time"]?.SetValue(time);
         
@@ -99,7 +99,7 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
         effect.Parameters["Sway"]?.SetValue(0);
     }
 
-    private static void SetVariables(ModelMesh mesh, Effect effect, ModelInstances model, Matrix worldMatrix, TargetCamera targetLightCamera)
+    private void SetVariables(ModelMesh mesh, Effect effect, ModelInstances model, Matrix worldMatrix, Camera targetLightCamera)
     {
         if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
         {

@@ -47,7 +47,7 @@ namespace TGC.MonoGame.TP.Proyectiles
             CollidableProperty<TankBodyProperties> properties,
             float lifeSeconds = 4f)
         {
-            Init(simulation, effect, spawnPos, direction, type.Speed, type.Radius, type.Mass, tank, properties, lifeSeconds);
+            Init(simulation, effect, spawnPos, direction, type.Speed, type.Radius, type.Mass, type.Danio, tank, properties, lifeSeconds);
         }
         
         private void Init(
@@ -58,6 +58,7 @@ namespace TGC.MonoGame.TP.Proyectiles
             float speed,
             float radius,
             float mass,
+            float danio,
             Tank tank,
             CollidableProperty<TankBodyProperties> properties,
             float lifeSeconds)
@@ -69,7 +70,7 @@ namespace TGC.MonoGame.TP.Proyectiles
             _life = 0f;
             TanqueDisparador = tank;
 
-            Damage = mass * 20f; // Masa * Multiplicador de daño
+            Damage = danio; // Masa * Multiplicador de daño
 
             // Cuerpo BEPU: esfera dinámica
             var sphere = new Sphere(radius);

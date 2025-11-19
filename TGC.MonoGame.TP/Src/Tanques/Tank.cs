@@ -1064,7 +1064,7 @@ public abstract class Tank
         Audio?.PlayShoot(TipoProyectilActual);
     }
     
-    public void DrawShadow(Effect shadowEffect, TargetCamera targetLightCamera, BoundingFrustum boundingFrustum)
+    public void DrawShadow(Effect shadowEffect, Camera targetLightCamera, BoundingFrustum boundingFrustum)
     {
         if (!EsVisible(boundingFrustum)) 
             return;

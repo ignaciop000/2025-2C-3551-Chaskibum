@@ -18,13 +18,11 @@ public class EnemyTank(Vector3 initialPosition, PlayerTank playerTank, float ini
         return MathF.Atan2(fwd.X, fwd.Z) + MathF.PI; // 0 cuando mira -Z mundial
     }
     
-    public void Update(GameTime gameTime)
+    public void Update(float dt)
     {
         if (IsDead)
             return;
-            
-        var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
-
+        
         if(!Simulation.Bodies.BodyExists(Body)) return;
         var body = Simulation.Bodies.GetBodyReference(Body);
         body.Awake = true;
