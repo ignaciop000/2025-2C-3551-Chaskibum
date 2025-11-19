@@ -617,7 +617,7 @@ public class TGCGame : Game
                 _offset -= new Vector3(0, 100, 0);
                 Console.WriteLine(_offset);
             }
-
+/*
             if (Keyboard.GetState().IsKeyDown(Keys.O))
             {
                 _offset += new Vector3(100, 0, 0);
@@ -629,7 +629,11 @@ public class TGCGame : Game
                 _offset -= new Vector3(100, 0, 0);
                 Console.WriteLine(_offset);
             }
-
+*/
+            if (keyboardState.IsKeyUp(Keys.P) && _kbPrev.IsKeyDown(Keys.P))
+            {
+                _state = GameState.MainMenu;
+            }
             if (Keyboard.GetState().IsKeyDown(Keys.U))
             {
                 _offset += new Vector3(0, 0, 100);
@@ -730,6 +734,11 @@ public class TGCGame : Game
 
         if (_state == GameState.MainMenu)
         {
+            _tank.Audio.StopAll();
+            foreach (var enemyTank in _enemyTanks)
+            {
+                enemyTank.Audio.StopAll();
+            }
             _menu.Draw(_tankEntries, _tank.treadmillsTexture);
             return; // no dibujamos el juego
         }

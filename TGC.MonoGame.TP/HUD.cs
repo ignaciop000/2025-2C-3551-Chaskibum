@@ -238,12 +238,8 @@ public class HUD
             "  1 - Proyectil ligero",
             "  2 - Proyectil pesado",
             "",
-            "CÁMARA:",
-            "  Botón derecho - Modo libre",
-            "",
             "OTROS:",
-            "  H - Mostrar/Ocultar esta ayuda",
-            "  Esc - Salir del juego"
+            "  P - Salir del juego"
         };
         
         foreach (var line in controls)
