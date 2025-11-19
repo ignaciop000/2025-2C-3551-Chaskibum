@@ -23,8 +23,8 @@ float3 FogColor = float3(0.5, 0.6, 0.7);
 float FogStart = 700.0; 
 float FogEnd = 2200.0; 
 
-static const float modulatedEpsilon = 0.000000541200182749889791011810302734375;
-static const float maxEpsilon = 0.000000523200045689009130001068115234375;
+static const float modulatedEpsilon = 0.00081200182749889791011810302734375;
+static const float maxEpsilon = 0.00083200045689009130001068115234375;
 
 float Ka;
 uniform float4 ImpactPoints[10];
@@ -154,9 +154,7 @@ float4 MainPS(VertexShaderOutput input) : COLOR
             float pcfDepth = tex2D(shadowMapSampler, shadowMapTextureCoordinates + float2(x, y) * texelSize).r + inclinationBias;
             notInShadow += step(lightSpacePosition.z, pcfDepth) / 9.0;
         }
-    
-     float shadowMapDepth = tex2D(shadowMapSampler, shadowMapTextureCoordinates).r + inclinationBias;
-     
+         
     float4 texColor = tex2D(TextureSampler, input.TextureCoordinate);
    
     float3 color = texColor.rgb;

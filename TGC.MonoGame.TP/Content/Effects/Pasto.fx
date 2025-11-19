@@ -10,6 +10,7 @@
 float4x4 World;           
 float4x4 View;
 float4x4 Projection;
+float4x4 LightViewProjection;
 float Time;
 
 float3 lightPosition;
@@ -20,6 +21,22 @@ float3 FogColor = float3(0.5, 0.6, 0.7);
 float FogStart = 700.0;
 float FogEnd = 2200.0;
 
+static const float modulatedEpsilon = 0.0001041200182749889791011810302734375;
+static const float maxEpsilon = 0.00823200045689009130001068115234375;
+
+float2 shadowMapSize;
+
+texture shadowMap;
+sampler2D shadowMapSampler =
+sampler_state
+{
+	Texture = <shadowMap>;
+	MinFilter = Point;
+	MagFilter = Point;
+	MipFilter = Point;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
 
 texture ModelTexture;
 sampler TextureSampler = sampler_state
@@ -49,6 +66,7 @@ struct VSOutput
     float2 TexCoord : TEXCOORD0;
     float Scale: TEXCOORD1;
     float4 WorldPos: TEXCOORD2;
+    float4 LightSpacePosition : TEXCOORD3;
 };
 
 VSOutput VSMain(VSInput input)
@@ -66,15 +84,16 @@ VSOutput VSMain(VSInput input)
     float sway = sin(Time * (2 / input.Scale) + input.InstancePos.x * 0.1 + input.InstancePos.z * 0.1) + 1;
     
     rotated.x += 1 * sway * 0.25 * input.Position.y ;
-    
     rotated.y *= input.Scale;
-    output.Scale = input.Scale;
+    
     float3 posWorld = rotated + input.InstancePos;
-
+    
     output.WorldPos = mul(float4(posWorld, 1.0), World);
     float4 posView  = mul(output.WorldPos, View);
     output.Position = mul(posView, Projection);
     output.TexCoord = input.TexCoord;
+    output.Scale = input.Scale;
+    output.LightSpacePosition = mul(output.WorldPos, LightViewProjection);
     return output;
 }
 
@@ -91,6 +110,21 @@ float4 PSMain(VSOutput input) : SV_TARGET
     float3 halfVector = normalize(lightDirection + viewDirection);
     float3 normal = normalize(lerp( float3(0,1,0), float3(0,0,1), pow(input.TexCoord.y,4)));
     
+    float3 lightSpacePosition = input.LightSpacePosition.xyz / input.LightSpacePosition.w;
+    float2 shadowMapTextureCoordinates = 0.5 * lightSpacePosition.xy + float2(0.5, 0.5);
+    shadowMapTextureCoordinates.y = 1.0f - shadowMapTextureCoordinates.y;
+    
+    float inclinationBias = max(modulatedEpsilon * (1.0 - dot(normal, lightDirection)), maxEpsilon);
+        
+    float notInShadow = 0.0;
+    float2 texelSize = 1.0 / shadowMapSize;
+    for (int x = -1; x <= 1; x++)
+        for (int y = -1; y <= 1; y++)
+        {
+            float pcfDepth = tex2D(shadowMapSampler, shadowMapTextureCoordinates + float2(x, y) * texelSize).r + inclinationBias;
+            notInShadow += step(lightSpacePosition.z, pcfDepth) / 9.0;
+        }
+            
     float NdotL = dot(normal, lightDirection);
     float3 diffuseLight = 0.1 * float3(1,1,1) * saturate(NdotL);  
         
@@ -100,9 +134,12 @@ float4 PSMain(VSOutput input) : SV_TARGET
    
     float3 ambientLight = float3(1,1,1) * 0.8;
     
+    diffuseLight *= notInShadow;
+    specularLight *= notInShadow;
+    ambientLight *= saturate(notInShadow + 0.3);
+    
     float4 finalColor = float4(saturate(ambientLight + diffuseLight) * texColor.rgb + specularLight, texColor.a);
     
-    // Aplicar niebla volumétrica 3D
     float distanceToCamera = distance(input.WorldPos.xyz, eyePosition);
     float fogFactor = saturate((distanceToCamera - FogStart) / (FogEnd - FogStart));
     finalColor.rgb = lerp(finalColor.rgb, FogColor, fogFactor);

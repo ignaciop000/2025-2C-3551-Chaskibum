@@ -89,7 +89,7 @@ public abstract class ModelGroup
         }
     }
     
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping, float time)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping, float time = 0)
     {
         foreach (var model in Models)
         {
@@ -98,11 +98,19 @@ public abstract class ModelGroup
     }
     
     public void DrawPasto(GraphicsDevice graphicsDevice, Camera camera, VertexBuffer instanceBuffer, 
-        float time, Vector3 lightPosition, Vector3 eyePosition)
+        float time, Vector3 lightPosition, Vector3 eyePosition, TargetCamera targetLightCamera, float shadowmapSize, RenderTarget2D shadowMap)
     {
         foreach (var model in Models)
         {
-            model.DrawPasto(graphicsDevice, camera, instanceBuffer, time, lightPosition, eyePosition);
+            model.DrawPasto(graphicsDevice, camera, instanceBuffer, time, lightPosition, eyePosition, targetLightCamera, shadowmapSize, shadowMap);
+        }
+    }
+    
+    public void DrawPastoShadow(GraphicsDevice graphicsDevice, VertexBuffer instanceBuffer, Effect effect, float time, Camera targetLightCamera)
+    {
+        foreach (var model in Models)
+        {
+            model.DrawPastoShadow(graphicsDevice, instanceBuffer, time, effect, targetLightCamera);
         }
     }
     

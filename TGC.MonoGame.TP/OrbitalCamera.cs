@@ -20,8 +20,12 @@ namespace TGC.MonoGame.TP
         // Propiedades de la órbita
         public Vector3 Target { get; set; }
         public float Distance { get; set; }
-        public float MinDistance { get; set; } = 50f;
-        public float MaxDistance { get; set; } = 2000f;
+        public float BaseDistance { get; set; } = 300f;
+        public float MinBaseDistance { get; set; } = 50f;
+        public float MaxBaseDistance { get; set; } = 2000f;
+        public float AimDistance { get; set; } = 50f;
+        public float MinAimDistance { get; set; } = 50f;
+        public float MaxAimDistance { get; set; } = 100f;
         
         // Ángulos de rotación
         private float _yaw = 90f;   // Rotación horizontal
@@ -32,17 +36,19 @@ namespace TGC.MonoGame.TP
         public float Pitch => _pitch;
         
         // Configuración de controles
-        public float MouseSensitivity { get; set; } = 0.3f;
+        public float MouseSensitivity { get; set; } = 1f;
         public float ZoomSpeed { get; set; } = 500f;
         
         // Control de mouse
         private Vector2 _lastMousePosition;
         private bool _isMouseControlActive = false;
-
+        
+        private Vector2 _cameraVelocity = Vector2.Zero;
+        
         public OrbitCamera(float aspectRatio, Vector3 target, float distance = 800f) : base(aspectRatio)
         {
             Target = target;
-            Distance = MathHelper.Clamp(distance, MinDistance, MaxDistance);
+            BaseDistance = MathHelper.Clamp(distance, MinBaseDistance, MaxBaseDistance);
             _lastMousePosition = Mouse.GetState().Position.ToVector2();
             UpdatePosition();
         }
@@ -51,7 +57,7 @@ namespace TGC.MonoGame.TP
             : base(aspectRatio, nearPlane, farPlane)
         {
             Target = target;
-            Distance = MathHelper.Clamp(distance, MinDistance, MaxDistance);
+            BaseDistance = MathHelper.Clamp(distance, MinBaseDistance, MaxBaseDistance);
             _lastMousePosition = Mouse.GetState().Position.ToVector2();
             UpdatePosition();
         }
@@ -64,25 +70,35 @@ namespace TGC.MonoGame.TP
             var currentMousePosition = mouseState.Position.ToVector2();
             
             // Activar control de cámara con clic derecho
-            if (mouseState.RightButton == ButtonState.Pressed)
-            {
+            
                 if (!_isMouseControlActive)
                 {
                     _isMouseControlActive = true;
-                    Mouse.SetPosition(screenCenter.X, screenCenter.Y);
+                    Mouse.SetPosition(screenCenter.X, (int)currentMousePosition.Y);
                     _lastMousePosition = screenCenter.ToVector2();
                 }
                 else
                 {
+                    if (mouseState.RightButton == ButtonState.Pressed)
+                    {
+                        Distance = MathHelper.Lerp(Distance, AimDistance,5f * deltaTime);
+                    }
+                    else
+                    {
+                        Distance = MathHelper.Lerp(Distance, BaseDistance,5f * deltaTime);
+                    }
+                    
+                    
                     // Calcular movimiento del mouse
                     var mouseDelta = currentMousePosition - _lastMousePosition;
                     
                     // Aplicar sensibilidad
-                    mouseDelta *= MouseSensitivity;
-                    
+                    mouseDelta *= MouseSensitivity * deltaTime;
+                    _cameraVelocity += mouseDelta;
+                    _cameraVelocity *= 0.8f; 
                     // Actualizar ángulos
-                    _yaw += mouseDelta.X;
-                    _pitch += mouseDelta.Y;
+                    _yaw += _cameraVelocity.X;
+                    _pitch += _cameraVelocity.Y;
                     
                     // Limitar el pitch para evitar que la cámara se voltee
                     _pitch = MathHelper.Clamp(_pitch, -89f, 89f);
@@ -93,19 +109,24 @@ namespace TGC.MonoGame.TP
                     Mouse.SetPosition(screenCenter.X, screenCenter.Y);
                     _lastMousePosition = screenCenter.ToVector2();
                 }
-            }
-            else
-            {
-                _isMouseControlActive = false;
-            }
+            
             
             // Control de zoom con la rueda del mouse
             var scrollDelta = mouseState.ScrollWheelValue - _lastScrollValue;
             if (scrollDelta != 0)
             {
-                Distance -= scrollDelta * ZoomSpeed * 0.001f;
-                Distance = MathHelper.Clamp(Distance, MinDistance, MaxDistance);
-                UpdatePosition();
+                if (mouseState.RightButton == ButtonState.Pressed)
+                {
+                    AimDistance -= scrollDelta * ZoomSpeed * 0.001f;
+                    AimDistance = MathHelper.Clamp(AimDistance, MinAimDistance, MaxAimDistance);
+                    UpdatePosition();
+                }
+                else
+                {
+                    BaseDistance -= scrollDelta * ZoomSpeed * 0.001f;
+                    BaseDistance = MathHelper.Clamp(BaseDistance, MinBaseDistance, MaxBaseDistance);
+                    UpdatePosition();
+                }
             }
             _lastScrollValue = mouseState.ScrollWheelValue;
             
@@ -170,7 +191,7 @@ namespace TGC.MonoGame.TP
         /// <param name="distance">Nueva distancia</param>
         public void SetDistance(float distance)
         {
-            Distance = MathHelper.Clamp(distance, MinDistance, MaxDistance);
+            BaseDistance = MathHelper.Clamp(distance, MinBaseDistance, MaxBaseDistance);
             UpdatePosition();
         }
         

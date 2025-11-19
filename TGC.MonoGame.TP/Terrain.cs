@@ -325,6 +325,18 @@ public class Terrain
         return colorMap;
     }
 
+    public void SetChunksVisibles(BoundingFrustum boundingFrustum)
+    {
+        ChunksVisibles = [];
+        foreach (var chunk in Chunks)
+        {
+            if (boundingFrustum.Intersects(chunk.BoundingBox))
+            {
+                ChunksVisibles.Add(chunk);
+            }
+        }
+    }
+    
     /// Dibuja el terreno en la pantalla utilizando los parámetros proporcionados para las matrices de transformación.
     /// Configura el efecto y los recursos necesarios para el renderizado, aplicando cada paso del shader.
     /// <param name="world">Matriz de transformación para coordenadas del mundo.</param>
@@ -332,7 +344,6 @@ public class Terrain
     /// <param name="projection">Matriz de proyección utilizada para la perspectiva 3D.</param>
     public void Draw(Matrix world, Camera camera, BoundingFrustum boundingFrustum)
     {
-        ChunksVisibles = [];
         var graphicsDevice = _effect.GraphicsDevice;
         var view = camera.View;
         var projection = camera.Projection;
@@ -349,30 +360,25 @@ public class Terrain
 
         _effect.Parameters["WorldViewProjection"]?.SetValue(world * view * projection);
         _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
-        foreach (var chunk in Chunks)
+        foreach (var chunk in ChunksVisibles)
         {
-            if (boundingFrustum.Intersects(chunk.BoundingBox))
-            {
-                ChunksVisibles.Add(chunk);
-                
-                graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
-                graphicsDevice.Indices = chunk.IndexBuffer;
+            graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
+            graphicsDevice.Indices = chunk.IndexBuffer;
 
-                foreach (var pass in _effect.CurrentTechnique.Passes)
-                {
-                    pass.Apply();
-                    graphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, chunk.IndexBuffer.IndexCount / 3);
-                }
+            foreach (var pass in _effect.CurrentTechnique.Passes)
+            {
+                pass.Apply();
+                graphicsDevice.DrawIndexedPrimitives(PrimitiveType.TriangleList, 0, 0, chunk.IndexBuffer.IndexCount / 3);
             }
         }
     }
 
-    public void DibujarPasto(Pasto pasto, float time, Camera camera)
+    public void DibujarPasto(Pasto pasto, float time, Camera camera, TargetCamera targetLightCamera, float shadowmapSize, RenderTarget2D shadowMap)
     {
         var graphicsDevice = _effect.GraphicsDevice;
         foreach (var chunk in ChunksVisibles)
         {
-            pasto.DrawPasto(graphicsDevice, camera, chunk.InstanceBuffer, time, LightPosition, EyePosition);
+            pasto.DrawPasto(graphicsDevice, camera, chunk.InstanceBuffer, time, LightPosition, EyePosition, targetLightCamera, shadowmapSize, shadowMap);
         }
     }
     /// <summary>
@@ -511,14 +517,11 @@ public class Terrain
         return MathHelper.ToDegrees(radians);
     }
 
-    public void DrawPastoShadow(BoundingFrustum boundingFrustum, GraphicsDevice graphicsDevice, TargetCamera targetLightCamera, Pasto pasto, float time)
+    public void DrawPastoShadow(GraphicsDevice graphicsDevice, Camera targetLightCamera, Pasto pasto, float time, Effect effect)
     {
-        foreach (var chunk in Chunks)
+        foreach (var chunk in ChunksVisibles)
         {
-            if (boundingFrustum.Intersects(chunk.BoundingBox))
-            {
-                pasto.DrawPasto(graphicsDevice, targetLightCamera, chunk.InstanceBuffer, time, LightPosition, EyePosition);
-            }
+            pasto.DrawPastoShadow(graphicsDevice, chunk.InstanceBuffer, effect, time, targetLightCamera);
         }
     }
 

@@ -221,7 +221,7 @@ public class ModelInstances(Color color , Simulation simulation)
     }
 
     public void DrawPasto(GraphicsDevice graphicsDevice, Camera camera, VertexBuffer instanceBuffer, 
-        float gameTime, Vector3 lightPosition, Vector3 eyePosition)
+        float gameTime, Vector3 lightPosition, Vector3 eyePosition, TargetCamera targetLightCamera, float shadowmapSize, RenderTarget2D shadowMap)
     {
         //graphicsDevice.BlendState = BlendState.AlphaBlend;
         graphicsDevice.RasterizerState = RasterizerState.CullNone;
@@ -235,15 +235,19 @@ public class ModelInstances(Color color , Simulation simulation)
         _effect.Parameters["World"].SetValue(Matrix.Identity);
         _effect.Parameters["View"].SetValue(camera.View);
         _effect.Parameters["Projection"].SetValue(camera.Projection);
-        _effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
-        _effect.Parameters["Time"]?.SetValue(gameTime);
-        _effect.Parameters["eyePosition"]?.SetValue(eyePosition);
-        _effect.Parameters["lightPosition"]?.SetValue(lightPosition);
+        _effect.Parameters["ModelTexture"].SetValue(Texturas[0]);
+        _effect.Parameters["Time"].SetValue(gameTime);
+        _effect.Parameters["eyePosition"].SetValue(eyePosition);
+        _effect.Parameters["lightPosition"].SetValue(lightPosition);
+        _effect.Parameters["LightViewProjection"].SetValue(targetLightCamera.View * targetLightCamera.Projection);
+        _effect.Parameters["shadowMapSize"].SetValue(Vector2.One * shadowmapSize);
+        _effect.Parameters["shadowMap"]?.SetValue(shadowMap);
+        
         
         // Configurar parámetros de niebla
-        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _effect.Parameters["FogStart"]?.SetValue(2000f);
-        _effect.Parameters["FogEnd"]?.SetValue(3000f);
+        _effect.Parameters["FogColor"].SetValue(new Vector3(0.5f, 0.6f, 0.7f));
+        _effect.Parameters["FogStart"].SetValue(2000f);
+        _effect.Parameters["FogEnd"].SetValue(3000f);
 
         foreach (EffectPass pass in _effect.CurrentTechnique.Passes)
         {
@@ -256,6 +260,41 @@ public class ModelInstances(Color color , Simulation simulation)
                 instanceBuffer.VertexCount
             );
         }
+        graphicsDevice.BlendState = BlendState.Opaque;
+        graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;    
+    }
+
+    public void DrawPastoShadow(GraphicsDevice graphicsDevice, VertexBuffer instanceBuffer, float time, Effect effect, Camera targetLightCamera)
+    {
+        graphicsDevice.RasterizerState = RasterizerState.CullNone;
+        
+        graphicsDevice.SetVertexBuffers(
+            new VertexBufferBinding(_vertexBuffer),
+            new VertexBufferBinding(instanceBuffer, 0, 1)
+        );
+        graphicsDevice.Indices = _indexBuffer;
+        
+        effect.Parameters["Time"]?.SetValue(time);
+        effect.Parameters["checkInvisible"]?.SetValue(true);
+        effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
+        effect.Parameters["World"].SetValue(Matrix.Identity);
+        effect.Parameters["ViewProjection"].SetValue(targetLightCamera.View * targetLightCamera.Projection);
+        
+        var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
+        Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
+
+        foreach (EffectPass pass in effect.CurrentTechnique.Passes)
+        {
+            pass.Apply();
+            graphicsDevice.DrawInstancedPrimitives(
+                PrimitiveType.TriangleList,
+                0,
+                0,
+                _primitiveCount,
+                instanceBuffer.VertexCount
+            );
+        }
+        effect.Parameters["checkInvisible"]?.SetValue(false);
         graphicsDevice.BlendState = BlendState.Opaque;
         graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;    
     }
