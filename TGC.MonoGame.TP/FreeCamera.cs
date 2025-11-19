@@ -64,7 +64,7 @@ namespace  TGC.MonoGame.TP
 
             var currentMovementSpeed = MovementSpeed;
             if (keyboardState.IsKeyDown(Keys.LeftShift) || keyboardState.IsKeyDown(Keys.RightShift))   
-                currentMovementSpeed *= 3f;
+                currentMovementSpeed *= 10f;
 
             if (keyboardState.IsKeyDown(Keys.Left))
             {

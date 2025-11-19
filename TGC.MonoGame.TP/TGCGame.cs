@@ -41,6 +41,7 @@ public class TGCGame : Game
     private Gizmos Gizmos { get; set; }
     private ImGuiRenderer _imGuiRenderer;
     private BoundingFrustum _boundingFrustum;
+    private BoundingFrustum _lightBoundingFrustum;
 
     public const string ContentFolder3D = "Models/";
     private const string ContentFolderEffects = "Effects/";
@@ -105,6 +106,7 @@ public class TGCGame : Game
     private PlayerTank _tank;
     private List<EnemyTank> _enemyTanks;
     private List<TankController> _enemyControllers;
+    private List<Tank> _tanks;
     List<ModelInstances> _allInstances;
 
     private Effect _tankShader;
@@ -418,6 +420,7 @@ public class TGCGame : Game
         _imGuiRenderer = new ImGuiRenderer(this);
         _imGuiRenderer.RebuildFontAtlas();
         _boundingFrustum = new BoundingFrustum(_orbitCamera.View * _orbitCamera.Projection);
+        _lightBoundingFrustum = new BoundingFrustum(_targetLightCamera.View * _targetLightCamera.Projection);
 
         _allInstances = new List<ModelInstances>();
 
@@ -462,7 +465,7 @@ public class TGCGame : Game
         }
         if (keyboardState.IsKeyUp(Keys.Y) && _kbPrev.IsKeyDown(Keys.Y))
         {
-            _apuntar = !_apuntar;
+            _camera.Position = _targetLightCamera.Position;
         }
         // ------------------------------
         //  MODO MENU
@@ -611,7 +614,7 @@ public class TGCGame : Game
                 _offset -= new Vector3(0, 100, 0);
                 Console.WriteLine(_offset);
             }
-
+/*
             if (Keyboard.GetState().IsKeyDown(Keys.O))
             {
                 _offset += new Vector3(100, 0, 0);
@@ -623,7 +626,11 @@ public class TGCGame : Game
                 _offset -= new Vector3(100, 0, 0);
                 Console.WriteLine(_offset);
             }
-
+*/
+            if (keyboardState.IsKeyUp(Keys.P) && _kbPrev.IsKeyDown(Keys.P))
+            {
+                _state = GameState.MainMenu;
+            }
             if (Keyboard.GetState().IsKeyDown(Keys.U))
             {
                 _offset += new Vector3(0, 0, 100);
@@ -649,6 +656,7 @@ public class TGCGame : Game
             _terrain.EyePosition = _camera.Position;
 
             _boundingFrustum = new BoundingFrustum(_orbitCamera.View * _orbitCamera.Projection);
+            _lightBoundingFrustum = new BoundingFrustum(_targetLightCamera.View * _targetLightCamera.Projection);
             _elapsedTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
 
             // Si pasó 1 segundo
@@ -722,6 +730,11 @@ public class TGCGame : Game
 
         if (_state == GameState.MainMenu)
         {
+            _tank?.Audio.StopAll();
+            foreach (var enemyTank in _enemyTanks)
+            {
+                enemyTank.Audio.StopAll();
+            }
             _menu.Draw(_tankEntries, _treadmillsTexture);
             return; // no dibujamos el juego
         }
@@ -749,12 +762,11 @@ public class TGCGame : Game
         {
             DibujarTerreno();
             DibujarElementos();
-            _worldBorder.Draw(_camera.View, _camera.Projection);
-
             DibujarTanques(); // Acá se dibuja el outline también
-
             DibujarPasto();
             DibujarProyectiles();
+            _worldBorder.Draw(_camera.View, _camera.Projection);
+            
             _imGuiRenderer.BeforeLayout(gameTime);
 
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
@@ -934,10 +946,10 @@ public class TGCGame : Game
 
         foreach (var enemyTank in _enemyTanks)
         {
-            enemyTank.DrawShadow(_shadowEffect, _targetLightCamera, _boundingFrustum);
+            enemyTank.DrawShadow(_shadowEffect, _targetLightCamera, _lightBoundingFrustum);
         }
 
-        _tank?.DrawShadow(_shadowEffect, _targetLightCamera, _boundingFrustum);
+        _tank?.DrawShadow(_shadowEffect, _targetLightCamera, _lightBoundingFrustum);
 
         foreach (var instance in _allInstances)
         {
@@ -950,7 +962,7 @@ public class TGCGame : Game
 
             foreach (var world in worlds)
             {
-                if (!instance.EsVisible(world, _boundingFrustum))
+                if (!instance.EsVisible(world, _lightBoundingFrustum))
                 {
                     continue;
                 }
@@ -971,8 +983,8 @@ public class TGCGame : Game
             }
         }
 
-        _trees.DrawSombra(_boundingFrustum, _shadowEffect, _targetLightCamera, _elapsedTime);
-        _terrain.DrawPastoShadow(_boundingFrustum, GraphicsDevice, _targetLightCamera, _pasto, _elapsedTime);
+        _trees.DrawSombra(_lightBoundingFrustum, _shadowEffect, _targetLightCamera, _elapsedTime);
+        _terrain.DrawPastoShadow(_lightBoundingFrustum, GraphicsDevice, _targetLightCamera, _pasto, _elapsedTime);
     }
 
     

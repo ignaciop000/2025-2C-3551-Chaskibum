@@ -43,7 +43,8 @@ DepthPassVertexShaderOutput DepthVS(in DepthPassVertexShaderInput input)
 	DepthPassVertexShaderOutput output;
 	
 	float swayOffset = 0; 
-    if(Sway)
+    
+   if(Sway)
     {
         float4 worldPosition = mul(input.Position, World);
         swayOffset = sin(Time + worldPosition.x * .5 + worldPosition.z * .5 + worldPosition.y * 2) * (((1-input.TextureCoordinate.y) + input.TextureCoordinate.x)/2);

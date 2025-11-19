@@ -45,6 +45,11 @@ public class Menu
     private SpriteBatch _spriteBatch;
     private Texture2D _pixel;
 
+    // For saving the original menu tank bone transforms
+    private Matrix _pristineTurretTransform;
+    private Matrix _pristineCannonTransform;
+    private bool _haveSavedPristineTransforms = false;
+
     // Audio
     private Song _menuMusic;
     private SoundEffect _selectSound;
@@ -106,6 +111,19 @@ public class Menu
     private void DrawModel(Model model, Matrix world, Matrix view, Matrix proj, Texture2D texture, Effect effect,
         Texture2D treadmillTexture)
     {
+        ModelBone turretBone = model.Bones["Turret"];
+        ModelBone cannonBone = model.Bones["Cannon"];
+
+        if (!_haveSavedPristineTransforms)
+        {
+            _pristineTurretTransform = turretBone.Transform;
+            _pristineCannonTransform = cannonBone.Transform;
+            _haveSavedPristineTransforms = true;
+        }
+    
+        turretBone.Transform = _pristineTurretTransform;
+        cannonBone.Transform = _pristineCannonTransform;
+
         var boneTransforms = new Matrix[model.Bones.Count];
         model.CopyAbsoluteBoneTransformsTo(boneTransforms);
         var fx = effect.Clone();
