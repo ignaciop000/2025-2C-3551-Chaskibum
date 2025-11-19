@@ -18,7 +18,6 @@ public class Debug
     private Effect DebugEffect { get; set; }
     //private SpriteBatch _spriteBatch;
     //private SpriteFont _debugFont;
-    private List<Tank> _tanks;
     private List<Projectile> _projectiles;
     public List<Tank> Tanks;
     private bool _showTerrainMeshDebug;
@@ -49,7 +48,7 @@ public class Debug
         Gizmos gizmos)
     {
         
-        _tanks = new List<Tank>();
+        new List<Tank>();
         _projectiles = new List<Projectile>();
         _simulation = simulation;
         _terrain = terrain;
@@ -385,11 +384,6 @@ public class Debug
         }
 
         gd.RasterizerState = old;
-    }
-
-    public void actualizarTanks(List<Tank> tanks)
-    {
-        _tanks = tanks;
     }
 
     private void DrawChunks(Terrain terrain)

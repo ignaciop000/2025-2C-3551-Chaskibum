@@ -132,6 +132,7 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
         TipoProyectilActual = ProjectileTypes.Light;
         BrakeTime = 0f;
         RecoilTime = 0f;
+        SteerRotation = 0f;
         
         VolverAlCentro();
     }
@@ -151,8 +152,7 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
             var bodyRef = Simulation.Bodies.GetBodyReference(handle);    
             var pose = bodyRef.Pose;
             pose.Position += offset;
-            // No es tan sencillo resetear la orientación!
-            //pose.Orientation = System.Numerics.Quaternion.Identity;
+            pose.Orientation = System.Numerics.Quaternion.Identity;
             bodyRef.Pose = pose;
                 
             var vel = bodyRef.Velocity;
@@ -170,7 +170,16 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
     {
         base.Kill();
 
-        Texture = null;
+        Audio?.Dispose();
+            
+        foreach(var handle in BodyHandles)
+        {
+            if (Simulation.Bodies.BodyExists(handle))
+            {
+                Simulation.Bodies.Remove(handle);
+            }
+            CollisionHandler.HandleToTank.Remove(handle);
+        }
     }
 
     public void Curar(int cantidad)

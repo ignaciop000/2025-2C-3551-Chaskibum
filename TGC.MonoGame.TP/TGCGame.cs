@@ -105,7 +105,6 @@ public class TGCGame : Game
     private PlayerTank _tank;
     private List<EnemyTank> _enemyTanks;
     private List<TankController> _enemyControllers;
-    private List<Tank> _tanks;
     List<ModelInstances> _allInstances;
 
     private Effect _tankShader;
@@ -135,6 +134,8 @@ public class TGCGame : Game
     private Vector3 _offset;
 
     private List<TankEntry> _tankEntries = new();
+
+    private Texture2D _treadmillsTexture;
 
     private static readonly Random Random = new Random();
 
@@ -206,9 +207,6 @@ public class TGCGame : Game
 
         _simulation = Simulation.Create(BufferPool, _callbacks,
             new PoseIntegratorCallbacks(new Vector3(0, -120, 0)), new SolveDescription(8, 1));
-        
-        _tank = new PlayerTank(new Vector3(0, 0, 0));
-        _tanks = [_tank];
         
         _debug = new Debug();
         _menu = new Menu();
@@ -301,20 +299,17 @@ public class TGCGame : Game
 
 
         var tankT90 = Content.Load<Model>(ContentFolder3D + "t90/T90");
-        var hullATexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullA");
+        var hullATexture = Content.Load<Texture2D>(ContentFolder3D + "t90/textures_mod/hullA");
         _tankEntries.Add(new TankEntry("T-90-A", tankT90, hullATexture, 0.002f, 0.5f, _tankShader));
 
-        var hullBTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullB");
+        var hullBTexture = Content.Load<Texture2D>(ContentFolder3D + "t90/textures_mod/hullB");
         _tankEntries.Add(new TankEntry("T-90-B", tankT90, hullBTexture, 0.002f, 0.5f, _tankShader));
 
-        var hullCTexture = Content.Load<Texture2D>(TGCGame.ContentFolder3D + "t90/textures_mod/hullC");
+        var hullCTexture = Content.Load<Texture2D>(ContentFolder3D + "t90/textures_mod/hullC");
         _tankEntries.Add(new TankEntry("T-90-C", tankT90, hullCTexture, 0.002f, 0.5f, _tankShader));
-
-        _tank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
-            _bodyProperties, _terrain);
-
-        _playerController = new TankController(_tank, 20, 200, 2, 100, 200f);
-
+        
+        _treadmillsTexture = Content.Load<Texture2D>(ContentFolder3D + "t90/textures_mod/treadmills");
+        
         _trees = new Trees(_simulation);
         _houses = new Houses(_simulation);
         _rocks = new Rocks(_simulation);
@@ -475,7 +470,7 @@ public class TGCGame : Game
 
         if (_state == GameState.MainMenu)
         {
-            _tank._effect.CurrentTechnique = _tank._effect.Techniques["MenuDrawing"];
+            _tankShader.CurrentTechnique = _tankShader.Techniques["MenuDrawing"];
             _menu.Update(keyboardState, _kbPrev, gameTime, this, _tankEntries);
             _kbPrev = keyboardState;
             _mousePrev = mouseState;
@@ -499,13 +494,14 @@ public class TGCGame : Game
             if (_matchTimeSeconds <= 0)
             {
                 _state = GameState.MainMenu;
-                _tank._effect.CurrentTechnique = _tank._effect.Techniques["MenuDrawing"];
+                _tankShader.CurrentTechnique = _tankShader.Techniques["MenuDrawing"];
                 _hasLost = false;
                 _hasWon = false;
                 foreach (var tank in _enemyTanks)
                 {
                     tank.Kill();
                 }
+                _tank.Kill();
 
                 _enemyTanks.Clear();
                 _enemyControllers.Clear();
@@ -691,7 +687,6 @@ public class TGCGame : Game
         }
 
         _debug.Update(keyboardState, _kbPrev, deltaTime, _orbitCamera);
-        _debug.actualizarTanks(_tanks);
         _debug.actualizarProyectiles(_projectiles);
 
         // Actualizar cámara para seguir al tanque
@@ -727,7 +722,7 @@ public class TGCGame : Game
 
         if (_state == GameState.MainMenu)
         {
-            _menu.Draw(_tankEntries, _tank.treadmillsTexture);
+            _menu.Draw(_tankEntries, _treadmillsTexture);
             return; // no dibujamos el juego
         }
 
@@ -816,7 +811,12 @@ public class TGCGame : Game
 
     public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int indiceSeleccionado)
     {
-        _tank.Reset(); // Resetear el tanque del jugador al inicio de una nueva partida
+        //_tank.Reset(); // Resetear el tanque del jugador al inicio de una nueva partida
+        _tank = new PlayerTank(new Vector3(0, 0, 0));
+        _tank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
+            _bodyProperties, _terrain);
+        _playerController = new TankController(_tank, 20, 200, 2, 100, 200f);
+        
         _matchTimeSeconds = (float)tiempoPartida.TotalSeconds;
         SpawnearTanks(cantidadEnemigos);
         _enemyCount = cantidadEnemigos;
@@ -825,8 +825,8 @@ public class TGCGame : Game
         StartGameplayMusic();
         _tank.Texture = _tankEntries[indiceSeleccionado].Texture;
         _state = GameState.Playing;
-        _tank._effect.CurrentTechnique = _tank._effect.Techniques["BasicDrawing"];
-        _tank._effect.Parameters["Ka"]?.SetValue(0.2f);
+        _tankShader.CurrentTechnique = _tankShader.Techniques["BasicDrawing"];
+        _tankShader.Parameters["Ka"]?.SetValue(0.2f);
     }
 
     /// <summary>
@@ -937,7 +937,7 @@ public class TGCGame : Game
             enemyTank.DrawShadow(_shadowEffect, _targetLightCamera, _boundingFrustum);
         }
 
-        _tank.DrawShadow(_shadowEffect, _targetLightCamera, _boundingFrustum);
+        _tank?.DrawShadow(_shadowEffect, _targetLightCamera, _boundingFrustum);
 
         foreach (var instance in _allInstances)
         {

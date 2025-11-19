@@ -26,8 +26,7 @@ public abstract class Tank
     private const float WheelRadius = 2.0f;
 
     public Model Model;
-    public Effect _effect;
-    public Matrix _world;
+    public Effect Effect;
     public Matrix World;
     private BoundingBox _box;
 
@@ -231,7 +230,7 @@ public abstract class Tank
         Gizmos = gizmos;
         Gizmos.LoadContent(graphicsDevice, new ContentManager(content.ServiceProvider, "Content"));
 
-        _effect = efecto;
+        Effect = efecto;
         Simulation = simulation;
         Terrain = terrain;
 
@@ -817,11 +816,11 @@ public abstract class Tank
     public void DrawOutline(Camera camera,GraphicsDevice graphicsDevice, Vector3 color, BoundingFrustum boundingFrustum)
     {
         graphicsDevice.DepthStencilState = DepthStencilState.None;
-        _effect.CurrentTechnique = _effect.Techniques["OutlineDrawing"];
-        _effect.Parameters["color"].SetValue(color);
-        _effect.Parameters["View"].SetValue(camera.View);
-        _effect.Parameters["Projection"].SetValue(camera.Projection);
-        if (Model == null || _effect == null || IsDead || !EsVisible(boundingFrustum)) return;
+        Effect.CurrentTechnique = Effect.Techniques["OutlineDrawing"];
+        Effect.Parameters["color"].SetValue(color);
+        Effect.Parameters["View"].SetValue(camera.View);
+        Effect.Parameters["Projection"].SetValue(camera.Projection);
+        if (Model == null || Effect == null || IsDead || !EsVisible(boundingFrustum)) return;
 
         var wheelRotation = Matrix.CreateRotationX(-WheelRotation);
         var turretRotation = Matrix.CreateRotationY(TurretRotation);
@@ -845,16 +844,16 @@ public abstract class Tank
             var worldPos = Vector3.Transform(imp.Local, boneWorld);
             impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
         }
-        _effect.Parameters["ImpactPoints"].SetValue(impactPointsArray);
+        Effect.Parameters["ImpactPoints"].SetValue(impactPointsArray);
         
         foreach (var mesh in Model.Meshes)
         {
             foreach (var part in mesh.MeshParts)
-                part.Effect = _effect;
+                part.Effect = Effect;
 
             var worldPerMesh = absBones[mesh.ParentBone.Index] * World;
-            _effect.Parameters["World"]?.SetValue(worldPerMesh);
-            _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
+            Effect.Parameters["World"]?.SetValue(worldPerMesh);
+            Effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
 
             mesh.Draw();
         }
@@ -865,7 +864,7 @@ public abstract class Tank
     public void Draw(Camera camera, RenderTarget2D shadowMapRenderTarget, int shadowmapSize,
         TargetCamera targetLightCamera, BoundingFrustum boundingFrustum)
     {
-        if (Model == null || _effect == null || IsDead || !EsVisible(boundingFrustum)) return;
+        if (Model == null || Effect == null || IsDead || !EsVisible(boundingFrustum)) return;
 
         var wheelRotation = Matrix.CreateRotationX(-WheelRotation);
         var turretRotation = Matrix.CreateRotationY(TurretRotation);
@@ -882,15 +881,15 @@ public abstract class Tank
         
         float treadmillOffset = WheelRotation / (2f * MathF.PI);
 
-        _effect.CurrentTechnique = _effect.Techniques["BasicDrawing"];
-        _effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
-        _effect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * shadowmapSize);
-        _effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
-        _effect.Parameters["View"]?.SetValue(camera.View);
-        _effect.Parameters["Projection"]?.SetValue(camera.Projection);
-        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _effect.Parameters["FogStart"]?.SetValue(2000f);
-        _effect.Parameters["FogEnd"]?.SetValue(3000f);
+        Effect.CurrentTechnique = Effect.Techniques["BasicDrawing"];
+        Effect.Parameters["shadowMap"]?.SetValue(shadowMapRenderTarget);
+        Effect.Parameters["shadowMapSize"]?.SetValue(Vector2.One * shadowmapSize);
+        Effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
+        Effect.Parameters["View"]?.SetValue(camera.View);
+        Effect.Parameters["Projection"]?.SetValue(camera.Projection);
+        Effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
+        Effect.Parameters["FogStart"]?.SetValue(2000f);
+        Effect.Parameters["FogEnd"]?.SetValue(3000f);
 
         var impactPointsArray = new Vector4[MaxImpacts];
         var used = Math.Min(ImpactsLocal.Count, MaxImpacts);
@@ -901,31 +900,31 @@ public abstract class Tank
             var worldPos = Vector3.Transform(imp.Local, boneWorld);
             impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
         }
-        _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
+        Effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
         
         foreach (var mesh in Model.Meshes)
         {
             foreach (var part in mesh.MeshParts)
-                part.Effect = _effect;
+                part.Effect = Effect;
 
-            _effect.Parameters["ModelTexture"]?.SetValue(Texture);
+            Effect.Parameters["ModelTexture"]?.SetValue(Texture);
             
             // Usar técnica con texture scrolling para orugas
             if (mesh.Name.Contains("Treadmill"))
             {
-                _effect.CurrentTechnique = _effect.Techniques["TreadmillDrawing"];
-                _effect.Parameters["TreadmillOffset"]?.SetValue(treadmillOffset);
-                _effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);
+                Effect.CurrentTechnique = Effect.Techniques["TreadmillDrawing"];
+                Effect.Parameters["TreadmillOffset"]?.SetValue(treadmillOffset);
+                Effect.Parameters["ModelTexture"]?.SetValue(treadmillsTexture);
             }
             else
             {
-                _effect.CurrentTechnique = _effect.Techniques["BasicDrawing"];
+                Effect.CurrentTechnique = Effect.Techniques["BasicDrawing"];
             }
 
             var worldPerMesh = absBones[mesh.ParentBone.Index] * World;
             
-            _effect.Parameters["World"]?.SetValue(worldPerMesh);
-            _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
+            Effect.Parameters["World"]?.SetValue(worldPerMesh);
+            Effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
 
             mesh.Draw();
         }

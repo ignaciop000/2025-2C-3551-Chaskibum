@@ -79,7 +79,7 @@ public struct TankController(
             _previousBarrelPitch = targetPitchAngle;
         }
     }
-
+    
     public void UpdateControls(KeyboardState keyboardState)
     {
         FactorVelocidadIzquierda = 0; //-1..0..1
