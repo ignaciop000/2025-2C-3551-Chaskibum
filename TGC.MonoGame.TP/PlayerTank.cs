@@ -121,66 +121,6 @@ public class PlayerTank(Vector3 initialPosition, float initialRotation = 0f, flo
         if (float.IsNaN(hit.X)) return null;
         return hit;
     }
-    
-    public void Reset()
-    {
-        IsDead = false;
-        Vida = VidaMax;
-        FireCooldown = 0f;
-        ImpactsLocal.Clear(); // Limpiar impactos al resetear el tanque
-        WasBraking = false;
-        TipoProyectilActual = ProjectileTypes.Light;
-        BrakeTime = 0f;
-        RecoilTime = 0f;
-        SteerRotation = 0f;
-        
-        VolverAlCentro();
-    }
-    
-    private void VolverAlCentro()
-    {
-        // Obtener referencia al cuerpo físico BEPU
-        var centerY = Terrain.GetHeightAtPosition(0, 0);
-        if(!Simulation.Bodies.BodyExists(Body)) return;
-        var bodyHandle = Simulation.Bodies.GetBodyReference(Body);
-        var tankPos = bodyHandle.Pose.Position;
-        var offset = new System.Numerics.Vector3(0, centerY + 25, 0) - tankPos;
-            
-        foreach (var handle in BodyHandles)
-        {
-            if(!Simulation.Bodies.BodyExists(handle)) return;
-            var bodyRef = Simulation.Bodies.GetBodyReference(handle);    
-            var pose = bodyRef.Pose;
-            pose.Position += offset;
-            pose.Orientation = System.Numerics.Quaternion.Identity;
-            bodyRef.Pose = pose;
-                
-            var vel = bodyRef.Velocity;
-            vel.Linear = System.Numerics.Vector3.Zero;
-            vel.Angular = System.Numerics.Vector3.Zero;
-            bodyRef.Velocity = vel;
-        }
-            
-        UpdateWorldMatrix();
-        
-        LastPos = Position;
-    }
-    
-    public override void Kill()
-    {
-        base.Kill();
-
-        Audio?.Dispose();
-            
-        foreach(var handle in BodyHandles)
-        {
-            if (Simulation.Bodies.BodyExists(handle))
-            {
-                Simulation.Bodies.Remove(handle);
-            }
-            CollisionHandler.HandleToTank.Remove(handle);
-        }
-    }
 
     public void Curar(int cantidad)
     {

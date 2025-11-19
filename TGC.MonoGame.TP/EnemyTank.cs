@@ -128,17 +128,8 @@ public class EnemyTank(Vector3 initialPosition, PlayerTank playerTank, float ini
     
     public override void Kill()
     {
+        if (IsDead) return;
         base.Kill();
         playerTank.Curar(20);
-        Audio?.Dispose();
-            
-        foreach(var handle in BodyHandles)
-        {
-            if (Simulation.Bodies.BodyExists(handle))
-            {
-                Simulation.Bodies.Remove(handle);
-            }
-            CollisionHandler.HandleToTank.Remove(handle);
-        }
     }
 }

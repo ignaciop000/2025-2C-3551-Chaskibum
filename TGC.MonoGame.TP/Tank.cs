@@ -1023,6 +1023,16 @@ public abstract class Tank
 
         // Detener todos los sonidos del tanque
         Audio?.StopAll();
+        Audio?.Dispose();
+            
+        foreach(var handle in BodyHandles)
+        {
+            if (Simulation.Bodies.BodyExists(handle))
+            {
+                Simulation.Bodies.Remove(handle);
+            }
+            CollisionHandler.HandleToTank.Remove(handle);
+        }
     }
 
     protected virtual void ResetCooldown()
