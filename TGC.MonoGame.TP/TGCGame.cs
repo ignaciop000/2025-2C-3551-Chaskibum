@@ -5,12 +5,14 @@ using BepuPhysics;
 using BepuUtilities.Memory;
 using ImGuiNET;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
 using TGC.MonoGame.TP.Ambiente;
 using TGC.MonoGame.TP.Ambiente.Objetos;
 using TGC.MonoGame.TP.Ambiente.Objetos.Grupos;
+using TGC.MonoGame.TP.Audio;
 using TGC.MonoGame.TP.Cameras;
 using TGC.MonoGame.TP.Debug;
 using TGC.MonoGame.TP.Debug.Gizmos;
@@ -219,7 +221,7 @@ public class TGCGame : Game
         _shadowEffect = Content.Load<Effect>(ContentFolderEffects + "ShadowMap");
         _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         _effect.Parameters["ambientColor"]?.SetValue(new Vector3(1, 1, 1));
-        _effect.Parameters["Ka"]?.SetValue(0.1f);
+        _effect.Parameters["Ka"]?.SetValue(0.2f);
         _effect.Parameters["diffuseColor"]?.SetValue(new Vector3(1, 1, 1));
         _effect.Parameters["Kd"]?.SetValue(0.8f);
         _effect.Parameters["specularColor"]?.SetValue(new Vector3(1, 1, 1));
@@ -255,12 +257,11 @@ public class TGCGame : Game
 
         var normalMapRock = Content.Load<Texture2D>(ContentFolder3D + "rocks/Textures/Rock_Normal");
         var normalMapHouse = Content.Load<Texture2D>(ContentFolder3D + "house/city_house_2_Nor");
-        var normalMapTree2Leaves =
-            Content.Load<Texture2D>(ContentFolder3D + "tree2/TexturesCom_Branches0018_1_alphamasked_Snor");
-        var normalMapTree2Bark =
-            Content.Load<Texture2D>(ContentFolder3D + "tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor");
         var normalMapTreeLeaves = Content.Load<Texture2D>(ContentFolder3D + "tree/Tree.fbm/DB2X2_L01_Nor");
-
+        var normalMapTree2Leaves = Content.Load<Texture2D>(ContentFolder3D + "tree2/TexturesCom_Branches0018_1_alphamasked_Snor");
+        var normalMapTree2Bark = Content.Load<Texture2D>(ContentFolder3D + "tree2/tileable_tree_bark_texture_by_ftourini-d3l69hznor");
+        var normalMapTallTree = Content.Load<Texture2D>(ContentFolder3D + "TallTree/tall_tree_bark_nor");
+        var normalMapTallTreeLeaves = Content.Load<Texture2D>(ContentFolder3D + "TallTree/tall_tree_leaves_nor");
         _pasto = new Pasto(_simulation, GraphicsDevice);
         _pasto.CargarModelos(_pastoShader, Content);
         _pasto.Models[0].Effect = _pastoShader;
@@ -304,7 +305,7 @@ public class TGCGame : Game
 
 
         _houses.SetPlacementRules(5f, false); // ≤ 5°, NO se inclinan
-        _trees.SetPlacementRules(20f, true); // ≤ 20°, se inclinan
+        _trees.SetPlacementRules(20f, false); // ≤ 20°, se inclinan
         _rocks.SetPlacementRules(null, true); // sin restricción, se inclinan
         _lightPoles.SetPlacementRules(10f, true);
         _pasto.SetPlacementRules(30, true);
@@ -314,16 +315,18 @@ public class TGCGame : Game
 
         var colorMap = _terrain.LoadColorMap(spawnMap);
 
-        var modelos = _trees.GetModelosConPorcentaje(0.50) // Arboles
-            .Concat(_rocks.GetModelosConPorcentaje(0.30)) // Rocas
-            .Concat(_houses.GetModelosConPorcentaje(0.05)) // Casas
+        var modelos = _rocks.GetModelosConPorcentaje(0.70) // Rocas
+            .Concat(_houses.GetModelosConPorcentaje(0.15)) // Casas
             .Concat(_lightPoles.GetModelosConPorcentaje(0.15))
             .ToList();
-
+        var modelos2 = _trees.GetModelosConPorcentaje(1.0).ToList(); // Arboles
+        
         _positionGenerator.GenerarPosicionesReservadas();
-        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa, 450);
+        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa, 1000);
+        _positionGenerator.AgregarPosiciones(modelos2, colorMap, EscalaMapa, 500);
 
-        _trees.CrearObjetos(normalMapTree2Leaves, normalMapTree2Bark, normalMapTreeLeaves, _terrain);
+        
+        _trees.CrearObjetos(normalMapTree2Leaves, normalMapTree2Bark, normalMapTreeLeaves, normalMapTallTree, normalMapTallTreeLeaves, _terrain);
         _rocks.CrearObjetos(normalMapRock, _terrain);
         _houses.CrearObjetos(normalMapHouse, _terrain);
         _lightPoles.CrearObjetos(_terrain);
@@ -408,12 +411,11 @@ public class TGCGame : Game
     {
         var deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
         if (_slowmotion)
-        {
             deltaTime /= 20;
-        }
-
+        
         if (_stopTime)
             deltaTime = 0;
+        
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
@@ -461,6 +463,7 @@ public class TGCGame : Game
 
         if (_hasLost || _hasWon)
         {
+            deltaTime /= 10;
             if (_matchTimeSeconds <= 0)
             {
                 _state = GameState.MainMenu;
@@ -616,7 +619,22 @@ public class TGCGame : Game
             _boundingFrustum = new BoundingFrustum(_orbitCamera.View * _orbitCamera.Projection);
             _lightBoundingFrustum = new BoundingFrustum(_targetLightCamera.View * _targetLightCamera.Projection);
             _elapsedTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
+            
+            // Actualizar cámara para seguir al tanque
+            if (_tank != null)
+            {
+                // Usar la posición y rotación del tanque
+                _orbitCamera.SetTarget(new Vector3(_tank.Position.X, _tank.Position.Y + 25, _tank.Position.Z));
 
+                // Actualizar la cámara (maneja el input del mouse)
+                if(IsActive)
+                    _camera.Update(gameTime, _screenCenter);
+                _orbitCamera.ConstrainAboveTerrain(_terrain, clearance: 30f, samples: 16);
+                _orbitCamera.ConstrainInsideWorldBorder(_worldBorder);
+
+                //debug
+                Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
+            }
             // Si pasó 1 segundo
             /* if (_elapsedTime >= 1.0)
              {
@@ -654,22 +672,6 @@ public class TGCGame : Game
 
         _debug.Update(keyboardState, _kbPrev, deltaTime, _orbitCamera);
         _debug.actualizarProyectiles(_projectiles);
-
-        // Actualizar cámara para seguir al tanque
-        if (_tank != null)
-        {
-            // Usar la posición y rotación del tanque
-            _orbitCamera.SetTarget(new Vector3(_tank.Position.X, _tank.Position.Y + 25, _tank.Position.Z));
-
-            // Actualizar la cámara (maneja el input del mouse)
-            if(IsActive)
-                _camera.Update(gameTime, _screenCenter);
-            _orbitCamera.ConstrainAboveTerrain(_terrain, clearance: 30f, samples: 16);
-            _orbitCamera.ConstrainInsideWorldBorder(_worldBorder);
-
-            //debug
-            Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
-        }
 
         _kbPrev = keyboardState;
         _mousePrev = mouseState;
@@ -716,6 +718,11 @@ public class TGCGame : Game
             _effect.Parameters["View"]?.SetValue(_camera.View);
             _effect.Parameters["Projection"]?.SetValue(_camera.Projection);
             _effect.Parameters["eyePosition"]?.SetValue(_camera.Position);
+            _effect.Parameters["shadowMapSize"]?.SetValue(ShadowmapSize);
+            _effect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
+            _effect.Parameters["shadowMap"]?.SetValue(_shadowMapRenderTarget);
+
+            
 
             _debug.Draw(_camera, _orbitCamera, _targetLightCamera, Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime,
                 _terrain);
@@ -866,7 +873,7 @@ public class TGCGame : Game
             try
             {
                 MediaPlayer.IsRepeating = true;
-                MediaPlayer.Volume = 0.34f; // 34% del volumen (música de fondo)
+                MediaPlayer.Volume = 0.25f; // 34% del volumen (música de fondo)
                 MediaPlayer.Play(_gameplayMusic);
                 _gameplayMusicStarted = true;
             }
@@ -892,8 +899,8 @@ public class TGCGame : Game
         {
             enemyTank.DrawShadow(_shadowEffect, _targetLightCamera, _lightBoundingFrustum);
         }
-
-        _tank?.DrawShadow(_shadowEffect, _targetLightCamera, _lightBoundingFrustum);
+        if(!_tank.IsDead)
+            _tank?.DrawShadow(_shadowEffect, _targetLightCamera, _lightBoundingFrustum);
 
         foreach (var instance in _allInstances)
         {

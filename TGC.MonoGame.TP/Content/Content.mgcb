@@ -703,6 +703,73 @@
 /processorParam:TextureFormat=Color
 /build:Models/t90/textures_mod/treadmills.dds
 
+#begin Models/TallTree/tall_tree_bark_nor.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/TallTree/tall_tree_bark_nor.png;Models/TallTree/tall_tree_bark_nor
+
+#begin Models/TallTree/tall_tree_bark.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/TallTree/tall_tree_bark.png;Models/TallTree/tall_tree_bark
+
+#begin Models/TallTree/tall_tree_leaves_nor.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/TallTree/tall_tree_leaves_nor.png;Models/TallTree/tall_tree_leaves_nor
+
+#begin Models/TallTree/tall_tree_leaves.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=True
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Models/TallTree/tall_tree_leaves.png;Models/TallTree/tall_tree_leaves
+
+#begin Models/TallTree/tall_tree.fbx
+/importer:FbxImporter
+/processor:ModelProcessor
+/processorParam:ColorKeyColor=0,0,0,0
+/processorParam:ColorKeyEnabled=True
+/processorParam:DefaultEffect=BasicEffect
+/processorParam:GenerateMipmaps=True
+/processorParam:GenerateTangentFrames=False
+/processorParam:PremultiplyTextureAlpha=True
+/processorParam:PremultiplyVertexColors=True
+/processorParam:ResizeTexturesToPowerOfTwo=False
+/processorParam:RotationX=0
+/processorParam:RotationY=0
+/processorParam:RotationZ=0
+/processorParam:Scale=1
+/processorParam:SwapWindingOrder=False
+/processorParam:TextureFormat=Compressed
+/build:Models/TallTree/tall_tree.fbx
+
 #begin Models/tank/tank.fbx
 /importer:FbxImporter
 /processor:ModelProcessor
@@ -922,6 +989,12 @@
 /processor:SoundEffectProcessor
 /processorParam:Quality=Best
 /build:Sounds/menu_select.wav
+
+#begin Sounds/soft-wind-318856.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/processorParam:Quality=Best
+/build:Sounds/soft-wind-318856.mp3
 
 #begin Sounds/tank_brake.mp3
 /importer:Mp3Importer

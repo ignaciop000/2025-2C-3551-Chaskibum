@@ -314,7 +314,7 @@ public class ModelInstances(Color color , Simulation simulation)
 
                 mesh.Draw();
             }
-            
+            effect.Parameters["Sway"]?.SetValue(false);
         }
     }
 
