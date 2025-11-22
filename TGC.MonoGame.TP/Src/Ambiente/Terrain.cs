@@ -16,8 +16,7 @@ public class Terrain
     private readonly Effect _effect;
     public float ScaleXz = 1;
     public float ScaleY = 1;
-    public readonly List<TerrainChunk> Chunks;
-    private List<TerrainChunk> _chunksVisibles;
+    public TerrainChunk[,] Chunks;
     private readonly Texture2D _colorMapTexture;
     private readonly Texture2D _terrainTexture;
     private readonly Texture2D _terrainTexture2;
@@ -27,6 +26,9 @@ public class Terrain
     public Vector3 EyePosition;
     private PositionGenerator _positionGenerator;
     public Color[,] _colorMap;
+    private int _chunkSize;
+    private int _chunksX;
+    private int _chunksZ;
     
     /// <summary>
     /// Datos del mapa de altura (Heightmap) utilizados para representar la topografía de un terreno.
@@ -49,8 +51,6 @@ public class Terrain
         Simulation simulation, float scaleXZ, Vector3 eyePos, PositionGenerator positionGenerator, 
         Texture2D spawnMap, Pasto pasto)
     {
-        Chunks = [];
-        _chunksVisibles = [];
         //Shader
         _effect = effect;
         _colorMap = LoadColorMap(spawnMap);
@@ -76,7 +76,7 @@ public class Terrain
     /// <param name="simulation">La simulación de física donde se agregará el mesh de colisión.</param>
     /// <param name="pasto"></param>
     private void LoadHeightmap(GraphicsDevice graphicsDevice, Texture2D heightmap, float scaleXZ, float scaleY,
-        Vector3 center, Simulation simulation, Pasto pasto)
+        Vector3 center, Simulation simulation, Pasto pasto, int chunkSize = 64)
     {
         
         ScaleXz = scaleXZ;
@@ -87,9 +87,13 @@ public class Terrain
         HeightmapData = LoadHeightMap(heightmap);
         
         var width = HeightmapData.GetLength(0);
-        
-        int chunkSize = 64;
         var length = HeightmapData.GetLength(1);
+        
+        _chunkSize = chunkSize;
+        _chunksX = (int)Math.Ceiling(width / (float)chunkSize);
+        _chunksZ = (int)Math.Ceiling(length / (float)chunkSize);
+
+        Chunks = new TerrainChunk[_chunksX, _chunksZ];
         
         // Ajuste del centro
         center.X = center.X * scaleXZ - width / 2f * scaleXZ;
@@ -218,7 +222,10 @@ public class Terrain
                     InstanceBuffer = instanceBuffer
                 };
                 
-                Chunks.Add(chunk);
+                int ix = chunkX / chunkSize;
+                int iz = chunkZ / chunkSize;
+
+                Chunks[ix, iz] = chunk;
             }
         }
 
@@ -331,12 +338,12 @@ public class Terrain
 
     public void SetChunksVisibles(BoundingFrustum boundingFrustum)
     {
-        _chunksVisibles = [];
-        foreach (var chunk in Chunks)
+        for (int x = 0; x < Chunks.GetLength(0); x++)
         {
-            if (boundingFrustum.Intersects(chunk.BoundingBox))
+            for (int z = 0; z < Chunks.GetLength(1); z++)
             {
-                _chunksVisibles.Add(chunk);
+                var chunk = Chunks[x, z];
+                chunk.Visible = boundingFrustum.Intersects(chunk.BoundingBox);
             }
         }
     }
@@ -364,8 +371,10 @@ public class Terrain
 
         _effect.Parameters["WorldViewProjection"]?.SetValue(world * view * projection);
         _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
-        foreach (var chunk in _chunksVisibles)
+        foreach (var chunk in Chunks)
         {
+            if (!chunk.Visible)
+                continue;
             graphicsDevice.SetVertexBuffer(chunk.VertexBuffer);
             graphicsDevice.Indices = chunk.IndexBuffer;
 
@@ -380,9 +389,10 @@ public class Terrain
     public void DibujarPasto(Pasto pasto, float time, Camera camera, TargetCamera targetLightCamera, float shadowmapSize, RenderTarget2D shadowMap)
     {
         var graphicsDevice = _effect.GraphicsDevice;
-        foreach (var chunk in _chunksVisibles)
+        foreach (var chunk in Chunks)
         {
-            pasto.DrawPasto(graphicsDevice, camera, chunk.InstanceBuffer, time, LightPosition, EyePosition, targetLightCamera, shadowmapSize, shadowMap);
+            if (chunk.Visible)
+                pasto.DrawPasto(graphicsDevice, camera, chunk.InstanceBuffer, time, LightPosition, EyePosition, targetLightCamera, shadowmapSize, shadowMap);
         }
     }
     /// <summary>
@@ -521,19 +531,42 @@ public class Terrain
         return MathHelper.ToDegrees(radians);
     }
 
-    public void DrawPastoShadow(GraphicsDevice graphicsDevice, Camera targetLightCamera, Pasto pasto, float time, Effect effect)
+    public void DrawPastoShadow(GraphicsDevice graphicsDevice, Pasto pasto, float time, Effect effect)
     {
-        foreach (var chunk in _chunksVisibles)
+        foreach (var chunk in Chunks)
         {
-            pasto.DrawPastoShadow(graphicsDevice, chunk.InstanceBuffer, effect, time, targetLightCamera);
+            if(chunk.Visible)
+                pasto.DrawPastoShadow(graphicsDevice, chunk.InstanceBuffer, effect, time);
         }
     }
 
+    public void AgregarWorldsVisibles(List<ModelInstances> instancies)
+    {
+        List<Matrix> worldsVisibles;
+        int x = _chunksX / 2;
+        int z = _chunksZ / 2;
+        foreach (var instance in instancies)
+        {
+            worldsVisibles = [];
+            foreach (var world in instance.Worlds)
+            {
+                int chunkX = (int)Math.Floor(world.Translation.X / (_chunkSize * 30)) + x ;
+                int chunkZ = (int)Math.Floor(world.Translation.Z / (_chunkSize * 30)) + z;
+                if(chunkX >= 0 && chunkX < _chunksX &&
+                   chunkZ >= 0 && chunkZ < _chunksZ && Chunks[chunkX,chunkZ].Visible)
+                    worldsVisibles.Add(world);
+            }
+            instance.WorldsVisibles = worldsVisibles;
+        }
+    }
+    
     public class TerrainChunk
     {
         public VertexBuffer VertexBuffer;
         public IndexBuffer IndexBuffer;
         public BoundingBox BoundingBox;
         public VertexBuffer InstanceBuffer;
+        //public List<ModelInstances> Instances;
+        public bool Visible = true;
     }
 }

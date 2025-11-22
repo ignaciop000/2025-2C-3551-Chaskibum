@@ -7,7 +7,7 @@ using TGC.MonoGame.TP.Cameras;
 
 namespace TGC.MonoGame.TP.Ambiente.Objetos.Grupos;
 
-public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
+public class Trees(Simulation simulation) : ModelGroup(Colors, simulation, "Arbol")
 {
     private static readonly List<Color> Colors =
     [
@@ -96,8 +96,8 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
                     foreach (var part in modelMesh.MeshParts)
                         part.Effect = effect;
                     var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * world;
+                    effect.Parameters["World"]?.SetValue(worldMatrix);
                     SetVariables(modelMesh, effect, instance, worldMatrix, targetLightCamera);
-                    
                     
                     modelMesh.Draw();
                 }
@@ -109,19 +109,15 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation)
 
     private void SetVariables(ModelMesh mesh, Effect effect, ModelInstances model, Matrix worldMatrix, Camera targetLightCamera)
     {
-        if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001") || mesh.Name.Contains("Object_74"))
+        if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves"))
         {
             effect.Parameters["Sway"]?.SetValue(1);
             effect.Parameters["ModelTexture"]?.SetValue(model.Texturas[1]);
-            effect.Parameters["ViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
-            effect.Parameters["World"]?.SetValue(worldMatrix);
         }
         else
         {
             effect.Parameters["Sway"]?.SetValue(0);
             effect.Parameters["ModelTexture"]?.SetValue(model.Texturas[0]);
         }
-
-        effect.Parameters["WorldViewProjection"]?.SetValue(worldMatrix * targetLightCamera.View * targetLightCamera.Projection);
     }
 }

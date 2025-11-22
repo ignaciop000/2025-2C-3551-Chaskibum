@@ -99,6 +99,7 @@ public class TGCGame : Game
     private List<EnemyTank> _enemyTanks;
     private List<TankController> _enemyControllers;
     List<ModelInstances> _allInstances;
+    private List<ModelInstances> _instances;
 
     private Effect _tankShader;
     private Effect _pastoShader;
@@ -392,12 +393,16 @@ public class TGCGame : Game
         _boundingFrustum = new BoundingFrustum(_orbitCamera.View * _orbitCamera.Projection);
         _lightBoundingFrustum = new BoundingFrustum(_targetLightCamera.View * _targetLightCamera.Projection);
 
+        _instances = new List<ModelInstances>();
+        _instances.AddRange(_rocks.Models);
+        _instances.AddRange(_houses.Models);
+        _instances.AddRange(_lightPoles.Models);
+        
         _allInstances = new List<ModelInstances>();
-
-        _allInstances.AddRange(_rocks.Models);
-        //_allInstances.AddRange(_bushes.Models);
         _allInstances.AddRange(_houses.Models);
         _allInstances.AddRange(_lightPoles.Models);
+        _allInstances.AddRange(_trees.Models);
+        _allInstances.AddRange(_rocks.Models);
 
         base.LoadContent();
     }
@@ -700,10 +705,11 @@ public class TGCGame : Game
         if (_state != GameState.MainMenu)
         {
             _terrain.SetChunksVisibles(_boundingFrustum);
+            _terrain.AgregarWorldsVisibles(_allInstances);
             if (_dibujarSombras)
                 DrawShadows();
             GraphicsDevice.SetRenderTarget(null);
-            GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, new Color(new Vector3(0.5f, 0.6f, 0.7f)), 1f, 0);
+            GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.CornflowerBlue, 1f, 0);
             
             // Estados por defecto para 3D
             GraphicsDevice.BlendState = BlendState.Opaque;
@@ -893,7 +899,7 @@ public class TGCGame : Game
         GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.White, 1f, 0);
 
         _shadowEffect.CurrentTechnique = _shadowEffect.Techniques["DepthPass"];
-
+        _shadowEffect.Parameters["ViewProjection"].SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
 
         foreach (var enemyTank in _enemyTanks)
         {
@@ -902,7 +908,7 @@ public class TGCGame : Game
         if(!_tank.IsDead)
             _tank?.DrawShadow(_shadowEffect, _targetLightCamera, _lightBoundingFrustum);
 
-        foreach (var instance in _allInstances)
+        foreach (var instance in _instances)
         {
             var model = instance.Model;
             var modelMeshesBaseTransforms = new Matrix[model.Bones.Count];
@@ -925,8 +931,7 @@ public class TGCGame : Game
 
                     var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * world;
                     // WorldViewProjection is used to transform from model space to clip space
-                    _shadowEffect.Parameters["WorldViewProjection"]
-                        .SetValue(worldMatrix * _targetLightCamera.View * _targetLightCamera.Projection);
+                    _shadowEffect.Parameters["World"].SetValue(worldMatrix);
 
                     // Once we set these matrices we draw
                     modelMesh.Draw();
@@ -936,7 +941,7 @@ public class TGCGame : Game
 
         _trees.DrawSombra(_lightBoundingFrustum, _shadowEffect, _targetLightCamera, _elapsedTime);
         _shadowEffect.CurrentTechnique = _shadowEffect.Techniques["DepthPassPasto"];
-        _terrain.DrawPastoShadow(GraphicsDevice, _targetLightCamera, _pasto, _elapsedTime, _shadowEffect);
+        _terrain.DrawPastoShadow(GraphicsDevice, _pasto, _elapsedTime, _shadowEffect);
         _shadowEffect.CurrentTechnique = _shadowEffect.Techniques["DepthPass"];    
     }
 
@@ -959,8 +964,8 @@ public class TGCGame : Game
         _terrainEffect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
         
         // Configurar parámetros de niebla
-        _terrainEffect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _terrainEffect.Parameters["FogStart"]?.SetValue(2000f);
+        _terrainEffect.Parameters["FogColor"]?.SetValue(Color.CornflowerBlue.ToVector3());
+        _terrainEffect.Parameters["FogStart"]?.SetValue(2500f);
         _terrainEffect.Parameters["FogEnd"]?.SetValue(3000f);
 
         _terrain.Draw(Matrix.Identity, _camera, _boundingFrustum);
@@ -971,21 +976,20 @@ public class TGCGame : Game
         _effect.Parameters["lightPosition"]?.SetValue(_lightPosition);
         
         // Configurar parámetros de niebla
-        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _effect.Parameters["FogStart"]?.SetValue(2000f);
+        _effect.Parameters["FogColor"]?.SetValue(Color.CornflowerBlue.ToVector3());
+        _effect.Parameters["FogStart"]?.SetValue(2500f);
         _effect.Parameters["FogEnd"]?.SetValue(3000f);
 
-        _rocks.Draw(_effect, _boundingFrustum, "Piedra", _usarNormalMapping);
+        _rocks.Draw(_effect, _boundingFrustum, _usarNormalMapping);
 
         GraphicsDevice.RasterizerState = RasterizerState.CullNone;
-        _houses.Draw(_effect, _boundingFrustum, "Casa", _usarNormalMapping);
+        _houses.Draw(_effect, _boundingFrustum, _usarNormalMapping);
 
-        _trees.Draw(_effect, _boundingFrustum, "Arbol", _usarNormalMapping, _elapsedTime);
+        _trees.Draw(_effect, _boundingFrustum, _usarNormalMapping, _elapsedTime);
 
-        //_bushes.Draw(_effect,_boundingFrustum, "Arbusto", _usarNormalMapping);
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
-        _lightPoles.Draw(_effect, _boundingFrustum, "Poste de luz", _usarNormalMapping);
+        _lightPoles.Draw(_effect, _boundingFrustum, _usarNormalMapping);
     }
 
     private void DibujarProyectiles()

@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP.Ambiente.Objetos.Grupos;
 
-public class Pasto(Simulation simulation, GraphicsDevice graphicsDevice) : ModelGroup(Colors, simulation)
+public class Pasto(Simulation simulation, GraphicsDevice graphicsDevice) : ModelGroup(Colors, simulation, "Pasto")
 {
     
     private static readonly List<Color> Colors = [Color.White];

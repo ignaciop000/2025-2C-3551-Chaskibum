@@ -6,7 +6,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP.Ambiente.Objetos.Grupos;
 
-public class Houses(Simulation simulation) : ModelGroup(Colors, simulation)
+public class Houses(Simulation simulation) : ModelGroup(Colors, simulation, "Casa")
 {
     private static readonly List<Color> Colors =
     [

@@ -7,7 +7,6 @@
 #define PS_SHADERMODEL ps_4_0_level_9_1
 #endif
 
-float4x4 WorldViewProjection;
 float4x4 ViewProjection;
 float4x4 World;
 bool checkInvisible = false;
@@ -55,17 +54,16 @@ DepthPassVertexShaderOutput DepthVS(in DepthPassVertexShaderInput input)
 	DepthPassVertexShaderOutput output;
 	
 	float swayOffset = 0; 
-    
+    float4 worldPosition = mul(input.Position, World);
    if(Sway)
     {
-        float4 worldPosition = mul(input.Position, World);
+        
         swayOffset = sin(Time + worldPosition.x * .5 + worldPosition.z * .5 + worldPosition.y * 2) * (((1-input.TextureCoordinate.y) + input.TextureCoordinate.x)/2);
         worldPosition.x += swayOffset * 10;
-        output.Position = mul(worldPosition, ViewProjection);
-    }else{
-        output.Position = mul(input.Position, WorldViewProjection);
+        
     }
-	output.ScreenSpacePosition = mul(input.Position, WorldViewProjection);
+    output.Position = mul(worldPosition, ViewProjection);
+	output.ScreenSpacePosition = mul(input.Position, mul(World, ViewProjection));
 	output.TextureCoordinate = input.TextureCoordinate;
 	
 	return output;

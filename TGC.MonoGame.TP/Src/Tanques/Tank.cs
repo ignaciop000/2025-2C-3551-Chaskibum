@@ -889,8 +889,8 @@ public abstract class Tank
         _effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
         _effect.Parameters["View"]?.SetValue(camera.View);
         _effect.Parameters["Projection"]?.SetValue(camera.Projection);
-        _effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        _effect.Parameters["FogStart"]?.SetValue(2000f);
+        _effect.Parameters["FogColor"]?.SetValue(Color.CornflowerBlue.ToVector3());
+        _effect.Parameters["FogStart"]?.SetValue(2500f);
         _effect.Parameters["FogEnd"]?.SetValue(3000f);
 
         var impactPointsArray = new Vector4[MaxImpacts];
@@ -1083,7 +1083,7 @@ public abstract class Tank
             var worldMatrix = modelMeshesBaseTransforms[modelMesh.ParentBone.Index] * _world;
 
             // WorldViewProjection is used to transform from model space to clip space
-            shadowEffect.Parameters["WorldViewProjection"].SetValue(worldMatrix * targetLightCamera.View * targetLightCamera.Projection);
+            shadowEffect.Parameters["World"].SetValue(worldMatrix);
 
             // Once we set these matrices we draw
             modelMesh.Draw();

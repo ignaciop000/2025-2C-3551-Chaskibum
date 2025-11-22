@@ -10,11 +10,12 @@ using TGC.MonoGame.TP.Fisicas;
 
 namespace TGC.MonoGame.TP.Ambiente.Objetos;
 
-public class ModelInstances(Color color , Simulation simulation)
+public class ModelInstances(Color color , Simulation simulation, String tipo)
 {
     public Model Model;
     private BoundingBox _box;
     public readonly List<Matrix> Worlds = [];
+    public List<Matrix> WorldsVisibles = [];
     public readonly List<StaticHandle> Handles = [];
     private Color _color = color;
     private float _altura;
@@ -27,6 +28,7 @@ public class ModelInstances(Color color , Simulation simulation)
     private int _primitiveCount;
     private VertexDeclaration _instanceVertexDeclaration;
     public Effect Effect;
+    private String _tipo = tipo;
     
     public List<Vector2> Positions { get; set; } = [];
 
@@ -218,8 +220,8 @@ public class ModelInstances(Color color , Simulation simulation)
         
         
         // Configurar parámetros de niebla
-        Effect.Parameters["FogColor"]?.SetValue(new Vector3(0.5f, 0.6f, 0.7f));
-        Effect.Parameters["FogStart"]?.SetValue(2000f);
+        Effect.Parameters["FogColor"]?.SetValue(Color.CornflowerBlue.ToVector3());
+        Effect.Parameters["FogStart"]?.SetValue(2500f);
         Effect.Parameters["FogEnd"]?.SetValue(3000f);
 
         foreach (EffectPass pass in Effect.CurrentTechnique.Passes)
@@ -237,7 +239,7 @@ public class ModelInstances(Color color , Simulation simulation)
         graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;    
     }
 
-    public void DrawPastoShadow(GraphicsDevice graphicsDevice, VertexBuffer instanceBuffer, float time, Effect effect, Camera targetLightCamera)
+    public void DrawPastoShadow(GraphicsDevice graphicsDevice, VertexBuffer instanceBuffer, float time, Effect effect)
     {
         graphicsDevice.RasterizerState = RasterizerState.CullNone;
         
@@ -251,7 +253,6 @@ public class ModelInstances(Color color , Simulation simulation)
         effect.Parameters["checkInvisible"]?.SetValue(true);
         effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
         effect.Parameters["World"].SetValue(Matrix.Identity);
-        effect.Parameters["ViewProjection"].SetValue(targetLightCamera.View * targetLightCamera.Projection);
         
         var modelMeshesBaseTransforms = new Matrix[Model.Bones.Count];
         Model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
@@ -272,17 +273,17 @@ public class ModelInstances(Color color , Simulation simulation)
         graphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;    
     }
     
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping, float time)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, bool usarNormalMapping, float time)
     {
         // Configurar todos los parámetros del shader ANTES de asignar a mesh parts
         
         effect.Parameters["TintColor"]?.SetValue(_color.ToVector4());
         effect.Parameters["UseTexture"]?.SetValue(true);
-        if(texto.Equals("Poste de luz"))
+        if(_tipo.Equals("Poste de luz"))
             effect.Parameters["UseTexture"]?.SetValue(false);
         effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
 
-        foreach (var world in Worlds)
+        foreach (var world in WorldsVisibles)
         {
             //Continuar si no esta dentro del frustum
             if (!EsVisible(world, boundingFrustum))
@@ -298,7 +299,7 @@ public class ModelInstances(Color color , Simulation simulation)
             
             foreach (var mesh in Model.Meshes)
             {
-                if (texto.Equals("Arbol"))
+                if (_tipo.Equals("Arbol"))
                 {
                     ElegirTexturaYNormal(mesh, effect, usarNormalMapping);
                     effect.Parameters["Time"]?.SetValue(time);
@@ -362,29 +363,26 @@ public class ModelInstances(Color color , Simulation simulation)
 
     private void ElegirTexturaYNormal(ModelMesh mesh, Effect effect, bool usarNormalMapping)
     {
-        if (mesh.Name.Contains("Plane") || mesh.Name.Contains("leaves") || mesh.Name.Contains("polySurface1.001"))
+        if (mesh.Name.Contains("Plane") ||  mesh.Name.Contains("leaves"))
         {
             effect.Parameters["ModelTexture"]?.SetValue(Texturas[1]);
             effect.Parameters["Sway"]?.SetValue(true);
-            if(mesh.Name.Contains("Plane") && _usaNormalMapping && usarNormalMapping)
+            if(usarNormalMapping)
                 effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[0]);
         }
-        else if(mesh.Name.Contains("Trunk") || mesh.Name.Contains("Branch"))
+        else 
         {
+            
             effect.Parameters["Sway"]?.SetValue(false);
             effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
-            if (_usaNormalMapping && usarNormalMapping)
+            
+            if (usarNormalMapping)
             {
                 effect.CurrentTechnique = effect.Techniques["NormalMapping"];
                 effect.Parameters["NormalTexture"]?.SetValue(_normalMaps[1]);
             }
         }
-        else
-        {
-            effect.Parameters["Sway"]?.SetValue(false);
-            effect.CurrentTechnique = effect.Techniques["BasicColorDrawing"];
-            effect.Parameters["ModelTexture"]?.SetValue(Texturas[0]);
-        }
+        
     }
 }
 

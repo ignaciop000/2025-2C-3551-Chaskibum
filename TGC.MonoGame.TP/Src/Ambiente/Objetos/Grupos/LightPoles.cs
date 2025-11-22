@@ -7,7 +7,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace TGC.MonoGame.TP.Ambiente.Objetos.Grupos;
 
-public class LightPoles(Simulation simulation) : ModelGroup(Colors, simulation)
+public class LightPoles(Simulation simulation) : ModelGroup(Colors, simulation, "Poste de luz")
 {
     private static readonly List<Color> Colors = [Color.White];
     

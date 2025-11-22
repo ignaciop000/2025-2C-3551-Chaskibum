@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using BepuPhysics;
 using Microsoft.Xna.Framework;
@@ -13,11 +14,11 @@ public abstract class ModelGroup
 {
     public readonly List<ModelInstances> Models = [];
 
-    protected ModelGroup(List<Color> colors, Simulation simulation)
+    protected ModelGroup(List<Color> colors, Simulation simulation, String tipo)
     {
         foreach (var color in colors)
         {
-            Models.Add(new ModelInstances(color, simulation));
+            Models.Add(new ModelInstances(color, simulation, tipo));
         }
     }
 
@@ -80,11 +81,11 @@ public abstract class ModelGroup
         }
     }
     
-    public void Draw(Effect effect, BoundingFrustum boundingFrustum, string texto, bool usarNormalMapping, float time = 0)
+    public void Draw(Effect effect, BoundingFrustum boundingFrustum, bool usarNormalMapping, float time = 0)
     {
         foreach (var model in Models)
         {
-            model.Draw(effect, boundingFrustum, texto, usarNormalMapping, time);
+            model.Draw(effect, boundingFrustum, usarNormalMapping, time);
         }
     }
     
@@ -97,11 +98,11 @@ public abstract class ModelGroup
         }
     }
     
-    public void DrawPastoShadow(GraphicsDevice graphicsDevice, VertexBuffer instanceBuffer, Effect effect, float time, Camera targetLightCamera)
+    public void DrawPastoShadow(GraphicsDevice graphicsDevice, VertexBuffer instanceBuffer, Effect effect, float time)
     {
         foreach (var model in Models)
         {
-            model.DrawPastoShadow(graphicsDevice, instanceBuffer, time, effect, targetLightCamera);
+            model.DrawPastoShadow(graphicsDevice, instanceBuffer, time, effect);
         }
     }
     
