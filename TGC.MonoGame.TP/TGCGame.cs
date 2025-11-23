@@ -704,7 +704,7 @@ public class TGCGame : Game
 
         if (_state != GameState.MainMenu)
         {
-            _terrain.SetChunksVisibles(_boundingFrustum);
+            _terrain.SetChunksVisibles(_lightBoundingFrustum);
             _terrain.AgregarWorldsVisibles(_allInstances);
             if (_dibujarSombras)
                 DrawShadows();
@@ -735,7 +735,10 @@ public class TGCGame : Game
 
             _tankShader.Parameters["lightPosition"].SetValue(_lightPosition);
             _tankShader.Parameters["eyePosition"].SetValue(_camera.Position);
-
+            
+            _terrain.SetChunksVisibles(_boundingFrustum);
+            _terrain.AgregarWorldsVisibles(_allInstances);
+            
             DibujarTerreno();
             DibujarElementos();
             DibujarTanques(); // Acá se dibuja el outline también
@@ -913,7 +916,7 @@ public class TGCGame : Game
             var model = instance.Model;
             var modelMeshesBaseTransforms = new Matrix[model.Bones.Count];
             model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
-            var worlds = instance.Worlds;
+            var worlds = instance.WorldsVisibles;
             if (instance.Texturas.Length > 0)
                 _shadowEffect.Parameters["ModelTexture"]?.SetValue(instance.Texturas[0]);
 
@@ -1005,17 +1008,20 @@ public class TGCGame : Game
 
     private void DibujarTanques()
     {
+        GraphicsDevice.DepthStencilState = DepthStencilState.None;
         foreach (var enemyTank in _enemyTanks)
         {
-            enemyTank.DrawOutline(_camera, GraphicsDevice, Color.Red.ToVector3(), _boundingFrustum);
+            enemyTank.DrawOutline(_camera, Color.Red.ToVector3(), _boundingFrustum);
         }
-        _tank.DrawOutline(_camera, GraphicsDevice, Color.White.ToVector3(), _boundingFrustum);
+        _tank.DrawOutline(_camera, Color.White.ToVector3(), _boundingFrustum);
+        
+        GraphicsDevice.DepthStencilState = DepthStencilState.Default;
         
         foreach (var enemyTank in _enemyTanks)
         {
-            enemyTank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum);
+            enemyTank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum, GraphicsDevice);
         }
-        _tank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum);
-
+        _tank.Draw(_camera, _shadowMapRenderTarget, ShadowmapSize, _targetLightCamera, _boundingFrustum, GraphicsDevice);
+        
     }
 }

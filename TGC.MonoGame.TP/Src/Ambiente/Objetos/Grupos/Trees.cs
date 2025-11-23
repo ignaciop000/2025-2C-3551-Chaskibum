@@ -83,7 +83,7 @@ public class Trees(Simulation simulation) : ModelGroup(Colors, simulation, "Arbo
             var model =  instance.Model;
             var modelMeshesBaseTransforms = new Matrix[model.Bones.Count];
             model.CopyAbsoluteBoneTransformsTo(modelMeshesBaseTransforms);
-            var worlds = instance.Worlds;
+            var worlds = instance.WorldsVisibles;
             
             foreach (var world in worlds)
             {

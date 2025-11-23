@@ -233,6 +233,9 @@ public abstract class Tank
         Gizmos.LoadContent(graphicsDevice, new ContentManager(content.ServiceProvider, "Content"));
 
         _effect = efecto;
+        _effect.Parameters["FogColor"]?.SetValue(Color.CornflowerBlue.ToVector3());
+        _effect.Parameters["FogStart"]?.SetValue(2500f);
+        _effect.Parameters["FogEnd"]?.SetValue(3000f);
         Simulation = simulation;
         Terrain = terrain;
 
@@ -277,33 +280,6 @@ public abstract class Tank
 
         // Allocate the transform matrix array.
         _boneTransforms = new Matrix[_model.Bones.Count];
-
-        // Asignar efecto y texturas a todas las partes del modelo
-        foreach (var mesh in _model.Meshes)
-        {
-            foreach (var meshPart in mesh.MeshParts)
-            {
-                meshPart.Effect = efecto;
-                // Asignar textura según el mesh
-                // Las ruedas usan treadmills, el cuerpo usa hullA/B/C
-                if (mesh.Name.Contains("Wheel") || mesh.Name.Contains("wheel"))
-                {
-                    efecto.Parameters["ModelTexture"]?.SetValue(_treadmillsTexture);
-                }
-                else if (mesh.Name.Contains("Turret") || mesh.Name.Contains("turret"))
-                {
-                    efecto.Parameters["ModelTexture"]?.SetValue(_hullBTexture);
-                }
-                else if (mesh.Name.Contains("Cannon") || mesh.Name.Contains("cannon") || mesh.Name.Contains("Barrel"))
-                {
-                    efecto.Parameters["ModelTexture"]?.SetValue(_hullCTexture);
-                }
-                else
-                {
-                    efecto.Parameters["ModelTexture"]?.SetValue(_hullATexture);
-                }
-            }
-        }
 
         // Crear cuerpo físico
         CreatePhysicsBody(bufferPool, properties);
@@ -815,9 +791,8 @@ public abstract class Tank
         Gizmos.Draw();
     }
 
-    public void DrawOutline(Camera camera,GraphicsDevice graphicsDevice, Vector3 color, BoundingFrustum boundingFrustum)
+    public void DrawOutline(Camera camera, Vector3 color, BoundingFrustum boundingFrustum)
     {
-        graphicsDevice.DepthStencilState = DepthStencilState.None;
         _effect.CurrentTechnique = _effect.Techniques["OutlineDrawing"];
         _effect.Parameters["color"].SetValue(color);
         _effect.Parameters["View"].SetValue(camera.View);
@@ -837,46 +812,27 @@ public abstract class Tank
         var absBones = new Matrix[_model.Bones.Count];
         _model.CopyAbsoluteBoneTransformsTo(absBones);
         
-        var impactPointsArray = new Vector4[MaxImpacts];
-        var used = Math.Min(_impactsLocal.Count, MaxImpacts);
-        for (int i = 0; i < used; i++)
-        {
-            var imp = _impactsLocal[i];
-            var boneWorld = absBones[imp.BoneIndex] * _world;
-            var worldPos = Vector3.Transform(imp.Local, boneWorld);
-            impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
-        }
-        _effect.Parameters["ImpactPoints"].SetValue(impactPointsArray);
-        
+        CargarImpactPoints(absBones);
         foreach (var mesh in _model.Meshes)
         {
+            var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
             foreach (var part in mesh.MeshParts)
                 part.Effect = _effect;
 
-            var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
             _effect.Parameters["World"]?.SetValue(worldPerMesh);
             _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
 
             mesh.Draw();
         }
         
-        graphicsDevice.DepthStencilState = DepthStencilState.Default;
     }
     
     public void Draw(Camera camera, RenderTarget2D shadowMapRenderTarget, int shadowmapSize,
-        TargetCamera targetLightCamera, BoundingFrustum boundingFrustum)
+        TargetCamera targetLightCamera, BoundingFrustum boundingFrustum, GraphicsDevice graphicsDevice)
     {
         if (_model == null || _effect == null || IsDead || !EsVisible(boundingFrustum)) return;
 
-        var wheelRotation = Matrix.CreateRotationX(-WheelRotation);
-        var turretRotation = Matrix.CreateRotationY(TurretRotation);
-        var cannonRotation = Matrix.CreateRotationX(CannonRotation);
-
-        for (int i = 0; i < 16; i++)
-            _wheelBones[i].Transform = wheelRotation * _wheelTransforms[i];
-
-        _turretBone.Transform = turretRotation * _turretTransform;
-        _cannonBone.Transform = cannonRotation * _cannonTransform;
+        ActualizarRotaciones();
 
         var absBones = new Matrix[_model.Bones.Count];
         _model.CopyAbsoluteBoneTransformsTo(absBones);
@@ -889,27 +845,14 @@ public abstract class Tank
         _effect.Parameters["LightViewProjection"]?.SetValue(targetLightCamera.View * targetLightCamera.Projection);
         _effect.Parameters["View"]?.SetValue(camera.View);
         _effect.Parameters["Projection"]?.SetValue(camera.Projection);
-        _effect.Parameters["FogColor"]?.SetValue(Color.CornflowerBlue.ToVector3());
-        _effect.Parameters["FogStart"]?.SetValue(2500f);
-        _effect.Parameters["FogEnd"]?.SetValue(3000f);
 
-        var impactPointsArray = new Vector4[MaxImpacts];
-        var used = Math.Min(_impactsLocal.Count, MaxImpacts);
-        for (int i = 0; i < used; i++)
-        {
-            var imp = _impactsLocal[i];
-            var boneWorld = absBones[imp.BoneIndex] * _world;
-            var worldPos = Vector3.Transform(imp.Local, boneWorld);
-            impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
-        }
-        _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
+        CargarImpactPoints(absBones);
         
         foreach (var mesh in _model.Meshes)
         {
+            var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
             foreach (var part in mesh.MeshParts)
                 part.Effect = _effect;
-
-            _effect.Parameters["ModelTexture"]?.SetValue(Texture);
             
             // Usar técnica con texture scrolling para orugas
             if (mesh.Name.Contains("Treadmill"))
@@ -921,9 +864,8 @@ public abstract class Tank
             else
             {
                 _effect.CurrentTechnique = _effect.Techniques["BasicDrawing"];
+                _effect.Parameters["ModelTexture"]?.SetValue(Texture);
             }
-
-            var worldPerMesh = absBones[mesh.ParentBone.Index] * _world;
             
             _effect.Parameters["World"]?.SetValue(worldPerMesh);
             _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(worldPerMesh)));
@@ -1098,5 +1040,32 @@ public abstract class Tank
 
         var boundingBox = BoundingBox.CreateFromPoints(corners);
         return boundingFrustum.Intersects(boundingBox);
+    }
+
+    private void ActualizarRotaciones()
+    {
+        var wheelRotation = Matrix.CreateRotationX(-WheelRotation);
+        var turretRotation = Matrix.CreateRotationY(TurretRotation);
+        var cannonRotation = Matrix.CreateRotationX(CannonRotation);
+
+        for (int i = 0; i < 16; i++)
+            _wheelBones[i].Transform = wheelRotation * _wheelTransforms[i];
+
+        _turretBone.Transform = turretRotation * _turretTransform;
+        _cannonBone.Transform = cannonRotation * _cannonTransform;
+    }
+
+    private void CargarImpactPoints(Matrix[] absBones)
+    {
+        var impactPointsArray = new Vector4[MaxImpacts];
+        var used = Math.Min(_impactsLocal.Count, MaxImpacts);
+        for (int i = 0; i < used; i++)
+        {
+            var imp = _impactsLocal[i];
+            var boneWorld = absBones[imp.BoneIndex] * _world;
+            var worldPos = Vector3.Transform(imp.Local, boneWorld);
+            impactPointsArray[i] = new Vector4(worldPos, imp.Radius);
+        }
+        _effect.Parameters["ImpactPoints"]?.SetValue(impactPointsArray);
     }
 }
