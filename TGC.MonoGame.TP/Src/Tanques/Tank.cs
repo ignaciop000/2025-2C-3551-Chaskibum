@@ -74,6 +74,8 @@ public abstract class Tank
     public Vector3 Position { get; private set; }
     private float Rotation { get; }
     private float Scale { get; }
+    
+    public QuickList<ConstraintHandle> Constraints;
 
     public Buffer<ConstraintHandle> LeftMotors;
     public Buffer<ConstraintHandle> RightMotors;
@@ -434,7 +436,7 @@ public abstract class Tank
         );
         // Posición inicial y orientación alineada al terreno.
         var wheelHandles = new QuickList<BodyHandle>(_tankDescription.WheelCountPerTread * 2, bufferPool);
-        var constraints =
+        Constraints =
             new QuickList<ConstraintHandle>(_tankDescription.WheelCountPerTread * 2 * 6 + 4, bufferPool);
         var leftMotors = new QuickList<ConstraintHandle>(_tankDescription.WheelCountPerTread, bufferPool);
         var rightMotors = new QuickList<ConstraintHandle>(_tankDescription.WheelCountPerTread, bufferPool);
@@ -460,7 +462,7 @@ public abstract class Tank
         Matrix3x3.CreateFromQuaternion(_tankDescription.TurretBasis, out var turretBasis);
         // Convierte la base de la torreta (quaternion) a una matriz 3x3.
 
-        constraints.AllocateUnsafely() = Simulation.Solver.Add(Body, _secBody,
+        Constraints.AllocateUnsafely() = Simulation.Solver.Add(Body, _secBody,
             new Weld
             {
                 LocalOffset = new System.Numerics.Vector3(0f, -5f, 2.5f),
@@ -480,7 +482,7 @@ public abstract class Tank
             out var turretLocalTurretAnchor);
         // Calcula ejes locales de giro (swivel) y puntos de anclaje en los espacios locales de cuerpo y torreta.
 
-        constraints.AllocateUnsafely() = Simulation.Solver.Add(Body, _turret,
+        Constraints.AllocateUnsafely() = Simulation.Solver.Add(Body, _turret,
             new Hinge
             {
                 LocalHingeAxisA = bodyLocalSwivelAxis,
@@ -512,7 +514,7 @@ public abstract class Tank
             ServoSettings = _tankDescription.TurretServo
         };
         _turretServo = Simulation.Solver.Add(Body, _turret, _turretServoDescription);
-        constraints.AllocateUnsafely() = _turretServo;
+        Constraints.AllocateUnsafely() = _turretServo;
         // Crea y agrega un TwistServo para controlar el ángulo de la torreta (yaw), usando esa base de medida.
 
         QuaternionEx.Transform(turretBasis.X, QuaternionEx.Conjugate(_tankDescription.Turret.Pose.Orientation),
@@ -525,7 +527,7 @@ public abstract class Tank
             out var barrelLocalBarrelAnchor);
         // Prepara ejes locales de pitch y puntos de anclaje para el cañón respecto a la torreta.
 
-        constraints.AllocateUnsafely() = Simulation.Solver.Add(_turret, _barrel,
+        Constraints.AllocateUnsafely() = Simulation.Solver.Add(_turret, _barrel,
             new Hinge
             {
                 LocalHingeAxisA = turretLocalPitchAxis,
@@ -558,7 +560,7 @@ public abstract class Tank
         };
         // Agrega el TwistServo que controla el pitch del cañón.
         _barrelServo = Simulation.Solver.Add(_turret, _barrel, _barrelServoDescription);
-        constraints.AllocateUnsafely() = _barrelServo;
+        Constraints.AllocateUnsafely() = _barrelServo;
         // Agrega el TwistServo que controla el pitch del cañón.
 
         QuaternionEx.TransformUnitY(_tankDescription.WheelOrientation, out _);
@@ -600,7 +602,7 @@ public abstract class Tank
                 ref properties[Body].Filter, ref properties[_secBody].Filter,
                 rightSuspensionOffset, _tankDescription.SuspensionLength, _tankDescription.SuspensionSettings,
                 _tankDescription.WheelOrientation,
-                ref wheelHandles, ref constraints, ref rightMotors, ref BodyHandles);
+                ref wheelHandles, ref Constraints, ref rightMotors, ref BodyHandles);
 
             // Crea una rueda derecha con suspensión, fricción y orientación definidos; guarda handles y constraints.
 
@@ -609,7 +611,7 @@ public abstract class Tank
                 ref properties[Body].Filter, ref properties[_secBody].Filter,
                 leftSuspensionOffset, _tankDescription.SuspensionLength, _tankDescription.SuspensionSettings,
                 _tankDescription.WheelOrientation,
-                ref wheelHandles, ref constraints, ref leftMotors, ref BodyHandles);
+                ref wheelHandles, ref Constraints, ref leftMotors, ref BodyHandles);
             // Crea la rueda izquierda correspondiente.
 
             if (i >= 1)
@@ -621,9 +623,9 @@ public abstract class Tank
                     LocalAxisA = new System.Numerics.Vector3(0, 1, 0),
                     Settings = new MotorSettings(float.MaxValue, 1e-4f)
                 };
-                constraints.AllocateUnsafely() =
+                Constraints.AllocateUnsafely() =
                     Simulation.Solver.Add(previousLeftWheelHandle, leftWheelHandle, motorDescription);
-                constraints.AllocateUnsafely() =
+                Constraints.AllocateUnsafely() =
                     Simulation.Solver.Add(previousRightWheelHandle, rightWheelHandle, motorDescription);
             }
 
@@ -632,7 +634,7 @@ public abstract class Tank
         }
 
         wheelHandles.Span.Slice(wheelHandles.Count);
-        constraints.Span.Slice(constraints.Count);
+        Constraints.Span.Slice(Constraints.Count);
         LeftMotors = leftMotors.Span.Slice(leftMotors.Count);
         RightMotors = rightMotors.Span.Slice(rightMotors.Count);
         // “Cierra” las QuickList exposando los spans finales (ajusta las vistas a su tamaño real).
@@ -968,15 +970,37 @@ public abstract class Tank
         // Detener todos los sonidos del tanque
         Audio?.StopAll();
         Audio?.Dispose();
-            
-        foreach(var handle in BodyHandles)
+        
+        TGCGame.PendingRemovals.Add(this);
+    }
+
+    public void RemovePhysics()
+    {
+        // Remover constraints con chequeo defensivo
+
+        for (int i = 0; i < Constraints.Count; i++)
         {
-            if (Simulation.Bodies.BodyExists(handle))
-            {
-                Simulation.Bodies.Remove(handle);
-            }
-            CollisionHandler.HandleToTank.Remove(handle);
+            var c = Constraints[i];
+            if (Simulation.Solver.ConstraintExists(c))
+                Simulation.Solver.Remove(c);
         }
+
+        // Remover bodies con chequeo defensivo
+        
+        for (int i = 0; i < BodyHandles.Count; i++)
+        {
+            var body = BodyHandles[i];
+            if (Simulation.Bodies.BodyExists(body))
+                Simulation.Bodies.Remove(body);
+            
+            CollisionHandler.HandleToTank.Remove(body);
+        }
+
+        // Limpiar colecciones
+        BodyHandles.Dispose(Simulation.BufferPool);
+        Constraints.Dispose(Simulation.BufferPool);
+        Simulation.BufferPool.Return(ref LeftMotors);
+        Simulation.BufferPool.Return(ref RightMotors);
     }
 
     protected virtual void ResetCooldown()

@@ -19,6 +19,7 @@ public class Debug
     private List<Projectile> _projectiles;
     public List<Tank> Tanks;
     private bool _showDebug;
+    private bool _showFps;
     private GraphicsDevice _graphicsDevice;
     private Terrain _terrain;
     private Simulation _simulation;
@@ -57,7 +58,12 @@ public class Debug
             _showDebug = !_showDebug;
         }
         
-        _boundingFrustum= new BoundingFrustum(camera.View * camera.Projection) ;
+        if (keyboardState.IsKeyDown(Keys.F3) && !kbPrev.IsKeyDown(Keys.F3))
+        {
+            _showFps = !_showFps;
+        }
+        
+        _boundingFrustum = new BoundingFrustum(camera.View * camera.Projection) ;
     }
 
     public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos.Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime, Terrain terrain)
@@ -142,6 +148,11 @@ public class Debug
             _spriteBatch.Draw(shadowMapRenderTarget, new Rectangle(20, 150, _graphicsDevice.Viewport.Width/5, _graphicsDevice.Viewport.Height/5), Color.White);
             _spriteBatch.End();
             
+            _graphicsDevice.RasterizerState = oldRS2;
+        }
+
+        if (_showFps)
+        {
             imGuiRenderer.BeforeLayout(gameTime);
         
             ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
@@ -151,8 +162,6 @@ public class Debug
             ImGui.End();
 
             imGuiRenderer.AfterLayout();
-            
-            _graphicsDevice.RasterizerState = oldRS2;
         }
     }
 

@@ -57,10 +57,10 @@ public class HUD(GraphicsDevice graphicsDevice)
         DrawProyectil(currentProjectile, midPointX, (int)midPointY, anchoLogo, anchoLogo);
         var readyFrac = 1f - MathHelper.Clamp(fireCooldown / fireCooldownMax, 0f, 1f);
         
-        var cdWidth = 200f;
+        var cdWidth = _infoFrame.Width * 0.26f;
         var cdHeight = 18f;
         
-        var cdRect = new Rectangle((int)baseX + 50, (int)(baseY)+ anchoLogo + (anchoLogo / 2) + 30, (int)cdWidth, (int)cdHeight);
+        var cdRect = new Rectangle((int) (baseX + anchoFrameInfo / 2 - cdWidth / 2), (int)(baseY)+ anchoLogo + (anchoLogo / 2) + 30, (int)cdWidth, (int)cdHeight);
         DrawBar(cdRect, 0.35f, 0.35f, 0.35f, 0.6f);
         var fillRect = new Rectangle(cdRect.X, cdRect.Y, (int)(cdRect.Width * readyFrac), cdRect.Height);
         DrawBar(fillRect, 0.2f, 0.8f, 0.2f, 0.9f);
@@ -70,9 +70,9 @@ public class HUD(GraphicsDevice graphicsDevice)
         _spriteBatch.DrawString(_menuFont, cdText, new Vector2(cdRect.X, cdRect.Y - 30), Color.White);
 
 
-        var lifeWidth = 250f;
+        var lifeWidth = _infoFrame.Width * 0.26f;
         var lifeHeight = 22f;
-        var lifeRect = new Rectangle((int)baseX + 50 , (int)(baseY)+ anchoLogo + (anchoLogo / 2) + 30 + 58, (int)lifeWidth, (int)lifeHeight);
+        var lifeRect = new Rectangle((int) (baseX + anchoFrameInfo / 2 - cdWidth / 2), (int)(baseY)+ anchoLogo + (anchoLogo / 2) + 30 + 58, (int)lifeWidth, (int)lifeHeight);
         DrawBar(lifeRect, 0.35f, 0.35f, 0.35f, 0.6f);
         var lifeFrac = MathHelper.Clamp(playerHealth / MathF.Max(1f, playerMaxHealth), 0f, 1f);
         var lifeFill = new Rectangle(lifeRect.X, lifeRect.Y, (int)(lifeRect.Width * lifeFrac), lifeRect.Height);

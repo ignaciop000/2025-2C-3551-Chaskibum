@@ -45,6 +45,8 @@ public class TGCGame : Game
     private const string ContentFolderSpriteFonts = "SpriteFonts/";
     private const string ContentFolderTextures = "Textures/";
 
+    private GraphicsDeviceManager _graphics;
+    
     private enum GameState
     {
         MainMenu,
@@ -64,8 +66,8 @@ public class TGCGame : Game
 
     private Camera _camera; // Cámara activa
     private OrbitCamera _orbitCamera; // Cámara que sigue al tanque
-    private const float LightCameraFarPlaneDistance = 7500f;
-    private const float LightCameraNearPlaneDistance = 3000f;
+    private const float LightCameraFarPlaneDistance = 15500f;
+    private const float LightCameraNearPlaneDistance = 11000f;
     private float _elapsedTime;
     private Point _screenCenter;
 
@@ -79,7 +81,8 @@ public class TGCGame : Game
     private CollidableProperty<TankBodyProperties> _bodyProperties; // Propiedades por colisionable (tanques)
     private TankCallbacks _callbacks; // Callbacks de BEPU para fuerzas/colisiones
     private CollisionHandler _collisionHandler; // Maneja eventos de colisión de juego
-
+    public static List<Tank> PendingRemovals = new List<Tank>();
+    
     private BufferPool BufferPool { get; set; } // Pool de buffers BEPU para performance
 
     private PositionGenerator _positionGenerator;
@@ -146,13 +149,12 @@ public class TGCGame : Game
     public TGCGame()
     {
         // Maneja la configuración y la administración del dispositivo gráfico.
-        var graphics = new GraphicsDeviceManager(this);
+        _graphics = new GraphicsDeviceManager(this);
+        _graphics.IsFullScreen = false; // TODO: CAMBIAR
+        _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+        _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+        _graphics.ApplyChanges();
 
-        //Le restamos un valor arbitrario para descartar para de titulo y barra de tareas
-        graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
-        graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
-        // Para que el juego sea pantalla completa se puede usar Graphics IsFullScreen.
-        //_graphics.IsFullScreen = true;
         // Carpeta raíz donde va a estar toda la Media.
         Content.RootDirectory = "Content";
 
@@ -185,7 +187,7 @@ public class TGCGame : Game
             GraphicsDevice.Viewport.Width / 2,
             GraphicsDevice.Viewport.Height / 2);
         
-        _offset = new Vector3(2700f, 4600f, -2000f);
+        _offset = new Vector3(3700f, 12600f, -3000f);
         
         _collisionHandler = new CollisionHandler();
         
@@ -206,7 +208,7 @@ public class TGCGame : Game
         _lightPosition = new Vector3(1300, 8000, 0);
         _targetLightCamera = new TargetCamera(1f, _lightPosition, new Vector3(1300, 0, 0));
         _targetLightCamera.BuildProjection(1f, LightCameraNearPlaneDistance, LightCameraFarPlaneDistance,
-            MathHelper.Pi / 4.5f);
+            MathHelper.Pi / 8f);
         base.Initialize();
     }
 
@@ -418,26 +420,54 @@ public class TGCGame : Game
         if (_slowmotion)
             deltaTime /= 20;
         
-        if (_stopTime)
+        if (_stopTime || _showHelp)
             deltaTime = 0;
         
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
-
-        //Salgo del juego
-        if (keyboardState.IsKeyDown(Keys.Escape))
+        
+        if (keyboardState.IsKeyDown(Keys.Escape) && !_kbPrev.IsKeyDown(Keys.Escape))
         {
-            Exit();
+            if (_state == GameState.MainMenu)
+            {
+                Exit();
+            }
+            else
+            {
+                _hasLost = true;
+                _matchTimeSeconds = 5;
+            }
         }
-        if (keyboardState.IsKeyUp(Keys.R) && _kbPrev.IsKeyDown(Keys.R))
+        
+        if (keyboardState.IsKeyDown(Keys.F11) && !_kbPrev.IsKeyDown(Keys.F11))
+        {
+            _graphics.IsFullScreen = !_graphics.IsFullScreen;
+            
+            if (_graphics.IsFullScreen)
+            {
+                // Resolución nativa de la pantalla
+                _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+                _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+            }
+            else
+            {
+                // Resolución de ventana
+                _graphics.PreferredBackBufferWidth = 1280;
+                _graphics.PreferredBackBufferHeight = 720;
+            }
+            
+            _graphics.ApplyChanges();
+        }
+        
+        if (keyboardState.IsKeyUp(Keys.F5) && _kbPrev.IsKeyDown(Keys.F5))
         {
             _slowmotion = !_slowmotion;
         }
-        if (keyboardState.IsKeyUp(Keys.T) && _kbPrev.IsKeyDown(Keys.T))
+        if (keyboardState.IsKeyUp(Keys.F6) && _kbPrev.IsKeyDown(Keys.F6))
         {
             _stopTime = !_stopTime;
         }
-        if (keyboardState.IsKeyUp(Keys.Y) && _kbPrev.IsKeyDown(Keys.Y))
+        if (keyboardState.IsKeyUp(Keys.F7) && _kbPrev.IsKeyDown(Keys.F7))
         {
             _camera.Position = _targetLightCamera.Position;
         }
@@ -493,12 +523,12 @@ public class TGCGame : Game
                 _orbitCamera.Update(gameTime, _screenCenter);
             }
 
-            if (keyboardState.IsKeyUp(Keys.N) && _kbPrev.IsKeyDown(Keys.N))
+            if (keyboardState.IsKeyUp(Keys.F8) && _kbPrev.IsKeyDown(Keys.F8))
             {
                 _usarNormalMapping = !_usarNormalMapping;
             }
 
-            if (keyboardState.IsKeyUp(Keys.M) && _kbPrev.IsKeyDown(Keys.M))
+            if (keyboardState.IsKeyUp(Keys.F9) && _kbPrev.IsKeyDown(Keys.F9))
             {
                 _dibujarSombras = !_dibujarSombras;
             }
@@ -521,9 +551,9 @@ public class TGCGame : Game
                 _tank.Shoot(_simulation, _projectiles, _effect, _bodyProperties);
 
                 var tipoProyectilActual = _tank.TipoProyectilActual;
-                var amplitude = 0.001f * tipoProyectilActual.Mass * tipoProyectilActual.Speed;
+                var amplitude = 0.00075f * tipoProyectilActual.Mass * tipoProyectilActual.Speed;
                 var rotational = amplitude * 0.06f;
-                _camera.StartShake(amplitude, 0.12f, rotational);
+                _camera.StartShake(amplitude, 1.0f, rotational);
             }
 
             for (int i = _enemyTanks.Count - 1; i >= 0; i--)
@@ -565,49 +595,9 @@ public class TGCGame : Game
                 }
             }
             
-            if (keyboardState.IsKeyDown(Keys.F5) && !_kbPrev.IsKeyDown(Keys.F5))
+            if (keyboardState.IsKeyDown(Keys.F1) && !_kbPrev.IsKeyDown(Keys.F1))
             {
                 _tank.ModoGod = !_tank.ModoGod;
-            }
-
-            if (Keyboard.GetState().IsKeyDown(Keys.L))
-            {
-                _offset += new Vector3(0, 100, 0);
-                Console.WriteLine(_offset);
-            }
-
-            if (Keyboard.GetState().IsKeyDown(Keys.K))
-            {
-                _offset -= new Vector3(0, 100, 0);
-                Console.WriteLine(_offset);
-            }
-/*
-            if (Keyboard.GetState().IsKeyDown(Keys.O))
-            {
-                _offset += new Vector3(100, 0, 0);
-                Console.WriteLine(_offset);
-            }
-
-            if (Keyboard.GetState().IsKeyDown(Keys.P))
-            {
-                _offset -= new Vector3(100, 0, 0);
-                Console.WriteLine(_offset);
-            }
-*/
-            if (keyboardState.IsKeyUp(Keys.P) && _kbPrev.IsKeyDown(Keys.P))
-            {
-                _state = GameState.MainMenu;
-            }
-            if (Keyboard.GetState().IsKeyDown(Keys.U))
-            {
-                _offset += new Vector3(0, 0, 100);
-                Console.WriteLine(_offset);
-            }
-
-            if (Keyboard.GetState().IsKeyDown(Keys.I))
-            {
-                _offset -= new Vector3(0, 0, 100);
-                Console.WriteLine(_offset);
             }
 
             var forward = Microsoft.Xna.Framework.Vector3.Normalize(_orbitCamera.FrontDirection);
@@ -640,12 +630,6 @@ public class TGCGame : Game
                 //debug
                 Gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
             }
-            // Si pasó 1 segundo
-            /* if (_elapsedTime >= 1.0)
-             {
-                 Console.WriteLine("offset: " + _offset);
-                 _elapsedTime = 0;
-             }*/
         }
 
         _tank?.Update(gameTime, keyboardState);
@@ -665,6 +649,11 @@ public class TGCGame : Game
         {
             _simulation.Timestep(deltaTime);
             _collisionHandler.HandleCollisions();
+            foreach (var tank in PendingRemovals)
+            {
+                tank.RemovePhysics();
+            }
+            PendingRemovals.Clear();
 
             _tank?.SyncFromPhysics();
             _tank?.ApplyRecoilAndBrake(deltaTime, _simulation);
