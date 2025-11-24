@@ -150,7 +150,7 @@ public class TGCGame : Game
     {
         // Maneja la configuración y la administración del dispositivo gráfico.
         _graphics = new GraphicsDeviceManager(this);
-        _graphics.IsFullScreen = false; // TODO: CAMBIAR
+        _graphics.IsFullScreen = true;
         _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
         _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
         _graphics.ApplyChanges();
@@ -775,7 +775,14 @@ public class TGCGame : Game
 
     public void StartGame(TimeSpan tiempoPartida, int cantidadEnemigos, int indiceSeleccionado)
     {
-        //_tank.Reset(); // Resetear el tanque del jugador al inicio de una nueva partida
+        _camera = _orbitCamera;
+        _debug.ShowDebug = false;
+        _debug.ShowFps = false;
+        _slowmotion = false;
+        _stopTime = false;
+        _usarNormalMapping = true;
+        _dibujarSombras = true;
+
         _tank = new PlayerTank(new Vector3(0, 0, 0));
         _tank.CargarModelo("t90/T90", _tankShader, Content, _simulation, BufferPool, GraphicsDevice, Gizmos,
             _bodyProperties, _terrain);

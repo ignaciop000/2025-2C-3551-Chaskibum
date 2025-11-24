@@ -18,8 +18,8 @@ public class Debug
     private Effect DebugEffect { get; set; }
     private List<Projectile> _projectiles;
     public List<Tank> Tanks;
-    private bool _showDebug;
-    private bool _showFps;
+    public bool ShowDebug;
+    public bool ShowFps;
     private GraphicsDevice _graphicsDevice;
     private Terrain _terrain;
     private Simulation _simulation;
@@ -55,12 +55,12 @@ public class Debug
     {
         if (keyboardState.IsKeyDown(Keys.F2) && !kbPrev.IsKeyDown(Keys.F2))
         {
-            _showDebug = !_showDebug;
+            ShowDebug = !ShowDebug;
         }
         
         if (keyboardState.IsKeyDown(Keys.F3) && !kbPrev.IsKeyDown(Keys.F3))
         {
-            _showFps = !_showFps;
+            ShowFps = !ShowFps;
         }
         
         _boundingFrustum = new BoundingFrustum(camera.View * camera.Projection) ;
@@ -68,7 +68,7 @@ public class Debug
 
     public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos.Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime, Terrain terrain)
     {
-        if (_showDebug)
+        if (ShowDebug)
         {
             DebugEffect.Parameters["View"]?.SetValue(camera.View);
             DebugEffect.Parameters["Projection"]?.SetValue(camera.Projection);
@@ -151,7 +151,7 @@ public class Debug
             _graphicsDevice.RasterizerState = oldRS2;
         }
 
-        if (_showFps)
+        if (ShowFps)
         {
             imGuiRenderer.BeforeLayout(gameTime);
         

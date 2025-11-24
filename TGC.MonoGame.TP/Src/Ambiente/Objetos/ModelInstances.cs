@@ -102,6 +102,8 @@ public class ModelInstances(Color color , Simulation simulation, String tipo)
             // Aplicar rotación extra en yaw
             var yawRotation = Quaternion.CreateFromAxisAngle(Vector3.Up, MathHelper.ToRadians(yawInDegrees));
             var finalRotation = rotation * yawRotation;
+            
+            finalRotation.Normalize();
 
             var desc = new StaticDescription(
                 new RigidPose(correctedPos, new System.Numerics.Quaternion(finalRotation.X, finalRotation.Y, finalRotation.Z, finalRotation.W)),

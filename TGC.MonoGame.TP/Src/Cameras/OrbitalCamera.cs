@@ -51,6 +51,7 @@ namespace TGC.MonoGame.TP.Cameras
         {
             Target = target;
             BaseDistance = MathHelper.Clamp(distance, MinBaseDistance, MaxBaseDistance);
+            Distance = BaseDistance;
             _lastMousePosition = Mouse.GetState().Position.ToVector2();
             UpdatePosition();
         }

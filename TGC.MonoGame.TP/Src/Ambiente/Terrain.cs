@@ -484,7 +484,8 @@ public class Terrain
             0f, 0f, 0f, 1f
         );
         
-        return Quaternion.CreateFromRotationMatrix(orientationMatrix);
+        var q = Quaternion.CreateFromRotationMatrix(orientationMatrix);
+        return Quaternion.Normalize(q);
     }
 
     private Vector3 GetNormalAtPosition(float worldX, float worldZ)

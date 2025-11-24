@@ -10,6 +10,7 @@ public class HUD(GraphicsDevice graphicsDevice)
 {
     private readonly SpriteBatch _spriteBatch = new(graphicsDevice);
     private SpriteFont _menuFont;
+    private SpriteFont _tituloFont;
     private Texture2D _pixel;
     private Texture2D _clockFrame;
     private Texture2D _infoFrame;
@@ -20,6 +21,7 @@ public class HUD(GraphicsDevice graphicsDevice)
         ICloneable contentFolderSpriteFonts)
     {
         _menuFont = content.Load<SpriteFont>(contentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
+        _tituloFont = content.Load<SpriteFont>(contentFolderSpriteFonts + "CascadiaCode/CascadiaMonoPL");
         _clockFrame = content.Load<Texture2D>(System.IO.Path.Combine(contentFolderTextures, "fondo_reloj"));
         _infoFrame = content.Load<Texture2D>(System.IO.Path.Combine(contentFolderTextures, "fondo_info"));
         _proyectil1 = content.Load<Texture2D>(System.IO.Path.Combine(contentFolderTextures, "proyectil1"));
@@ -173,10 +175,12 @@ public class HUD(GraphicsDevice graphicsDevice)
     {
         var pantalla = graphicsDevice.Viewport;
         var medida = _menuFont.MeasureString(mensaje);
-        var centroPantalla = new Vector2(pantalla.Width / 2f, pantalla.Height / 2f);
+        var centroPantalla = new Vector2(pantalla.Width / 2f , pantalla.Height / 2f);
         
+        var posicion = centroPantalla - medida / 2f;
+
         _spriteBatch.Draw(_pixel, destinationRectangle: new Rectangle(0, 0, pantalla.Width, pantalla.Height), color: new Color(0, 0, 0, 0.4f));
-        _spriteBatch.DrawString(_menuFont, mensaje, centroPantalla, color, 0f, medida / 2f, 5f, SpriteEffects.None, 0f);
+        _spriteBatch.DrawString(_tituloFont, mensaje, posicion, color, 0f, medida / 2f, 1.5f, SpriteEffects.None, 0f);
     }
     
     /// <summary>

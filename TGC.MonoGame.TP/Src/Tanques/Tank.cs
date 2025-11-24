@@ -244,8 +244,9 @@ public abstract class Tank
         // Inicializar sistema de audio
         Audio = new TankAudio();
         Audio.LoadContent(content);
-
-        BodyHandles = new QuickList<BodyHandle>(11, bufferPool);
+        
+        BodyHandles = new QuickList<BodyHandle>(32, bufferPool);
+        
         // Cargar modelo
         _model = content.Load<Model>(TGCGame.ContentFolder3D + rutaRelativa);
         _box = BoundingVolumesExtensions.CreateAABBFrom(_model);
@@ -294,8 +295,16 @@ public abstract class Tank
         CollidableProperty<TankBodyProperties> properties, ref QuickList<BodyHandle> bodyhandles, out BodyHandle handle)
     {
         RigidPose.MultiplyWithoutOverlap(part.Pose, pose, out var bodyPose);
+
+        // Asegurar orientación unitaria
+        var q = bodyPose.Orientation;
+        var len2 = q.LengthSquared();
+        if (len2 != 1f)
+            bodyPose.Orientation = System.Numerics.Quaternion.Normalize(q);
+
         handle = simulation.Bodies.Add(BodyDescription.CreateDynamic(bodyPose, part.Inertia, part.Shape, 0.01f));
         bodyhandles.AllocateUnsafely() = handle;
+
         ref var partProperties = ref properties.Allocate(handle);
         partProperties = new TankBodyProperties { Friction = part.Friction, TankPart = true };
         return ref partProperties.Filter;
@@ -306,8 +315,7 @@ public abstract class Tank
         TypedIndex wheelShape, BodyInertia wheelInertia, float wheelFriction, BodyHandle bodyHandle,
         ref SubgroupCollisionFilter bodyFilter, ref SubgroupCollisionFilter secBodyFilter,
         System.Numerics.Vector3 bodyToWheelSuspension, float suspensionLength,
-        in SpringSettings suspensionSettings, System.Numerics.Quaternion localWheelOrientation,
-        ref QuickList<BodyHandle> wheelHandles, ref QuickList<ConstraintHandle> constraints,
+        in SpringSettings suspensionSettings, System.Numerics.Quaternion localWheelOrientation, ref QuickList<ConstraintHandle> constraints,
         ref QuickList<ConstraintHandle> motors, ref QuickList<BodyHandle> bodyhandles)
     {
         RigidPose wheelPose;
@@ -315,10 +323,10 @@ public abstract class Tank
         RigidPose.Transform(bodyToWheelSuspension + suspensionDirection * suspensionLength, tankPose,
             out wheelPose.Position);
         QuaternionEx.ConcatenateWithoutOverlap(localWheelOrientation, tankPose.Orientation, out wheelPose.Orientation);
+        wheelPose.Orientation = System.Numerics.Quaternion.Normalize(wheelPose.Orientation);
 
         var wheelHandle =
             simulation.Bodies.Add(BodyDescription.CreateDynamic(wheelPose, wheelInertia, wheelShape, 0.01f));
-        wheelHandles.AllocateUnsafely() = wheelHandle;
         bodyhandles.AllocateUnsafely() = wheelHandle;
 
         //We need a LinearAxisServo to act as the suspension spring, pushing the wheel down.
@@ -403,8 +411,9 @@ public abstract class Tank
                 0.5f, Simulation.Shapes),
             TurretAnchor = new System.Numerics.Vector3(1f, 3f, 2.5f),
             BarrelAnchor = new System.Numerics.Vector3(0, 6f, -11),
-            TurretBasis = System.Numerics.Quaternion.CreateFromAxisAngle(
-                System.Numerics.Vector3.UnitY, MathF.PI),
+            TurretBasis = System.Numerics.Quaternion.Normalize(
+                System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitY, MathF.PI)
+            ),
             TurretServo = new ServoSettings(1e7f, 0f, 1000),
             TurretSpring = new SpringSettings(10f, 10.0f),
             BarrelServo = new ServoSettings(1e7f, 0f, 4000),
@@ -420,7 +429,9 @@ public abstract class Tank
             WheelFriction = 2f,
             TreadSpacing = 8f,
             WheelCountPerTread = 8,
-            WheelOrientation = QuaternionEx.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ, MathF.PI * -0.5f),
+            WheelOrientation = System.Numerics.Quaternion.Normalize(
+                QuaternionEx.CreateFromAxisAngle(System.Numerics.Vector3.UnitZ, MathF.PI * -0.5f)
+            )
         };
 
         var alturaTerreno = Terrain.GetHeightAtPosition(Position.X, Position.Z);
@@ -435,7 +446,6 @@ public abstract class Tank
                 orientationQuat.W)
         );
         // Posición inicial y orientación alineada al terreno.
-        var wheelHandles = new QuickList<BodyHandle>(_tankDescription.WheelCountPerTread * 2, bufferPool);
         Constraints =
             new QuickList<ConstraintHandle>(_tankDescription.WheelCountPerTread * 2 * 6 + 4, bufferPool);
         var leftMotors = new QuickList<ConstraintHandle>(_tankDescription.WheelCountPerTread, bufferPool);
@@ -601,8 +611,7 @@ public abstract class Tank
                 wheelShapeToUse, _tankDescription.WheelInertia, _tankDescription.WheelFriction, Body,
                 ref properties[Body].Filter, ref properties[_secBody].Filter,
                 rightSuspensionOffset, _tankDescription.SuspensionLength, _tankDescription.SuspensionSettings,
-                _tankDescription.WheelOrientation,
-                ref wheelHandles, ref Constraints, ref rightMotors, ref BodyHandles);
+                _tankDescription.WheelOrientation, ref Constraints, ref rightMotors, ref BodyHandles);
 
             // Crea una rueda derecha con suspensión, fricción y orientación definidos; guarda handles y constraints.
 
@@ -610,8 +619,7 @@ public abstract class Tank
                 wheelShapeToUse, _tankDescription.WheelInertia, _tankDescription.WheelFriction, Body,
                 ref properties[Body].Filter, ref properties[_secBody].Filter,
                 leftSuspensionOffset, _tankDescription.SuspensionLength, _tankDescription.SuspensionSettings,
-                _tankDescription.WheelOrientation,
-                ref wheelHandles, ref Constraints, ref leftMotors, ref BodyHandles);
+                _tankDescription.WheelOrientation, ref Constraints, ref leftMotors, ref BodyHandles);
             // Crea la rueda izquierda correspondiente.
 
             if (i >= 1)
@@ -632,8 +640,7 @@ public abstract class Tank
             previousLeftWheelHandle = leftWheelHandle;
             previousRightWheelHandle = rightWheelHandle;
         }
-
-        wheelHandles.Span.Slice(wheelHandles.Count);
+        
         Constraints.Span.Slice(Constraints.Count);
         LeftMotors = leftMotors.Span.Slice(leftMotors.Count);
         RightMotors = rightMotors.Span.Slice(rightMotors.Count);
