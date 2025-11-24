@@ -11,9 +11,9 @@ namespace TGC.MonoGame.TP.Cameras
     public class OrbitCamera : Camera
     {
         // --- Camera Shake ---
-        private float _shakeTimeLeft = 0f, _shakeDuration = 0f;
-        private float _shakeTranslation = 0f, _shakeRoll = 0f;
-        private float _shakePhaseX = 0f, _shakePhaseY = 0f, _shakePhaseR = 0f;
+        private float _shakeTimeLeft, _shakeDuration;
+        private float _shakeTranslation, _shakeRoll;
+        private float _shakePhaseX, _shakePhaseY, _shakePhaseR;
         private float _shakeFreqX = 42f, _shakeFreqY = 33f, _shakeFreqR = 25f;
         private readonly Random _rng = new();
 
@@ -21,7 +21,7 @@ namespace TGC.MonoGame.TP.Cameras
         // Propiedades de la órbita
         public Vector3 Target { get; set; }
         public float Distance { get; set; }
-        public float BaseDistance { get; set; } = 300f;
+        public float BaseDistance { get; set; }
         public float MinBaseDistance { get; set; } = 50f;
         public float MaxBaseDistance { get; set; } = 2000f;
         public float AimDistance { get; set; } = 50f;
@@ -30,7 +30,7 @@ namespace TGC.MonoGame.TP.Cameras
         
         // Ángulos de rotación
         private float _yaw = 90f;   // Rotación horizontal
-        private float _pitch = 0f; // Rotación vertical
+        private float _pitch; // Rotación vertical
         
         // (Los expongo para poder usarlos afuera)
         public float Yaw => _yaw;
@@ -42,17 +42,9 @@ namespace TGC.MonoGame.TP.Cameras
         
         // Control de mouse
         private Vector2 _lastMousePosition;
-        private bool _isMouseControlActive = false;
+        private bool _isMouseControlActive;
         
         private Vector2 _cameraVelocity = Vector2.Zero;
-        
-        public OrbitCamera(float aspectRatio, Vector3 target, float distance = 800f) : base(aspectRatio)
-        {
-            Target = target;
-            BaseDistance = MathHelper.Clamp(distance, MinBaseDistance, MaxBaseDistance);
-            _lastMousePosition = Mouse.GetState().Position.ToVector2();
-            UpdatePosition();
-        }
 
         public OrbitCamera(float aspectRatio, Vector3 target, float distance, float nearPlane, float farPlane) 
             : base(aspectRatio, nearPlane, farPlane)
@@ -80,15 +72,7 @@ namespace TGC.MonoGame.TP.Cameras
                 }
                 else
                 {
-                    if (mouseState.RightButton == ButtonState.Pressed)
-                    {
-                        Distance = MathHelper.Lerp(Distance, AimDistance,5f * deltaTime);
-                    }
-                    else
-                    {
-                        Distance = MathHelper.Lerp(Distance, BaseDistance,5f * deltaTime);
-                    }
-                    
+                    Distance = MathHelper.Lerp(Distance, mouseState.RightButton == ButtonState.Pressed ? AimDistance : BaseDistance, 5f * deltaTime);
                     
                     // Calcular movimiento del mouse
                     var mouseDelta = currentMousePosition - _lastMousePosition;
@@ -137,7 +121,7 @@ namespace TGC.MonoGame.TP.Cameras
             }
         }
         
-        private int _lastScrollValue = 0;
+        private int _lastScrollValue;
 
         private void UpdatePosition()
         {
@@ -159,21 +143,8 @@ namespace TGC.MonoGame.TP.Cameras
             
             // Crear matriz de vista
             View = Matrix.CreateLookAt(Position, Target, UpDirection);
-
-            //sacudida
-            if (_shakeTimeLeft > 0f && (_shakeTranslation > 0f || _shakeRoll > 0f))
-            {
-                var t = 1f - (_shakeTimeLeft / _shakeDuration);  
-                var falloff = MathF.Exp(-6f * t);             // decaimiento suave
-                var elapsed = _shakeDuration - _shakeTimeLeft;
-
-                var ox = MathF.Sin(_shakePhaseX + elapsed * _shakeFreqX) * _shakeTranslation * falloff;
-                var oy = MathF.Cos(_shakePhaseY + elapsed * _shakeFreqY) * _shakeTranslation * 0.6f * falloff;
-                var roll = MathF.Sin(_shakePhaseR + elapsed * _shakeFreqR) * _shakeRoll * falloff;
-
-                var s = Matrix.CreateRotationZ(roll) * Matrix.CreateTranslation(ox, oy, 0f);
-                View = s * View;           // premultiplico en espacio cámara
-            }
+            
+            Shake();
         }
 
         /// <summary>
@@ -202,7 +173,7 @@ namespace TGC.MonoGame.TP.Cameras
         /// duration: segundos.
         /// rotational: roll (radianes). 0 si no querés giro.
         /// </summary>
-        public override void StartShake(float amplitude, float duration, float rotational = 0f)
+        public override void StartShake(float amplitude, float duration, float rotational)
         {
             _shakeTranslation = amplitude;
             _shakeRoll  = rotational;
@@ -267,6 +238,24 @@ namespace TGC.MonoGame.TP.Cameras
             RightDirection = Vector3.Normalize(Vector3.Cross(Vector3.Up, FrontDirection));
             UpDirection = Vector3.Cross(FrontDirection, RightDirection);
             View = Matrix.CreateLookAt(Position, Target, UpDirection);
+            Shake();
+        }
+
+        private void Shake()
+        {
+            if (_shakeTimeLeft > 0f && (_shakeTranslation > 0f || _shakeRoll > 0f))
+            {
+                var t = 1f - (_shakeTimeLeft / _shakeDuration);  
+                var falloff = MathF.Exp(-6f * t);             // decaimiento suave
+                var elapsed = _shakeDuration - _shakeTimeLeft;
+
+                var ox = MathF.Sin(_shakePhaseX + elapsed * _shakeFreqX) * _shakeTranslation * falloff;
+                var oy = MathF.Cos(_shakePhaseY + elapsed * _shakeFreqY) * _shakeTranslation * 0.6f * falloff;
+                var roll = MathF.Sin(_shakePhaseR + elapsed * _shakeFreqR) * _shakeRoll * falloff;
+
+                var s = Matrix.CreateRotationZ(roll) * Matrix.CreateTranslation(ox, oy, 0f);
+                View = s * View;           // premultiplico en espacio cámara
+            }
         }
     }
 }

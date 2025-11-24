@@ -54,7 +54,7 @@ namespace  TGC.MonoGame.TP.Cameras
                 CalculateView();
         }
 
-        public override void StartShake(float amplitude, float f, float rotational)
+        public override void StartShake(float amplitude, float duration, float rotational)
         {
         }
 

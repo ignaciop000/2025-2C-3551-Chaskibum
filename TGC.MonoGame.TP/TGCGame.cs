@@ -728,11 +728,6 @@ public class TGCGame : Game
             _effect.Parameters["LightViewProjection"]?.SetValue(_targetLightCamera.View * _targetLightCamera.Projection);
             _effect.Parameters["shadowMap"]?.SetValue(_shadowMapRenderTarget);
 
-            
-
-            _debug.Draw(_camera, _orbitCamera, _targetLightCamera, Gizmos, _shadowMapRenderTarget, _imGuiRenderer, gameTime,
-                _terrain);
-
             _tankShader.Parameters["lightPosition"].SetValue(_lightPosition);
             _tankShader.Parameters["eyePosition"].SetValue(_camera.Position);
             
@@ -745,19 +740,8 @@ public class TGCGame : Game
             DibujarPasto();
             DibujarProyectiles();
             _worldBorder.Draw(_camera.View, _camera.Projection);
-            
-            _imGuiRenderer.BeforeLayout(gameTime);
 
-            ImGui.SetNextWindowPos(new System.Numerics.Vector2(20, 60), ImGuiCond.Always);
-            ImGui.SetNextWindowSize(new System.Numerics.Vector2(300, 60), ImGuiCond.Always);
-            ImGui.Begin("Performance");
-            ImGui.TextWrapped(
-                $"Application average {1000f / ImGui.GetIO().Framerate:F3} ms/frame ({ImGui.GetIO().Framerate:F1} FPS)");
-            ImGui.End();
-
-            _imGuiRenderer.AfterLayout();
-
-            if (_state != GameState.MainMenu && !_hasLost && !_hasWon)
+            if (!_hasLost && !_hasWon)
                 _debug.Draw(_camera, _orbitCamera, _targetLightCamera, Gizmos, _shadowMapRenderTarget, _imGuiRenderer,
                     gameTime, _terrain);
 

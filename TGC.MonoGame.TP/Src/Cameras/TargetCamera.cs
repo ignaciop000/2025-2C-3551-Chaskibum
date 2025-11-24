@@ -71,7 +71,7 @@ namespace TGC.MonoGame.TP.Cameras
             // This camera has no movement, once initialized with position and lookAt it is no longer updated automatically.
         }
         
-        public override void StartShake(float amplitude, float f, float rotational)
+        public override void StartShake(float amplitude, float duration, float rotational)
         {
         }
     }

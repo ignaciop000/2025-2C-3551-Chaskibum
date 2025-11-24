@@ -34,41 +34,42 @@ namespace TGC.MonoGame.TP.Ambiente
         private void CreatePlanes(Simulation sim)
         {
             float margin = 3000f;
-            float x = (_mapWidth / 2f) - margin;
-            float z = (_mapLength / 2f) - margin;
+            float width = _mapWidth - 2 * margin;
+            float length = _mapLength - 2 * margin;
             float height = 2000f;
 
-            // Frente (-Z) → normal debe apuntar hacia +Z (hacia adentro)
+            // Frente (-Z)
             Planes.Add(new BorderPlane(
-                new NumVector3(0f, 0f, -z),
+                new NumVector3(0f, 0f, -(_mapLength / 2f) + margin),
                 NumQuaternion.Identity,
-                _mapWidth, height,
+                width, height,
                 sim, _graphicsDevice, _effect));
 
-            // Fondo (+Z) → normal debe apuntar hacia -Z
+            // Fondo (+Z)
             var rot180Y = NumQuaternion.CreateFromAxisAngle(NumVector3.UnitY, MathF.PI);
             Planes.Add(new BorderPlane(
-                new NumVector3(0f, 0f, z),
+                new NumVector3(0f, 0f, +(_mapLength / 2f) - margin),
                 rot180Y,
-                _mapWidth, height,
+                width, height,
                 sim, _graphicsDevice, _effect));
 
-            // Izquierda (-X) → normal debe apuntar hacia +X
+            // Izquierda (-X)
             var rotYLeft = NumQuaternion.CreateFromAxisAngle(NumVector3.UnitY, MathF.PI / 2f);
             Planes.Add(new BorderPlane(
-                new NumVector3(-x, 0f, 0f),
+                new NumVector3(-(_mapWidth / 2f) + margin, 0f, 0f),
                 rotYLeft,
-                _mapLength, height,
+                length, height,
                 sim, _graphicsDevice, _effect));
 
-            // Derecha (+X) → normal debe apuntar hacia -X
+            // Derecha (+X)
             var rotYRight = NumQuaternion.CreateFromAxisAngle(NumVector3.UnitY, -MathF.PI / 2f);
             Planes.Add(new BorderPlane(
-                new NumVector3(x, 0f, 0f),
+                new NumVector3(+(_mapWidth / 2f) - margin, 0f, 0f),
                 rotYRight,
-                _mapLength, height,
+                length, height,
                 sim, _graphicsDevice, _effect));
         }
+
 
         public void Update(NumVector3 tankPosition)
         {

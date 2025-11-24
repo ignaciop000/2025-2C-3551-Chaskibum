@@ -95,6 +95,6 @@ namespace TGC.MonoGame.TP.Cameras
         /// <param name="screenCenter">.</param>
         public abstract void Update(GameTime gameTime, Point screenCenter);
         
-        public abstract void StartShake(float amplitude, float f, float rotational);
+        public abstract void StartShake(float amplitude, float duration, float rotational);
     }
 }

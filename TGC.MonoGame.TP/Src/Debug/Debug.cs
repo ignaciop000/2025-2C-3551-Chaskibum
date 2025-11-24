@@ -16,26 +16,16 @@ namespace TGC.MonoGame.TP.Debug;
 public class Debug
 {
     private Effect DebugEffect { get; set; }
-    //private SpriteBatch _spriteBatch;
-    //private SpriteFont _debugFont;
     private List<Projectile> _projectiles;
     public List<Tank> Tanks;
-    private bool _showTerrainMeshDebug;
-    //private bool _showTankTelemetry = false;
+    private bool _showDebug;
     private GraphicsDevice _graphicsDevice;
     private Terrain _terrain;
     private Simulation _simulation;
     private SpriteBatch _spriteBatch;
     
     private BoundingFrustum _boundingFrustum;
-    private Matrix View;
-    private Matrix Projection;
     private Gizmos.Gizmos Gizmos { get; set; }
-
-    //private Vector3 _debugBoxSize;
-    //private VertexBuffer _debugBoxVB;
-    //private IndexBuffer _debugBoxIB;
-    //private bool _debugBuffersReady;
 
     // Debug mesh (físico) del terreno
     private VertexBuffer _physDbgVb;
@@ -57,18 +47,14 @@ public class Debug
         DebugEffect = content.Load<Effect>(contentEffectsFolder + "Debug");
         DebugEffect.Parameters["DebugColor"]?.SetValue(Color.Red.ToVector4());
         _boundingFrustum = new BoundingFrustum(orbitCamera.View * orbitCamera.Projection);
-        View = orbitCamera.View;
-        Projection = orbitCamera.Projection;
         _spriteBatch = new SpriteBatch(_graphicsDevice);
-        //_spriteBatch = new SpriteBatch(graphicsDevice);
-        //_debugFont = content.Load<SpriteFont>(contentSpriteFolder + "CascadiaCode/CascadiaCodePL");
     }
 
     public void Update(KeyboardState keyboardState, KeyboardState kbPrev, float dt, OrbitCamera camera)
     {
         if (keyboardState.IsKeyDown(Keys.F2) && !kbPrev.IsKeyDown(Keys.F2))
         {
-            _showTerrainMeshDebug = !_showTerrainMeshDebug;
+            _showDebug = !_showDebug;
         }
         
         _boundingFrustum= new BoundingFrustum(camera.View * camera.Projection) ;
@@ -76,7 +62,7 @@ public class Debug
 
     public void Draw(Camera camera, OrbitCamera orbitCamera, TargetCamera targetLightCamera, Gizmos.Gizmos gizmos, RenderTarget2D shadowMapRenderTarget, ImGuiRenderer imGuiRenderer, GameTime gameTime, Terrain terrain)
     {
-        if (_showTerrainMeshDebug)
+        if (_showDebug)
         {
             DebugEffect.Parameters["View"]?.SetValue(camera.View);
             DebugEffect.Parameters["Projection"]?.SetValue(camera.Projection);
@@ -90,10 +76,6 @@ public class Debug
 
             DrawChunks(terrain);
             _graphicsDevice.RasterizerState = oldRS;
-
-            // --- DEBUG: ver el mesh físico del terreno ---
-            //_debugEffect.Parameters["DebugColor"]?.SetValue(Color.Yellow.ToVector4()); 
-            //DrawPhysicsMeshDebug(DebugEffect, camera.View, camera.Projection);
 
             // Mostrar TODAS las cajas del simulador (dinámicas + estáticas)
             DebugEffect.Parameters["View"]?.SetValue(camera.View);
