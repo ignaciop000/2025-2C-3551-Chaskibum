@@ -99,6 +99,8 @@ public class Debug
             {
                 var handle = new StaticHandle(i);
 
+                if (!_simulation.Statics.StaticExists(handle)) continue;
+                
                 _simulation.Statics.GetDescription(handle, out var desc);
 
                 if (desc.Shape.Type == Box.Id)

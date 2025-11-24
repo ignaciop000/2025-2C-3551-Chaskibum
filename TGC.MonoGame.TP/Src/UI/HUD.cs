@@ -171,16 +171,33 @@ public class HUD(GraphicsDevice graphicsDevice)
         return $"{mm:00}:{ss:00}";
     }
     
-    public void DrawMensaje(string mensaje, Color color)
+    public void DrawMensaje(string mensaje, Color color, float time)
     {
-        var pantalla = graphicsDevice.Viewport;
-        var medida = _menuFont.MeasureString(mensaje);
-        var centroPantalla = new Vector2(pantalla.Width / 2f , pantalla.Height / 2f);
-        
-        var posicion = centroPantalla - medida / 2f;
+        var vp = graphicsDevice.Viewport;
 
-        _spriteBatch.Draw(_pixel, destinationRectangle: new Rectangle(0, 0, pantalla.Width, pantalla.Height), color: new Color(0, 0, 0, 0.4f));
-        _spriteBatch.DrawString(_tituloFont, mensaje, posicion, color, 0f, medida / 2f, 1.5f, SpriteEffects.None, 0f);
+        float scale = 1.5f;
+        var font = _tituloFont; 
+
+        var medida = font.MeasureString(mensaje) * scale;
+        var centroPantalla = new Vector2(vp.Width / 2f, vp.Height / 2f);        
+        var posicion = centroPantalla - medida / 2f;
+        
+        var alpha = 0f;        
+        if(time > 0)
+             alpha = 1 - 1f * (time / 5);
+        _spriteBatch.Draw(_pixel, new Rectangle(0, 0, vp.Width, vp.Height), new Color(0, 0, 0, alpha) );
+        
+        _spriteBatch.DrawString(
+            font,
+            mensaje,
+            posicion,
+            color,
+            0f,
+            Vector2.Zero,  
+            scale,
+            SpriteEffects.None,
+            0f
+        );
     }
     
     /// <summary>

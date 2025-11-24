@@ -307,9 +307,9 @@ public class TGCGame : Game
         _lightPoles = new LightPoles(_simulation);
 
 
-        _houses.SetPlacementRules(5f, false); // ≤ 5°, NO se inclinan
-        _trees.SetPlacementRules(20f, false); // ≤ 20°, se inclinan
-        _rocks.SetPlacementRules(null, true); // sin restricción, se inclinan
+        _houses.SetPlacementRules(5f, false);
+        _trees.SetPlacementRules(20f, false);
+        _rocks.SetPlacementRules(30f, true);
         _lightPoles.SetPlacementRules(10f, true);
         _pasto.SetPlacementRules(30, true);
 
@@ -755,12 +755,12 @@ public class TGCGame : Game
 
             if (_hasLost)
             {
-                _hud.DrawMensaje("PERDISTE", Color.Red);
+                _hud.DrawMensaje("PERDISTE", Color.Red, _matchTimeSeconds);
             }
 
             if (_hasWon)
             {
-                _hud.DrawMensaje("GANASTE", Color.Green);
+                _hud.DrawMensaje("GANASTE", Color.Green, _matchTimeSeconds);
             }
 
             // Mostrar panel de ayuda si está activado
