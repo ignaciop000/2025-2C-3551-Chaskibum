@@ -990,12 +990,6 @@
 /processorParam:Quality=Best
 /build:Sounds/menu_select.wav
 
-#begin Sounds/soft-wind-318856.mp3
-/importer:Mp3Importer
-/processor:SongProcessor
-/processorParam:Quality=Best
-/build:Sounds/soft-wind-318856.mp3
-
 #begin Sounds/tank_brake.mp3
 /importer:Mp3Importer
 /processor:SoundEffectProcessor

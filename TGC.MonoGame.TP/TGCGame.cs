@@ -518,7 +518,8 @@ public class TGCGame : Game
                 && mouseState.LeftButton == ButtonState.Pressed
                 && _mousePrev.LeftButton == ButtonState.Released)
             {
-                _tank.Shoot(_simulation, _projectiles, _effect, _bodyProperties);
+                _tank.
+                    (_simulation, _projectiles, _effect, _bodyProperties);
 
                 var tipoProyectilActual = _tank.TipoProyectilActual;
                 var amplitude = 0.001f * tipoProyectilActual.Mass * tipoProyectilActual.Speed;
