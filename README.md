@@ -10,13 +10,15 @@
 
 Batalla de tanques desarrollado por estudiantes de la carrera de Ingeniería de sistemas UTN FRBA para la asignatura Técnicas de gráficos por computadora utilizando el framework monogame
 
-## JUEGO
+## Juego
 
 La batalla consiste es destruir todos los tanques enemigos, antes que se termine el tiempo de la partida, sin que te destruyan. Es posible modificar el tiempo de partida, como así tambien la cantidad de enemigos.
 
 ## Controles
 	- WASD: movimiento del tanque
 	- 1,2: selección de proyectil
+    - H: Muestra ayuda durante el juego
+    - SHIFT: Turbo
     - F1: Modo god
     - F2: Debug
     - F3: FPS
@@ -35,7 +37,8 @@ La batalla consiste es destruir todos los tanques enemigos, antes que se termine
 
 TGC, Tgcito  |  Apellido, Nombre
 ------------ | -------------
-| ![Ignacio Podesta](/integrantes/nacho.jpg)       | Podestá, Ignacio    |
+| ![Agustín Carlana Rivero](/integrantes/agus.jpg) | Agustín Carlana Rivero |
+| ![Ignacio Podesta](/integrantes/nacho.jpg)       | Ignacio Podestá    |
 
 ## Capturas
 
