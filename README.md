@@ -35,7 +35,7 @@ La batalla consiste es destruir todos los tanques enemigos, antes que se termine
 
 TGC, Tgcito  |  Apellido, Nombre
 ------------ | -------------
-| <img src="https://github.com/tgc-utn/tgc-utn.github.io/blob/main/images/robotgc.png" height="500"> | <img src="https://github.com/tgc-utn/tgc-utn.github.io/blob/main/images/trofeotp.png" height="500"> |
+| ![Ignacio Podesta](/integrantes/nacho.jpg)       | Podestá, Ignacio    |
 
 ## Capturas
 
