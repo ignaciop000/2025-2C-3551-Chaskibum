@@ -235,9 +235,6 @@ public class TGCGame : Game
         // Cargar shader específico para tanques
         _tankShader = Content.Load<Effect>(ContentFolderEffects + "TankShader");
         _tankShader.Parameters["Ka"]?.SetValue(1f);
-        
-        // Cargar efecto de niebla para post-procesado
-        Content.Load<Effect>(ContentFolderEffects + "Fog");
 
         // Cargar shader específico para el World Border
         _worldBorderEffect = Content.Load<Effect>(ContentFolderEffects + "WorldBorderShader");
@@ -358,9 +355,7 @@ public class TGCGame : Game
 
         _menu.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);
         _hud.LoadContent(Content, ContentFolderTextures, GraphicsDevice, ContentFolderSpriteFonts);
-        //_font = Content.Load<SpriteFont>(ContentFolderSpriteFonts + "CascadiaCode/CascadiaCodePL");
-
-
+        
         // Cargar música de gameplay (opcional - no falla si no existe)
         try
         {
@@ -426,7 +421,7 @@ public class TGCGame : Game
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
         
-        if (keyboardState.IsKeyDown(Keys.Escape) && !_kbPrev.IsKeyDown(Keys.Escape))
+        if (keyboardState.IsKeyDown(Keys.Escape) && !_kbPrev.IsKeyDown(Keys.Escape) && !_hasLost && !_hasWon)
         {
             if (_state == GameState.MainMenu)
             {
