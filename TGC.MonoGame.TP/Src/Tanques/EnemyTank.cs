@@ -54,10 +54,10 @@ public class EnemyTank(Vector3 initialPosition, PlayerTank playerTank, float ini
 
         // Para que el tanque apunte un poco más arriba al jugador, en función de la distancia
         var toPlayerFixed = new Vector3(toPlayer.X, toPlayer.Y + distance / 30f, toPlayer.Z);
+        if(distance < 1200f)
+            AimDirectionWorld = Vector3.Normalize(toPlayerFixed);
         
-        AimDirectionWorld = Vector3.Normalize(toPlayerFixed);
-        
-        if (distance > 350f)
+        if (distance is > 350f and < 1200f)
         {
             // Yaw objetivo (misma convención: +PI para que frente -Z sea 0)
             var targetYaw = MathF.Atan2(AimDirectionWorld.X, AimDirectionWorld.Z) + MathF.PI;
@@ -100,9 +100,11 @@ public class EnemyTank(Vector3 initialPosition, PlayerTank playerTank, float ini
             tankController.BrakeLeft = false;
             tankController.BrakeRight = false;
             tankController.UpdateMovementAndAim(Simulation, AimDirectionWorld);
+            if(distance < 550f)
+                Shoot(sim, projectiles, projectileEffect, properties);
             WasBraking = false;
         }
-        else
+        else if(distance < 350f)
         {
             // Frenar cerca
             tankController.FactorVelocidadIzquierda = 0f;
