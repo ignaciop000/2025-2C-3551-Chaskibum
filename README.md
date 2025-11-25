@@ -1,4 +1,4 @@
-# TGC - MonoGame - TP
+# Chaskibum
 
 [![.NET](https://github.com/tgc-utn/tgc-monogame-tp/actions/workflows/dotnet.yml/badge.svg)](https://github.com/tgc-utn/tgc-monogame-tp/actions/workflows/dotnet.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/63382c4441444632b06d83dcc6dab106)](https://app.codacy.com/gh/tgc-utn/tgc-monogame-tp/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
@@ -8,7 +8,7 @@
 
 ## Descripción
 
-Chaskibum: Batalla de tanques desarrollado por estudiantes de la carrera de Ingeniería de sistemas UTN FRBA para la asignatura Técnicas de gráficos por computadora utilizando el framework monogame
+Batalla de tanques desarrollado por estudiantes de la carrera de Ingeniería de sistemas UTN FRBA para la asignatura Técnicas de gráficos por computadora utilizando el framework monogame
 
 ## JUEGO
 
