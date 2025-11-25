@@ -8,15 +8,28 @@
 
 ## Descripción
 
-Proyecto plantilla para los trabajos prácticos de la asignatura electiva [Técnicas de Gráficos por Computadora](https://tgc-utn.github.io/) (TGC) en la carrera de Ingeniería en Sistemas de Información. Universidad Tecnológica Nacional, Facultad Regional Buenos Aires (UTN-FRBA).
+Chaskibum: Batalla de tanques desarrollado por estudiantes de la carrera de Ingeniería de sistemas UTN FRBA para la asignatura Técnicas de gráficos por computadora utilizando el framework monogame
 
-## Configuración del entorno de desarrollo
+## JUEGO
 
-Los pasos a seguir según su sistema operativo se pueden leer en el siguiente documento [install.md](https://github.com/tgc-utn/tgc-monogame-samples/blob/master/docs/install/install.md).
+La batalla consiste es destruir todos los tanques enemigos, antes que se termine el tiempo de la partida, sin que te destruyan. Es posible modificar el tiempo de partida, como así tambien la cantidad de enemigos.
 
-Afuera del mundo Windows, vas a necesitar la ayudar de [Wine](https://www.winehq.org) para los shaders, por lo menos por [ahora](https://github.com/MonoGame/MonoGame/issues/2167).
+## Controles
+	- WASD: movimiento del tanque
+	- 1,2: selección de proyectil
+    - F1: Modo god
+    - F2: Debug
+    - F3: FPS
+    - F4: Camara libre
+    - F5: Slow motion
+    - F6: Stop time
+    - F7: Vista Luz
+    - F8: Desactivar normal mapping
+    - F9: Desactivar shadow mapping
+    - F11: Fullscreen
+	- ESC: Terminar Partida
+	El cañon se mueve con el mouse, Disparo Click Izq, Puntería, Click Derecho
 
-Los recursos usados se almacenan utilizando [Git LFS](https://git-lfs.github.com), con lo cual antes de clonar el repositorio les conviene tenerlo instalado así es automático el pull o si ya lo tienen pueden hacer `git lfs pull`.
 
 ## Integrantes
 
@@ -26,11 +39,12 @@ TGC, Tgcito  |  Apellido, Nombre
 
 ## Capturas
 
-![screenshot1](https://github.com/tgc-utn/tgc-monogame-tp/blob/master/TGC.MonoGame.TP/Icon.bmp)
-![screenshot2](https://github.com/tgc-utn/tgc-monogame-tp/blob/master/TGC.MonoGame.TP/Icon.bmp)
-![screenshot3](https://github.com/tgc-utn/tgc-monogame-tp/blob/master/TGC.MonoGame.TP/Icon.bmp)
-![screenshot4](https://github.com/tgc-utn/tgc-monogame-tp/blob/master/TGC.MonoGame.TP/Icon.bmp)
-![screenshot5](https://github.com/tgc-utn/tgc-monogame-tp/blob/master/TGC.MonoGame.TP/Icon.bmp)
+![Menu]("/capturas/Screenshot 2025-11-25 16-05-38.jpg")
+![Juego1]("/capturas/Screenshot 2025-11-25 16-07-53.jpg")
+![Juego2]("/capturas/Screenshot 2025-11-25 16-08-30.jpg")
+![Juego3]("/capturas/Screenshot 2025-11-25 16-08-42.jpg")
+![Juego4]("/capturas/Screenshot 2025-11-25 16-09-10.jpg")
+![Juego5]("/capturas/Screenshot 2025-11-25 16-09-37.jpg")
 
 ## Game Play
 
