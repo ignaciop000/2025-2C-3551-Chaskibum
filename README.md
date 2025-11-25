@@ -19,6 +19,7 @@ La batalla consiste es destruir todos los tanques enemigos, antes que se termine
 	- 1,2: selección de proyectil
     - H: Muestra ayuda durante el juego
     - SHIFT: Turbo
+    - SPACE: Freno
     - F1: Modo god
     - F2: Debug
     - F3: FPS
