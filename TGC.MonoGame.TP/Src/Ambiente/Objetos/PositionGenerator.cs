@@ -65,7 +65,7 @@ public class PositionGenerator
         }
     }
     
-    public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, Color[,] colorMap, float escalaMap, float distanciaMinima = 550)
+    public void AgregarPosiciones(List<(ModelInstances modelo, double porcentaje)> modelos, Color[,] colorMap, float escalaMap, float distanciaMinima = 450)
     {
         // Generar posiciones
         List<Vector2> posiciones = GenerarPuntos(distanciaMinima, colorMap, escalaMap);
@@ -114,12 +114,14 @@ public class PositionGenerator
             modelos[i].modelo.Positions = listasPorModelo[i];
     }
     
-    private List<Vector2> GenerarPuntos(float minDist, Color[,] colorMap, float escalaMap, int attempts = 100)
+    private List<Vector2> GenerarPuntos(float minDist, Color[,] colorMap, float escalaMap, int attempts = 5000)
     {
         List<Vector2> points = [];
 
         int mapWidth = colorMap.GetLength(0);
         int mapHeight = colorMap.GetLength(1);
+        
+        float minDist2 = minDist * minDist;
 
         var currentAttempts = attempts;
         while (currentAttempts > 0)
@@ -134,12 +136,16 @@ public class PositionGenerator
             {
                 Vector2 newPoint = new Vector2(x, y);
                     
-                // Validar dentro del área y lejos de otros puntos
-                    
-                if (points.All(p => Vector2.Distance(p, newPoint) >= minDist))
+                // 1) Chequeo contra puntos ya generados (misma lista)
+                bool okAgainstSelf = !AnyCloserThan(points, newPoint, minDist2);
+
+                // 2) Chequeo contra posiciones reservadas (tanques)
+                bool okAgainstReserved = !AnyCloserThan(ReservedPositions, newPoint, minDist2);
+
+                if (okAgainstSelf && okAgainstReserved)
                 {
                     points.Add(newPoint);
-                    currentAttempts = attempts;
+                    currentAttempts = attempts; // reset
                 }
             }
                 

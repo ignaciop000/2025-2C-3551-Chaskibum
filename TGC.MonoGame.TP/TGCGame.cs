@@ -315,16 +315,14 @@ public class TGCGame : Game
 
         var colorMap = _terrain.LoadColorMap(spawnMap);
 
-        var modelos = _rocks.GetModelosConPorcentaje(0.70) // Rocas
-            .Concat(_houses.GetModelosConPorcentaje(0.15)) // Casas
-            .Concat(_lightPoles.GetModelosConPorcentaje(0.15))
+        var modelos = _trees.GetModelosConPorcentaje(0.75)
+            .Concat(_rocks.GetModelosConPorcentaje(0.20))
+            .Concat(_houses.GetModelosConPorcentaje(0.025))
+            .Concat(_lightPoles.GetModelosConPorcentaje(0.025))
             .ToList();
-        var modelos2 = _trees.GetModelosConPorcentaje(1.0).ToList(); // Arboles
         
         _positionGenerator.GenerarPosicionesReservadas();
-        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa, 1000);
-        _positionGenerator.AgregarPosiciones(modelos2, colorMap, EscalaMapa, 500);
-
+        _positionGenerator.AgregarPosiciones(modelos, colorMap, EscalaMapa);
         
         _trees.CrearObjetos(normalMapTree2Leaves, normalMapTree2Bark, normalMapTreeLeaves, normalMapTallTree, normalMapTallTreeLeaves, _terrain);
         _rocks.CrearObjetos(normalMapRock, _terrain);
@@ -619,6 +617,7 @@ public class TGCGame : Game
                 // Actualizar la cámara (maneja el input del mouse)
                 if(IsActive)
                     _camera.Update(gameTime, _screenCenter);
+                
                 _orbitCamera.ConstrainAboveTerrain(_terrain, clearance: 30f, samples: 16);
                 _orbitCamera.ConstrainInsideWorldBorder(_worldBorder);
 
