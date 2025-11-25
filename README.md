@@ -39,12 +39,10 @@ TGC, Tgcito  |  Apellido, Nombre
 
 ## Capturas
 
-![Menu](/capturas/Screenshot 2025-11-25 16-05-38.jpg)
-![Juego1]("/capturas/Screenshot 2025-11-25 16-07-53.jpg")
-![Juego2]("/capturas/Screenshot 2025-11-25 16-08-30.jpg")
-![Juego3]("/capturas/Screenshot 2025-11-25 16-08-42.jpg")
-![Juego4]("/capturas/Screenshot 2025-11-25 16-09-10.jpg")
-![Juego5]("/capturas/Screenshot 2025-11-25 16-09-37.jpg")
+![Menu](/capturas/Screenshot%202025-11-25%2016-05-38.jpg)
+![Juego1](/capturas/Screenshot%202025-11-25%2016-07-53.jpg)
+![Juego2](/capturas/Screenshot%202025-11-25%2016-08-42.jpg)
+![Juego3](/capturas/Screenshot%202025-11-25%2016-09-10.jpg)
 
 ## Game Play
 
