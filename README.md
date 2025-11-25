@@ -39,7 +39,7 @@ TGC, Tgcito  |  Apellido, Nombre
 
 ## Capturas
 
-![Menu]("/capturas/Screenshot 2025-11-25 16-05-38.jpg")
+![Menu](/capturas/Screenshot 2025-11-25 16-05-38.jpg)
 ![Juego1]("/capturas/Screenshot 2025-11-25 16-07-53.jpg")
 ![Juego2]("/capturas/Screenshot 2025-11-25 16-08-30.jpg")
 ![Juego3]("/capturas/Screenshot 2025-11-25 16-08-42.jpg")
